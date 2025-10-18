@@ -1,0 +1,15 @@
+# Block JetBrains IDE data
+.idea/
+.scratch/
+.DS_Store
+node_modules
+.nuxt
+_scratch
+unio.local.yaml
+playwright-report/
+
+# Cursor IDE files
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/*.mdc
+!.cursor/commands/
