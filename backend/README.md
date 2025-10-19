@@ -115,8 +115,11 @@ bin/rails db:reset
 ### Code Quality
 
 ```bash
-# Run Rubocop
-bin/rubocop
+# Run StandardRB linter
+bin/standardrb
+
+# Fix StandardRB issues automatically
+bin/standardrb --fix
 
 # Run Brakeman security scan
 bin/brakeman
