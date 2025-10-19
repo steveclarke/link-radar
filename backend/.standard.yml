@@ -7,4 +7,5 @@ ignore:
   - spec/spec_helper.rb
 
 plugins:
-  - standard-rails
+  - standard-rails:
+      target_rails_version: 8.1

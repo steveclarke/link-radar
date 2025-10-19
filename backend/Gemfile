@@ -36,5 +36,8 @@ group :development, :test do
 
   # Ruby style guide, linter, and formatter [https://github.com/standardrb/standard]
   gem "standard", require: false
-  gem "standard-rails", require: false
+  # Using GitHub version to get fix for deprecated RuboCop config warnings
+  # (https://github.com/standardrb/standard-rails/issues/72)
+  # Safe to switch back to RubyGems once version > 1.4.0 is published
+  gem "standard-rails", github: "standardrb/standard-rails", require: false
 end
