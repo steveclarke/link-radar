@@ -1,0 +1,37 @@
+name: "linkradar"
+
+services:
+  postgres:
+    image: "postgres:18"
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - "postgres_data:/var/lib/postgresql/data"
+    env_file:
+      - ".env"
+    environment:
+      POSTGRES_USER: "${POSTGRES_USER:-postgres}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-postgres}"
+      POSTGRES_DB: "linkradar_development"
+    healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U postgres"]
+        interval: 5s
+        timeout: 5s
+        retries: 5
+
+  redis:
+    image: "redis:7"
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - "redis_data:/data"
+
+  maildev:
+    image: maildev/maildev
+    ports:
+      - "${MAILDEV_WEB_PORT:-1080}:1080"
+      - "${MAILDEV_SMTP_PORT:-1025}:1025"
+
+volumes:
+  postgres_data:
+  redis_data:

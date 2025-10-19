@@ -13,59 +13,76 @@ Rails 8.1 API backend for LinkRadar - a personal knowledge radar for capturing a
 ## Prerequisites
 
 - Ruby 3.4.x (managed via mise)
-- Docker (for PostgreSQL development instance)
+- Docker and Docker Compose (for backend services)
+- Rails credentials master key (stored in 1Password under the `link-radar` vault)
 
 ## Getting Started
 
-### 1. Install Dependencies
+### Quick Start
+
+The easiest way to get the backend running is to use our automated setup scripts:
+
+#### 1. Prepare Your Master Key
+
+Before running setup, have your `config/master.key` ready. This is used to decrypt Rails credentials. 
+
+**Note:** The Rails master key is stored in 1Password under the `link-radar` vault.
+
+#### 2. Start Backend Services
+
+In one terminal, start the Docker Compose services (PostgreSQL, Redis, etc.):
 
 ```bash
-bundle install
+bin/services
 ```
 
-### 2. Start PostgreSQL
+This will start all backend services in the foreground. Leave this running. Press Ctrl+C to stop all services.
 
-For development, we provide a temporary PostgreSQL 18 Docker instance:
+The services include:
+- **PostgreSQL 18** on `localhost:5432`
+- Additional services will be added here as the project grows
+
+#### 3. Run Setup
+
+In a new terminal, run the setup script:
 
 ```bash
-./script/dev-postgres
+bin/setup
 ```
 
-This will start PostgreSQL in the foreground with the following credentials:
-- Host: `localhost`
-- Port: `5432`
-- User: `postgres`
-- Password: `postgres`
-- Database: `backend_development`
+This will:
+- Check that PostgreSQL is running
+- Install Ruby dependencies
+- Copy `.env.sample` to `.env` (if needed)
+- Prompt for your `master.key` (if not present)
+- Install system dependencies (libvips, ffmpeg) on first run
+- Set up and prepare the database
+- Start the Rails development server
 
-Leave this running in a terminal. Press Ctrl+C to stop.
+**Options:**
+- `bin/setup --reset` - Reset the database before starting
+- `bin/setup --skip-server` - Set up without starting the server
 
-**Note:** This is a temporary setup. Production PostgreSQL will be configured in a future work item.
+#### 4. Verify Health Check
 
-### 3. Create Database
-
-In a new terminal:
-
-```bash
-bin/rails db:create
-bin/rails db:migrate
-```
-
-### 4. Start the Server
-
-```bash
-bin/rails server
-```
-
-The server will start on http://localhost:3000
-
-### 5. Verify Health Check
+Once the server is running (http://localhost:3000 by default):
 
 ```bash
 curl http://localhost:3000/up
 ```
 
 You should see a green HTML page indicating the system is healthy.
+
+**Note:** If port 3000 is already in use, set `PORT=3001` (or any available port) in your `.env` file.
+
+### Manual Setup (Advanced)
+
+If you prefer manual control or need to troubleshoot:
+
+1. Start services: `bin/services`
+2. Install dependencies: `bundle install`
+3. Set up database: `bin/rails db:prepare`
+4. Start server: `bin/dev`
 
 ## API Structure
 
@@ -89,6 +106,29 @@ Key configuration (to be documented as features are added):
 CORS is configured for Single Page Application (SPA) communication. See `config/initializers/cors.rb`.
 
 ## Development
+
+### Backend Services
+
+Manage all Docker Compose services (PostgreSQL, Redis, etc.):
+
+```bash
+# Start all services (foreground)
+bin/services
+
+# Start in detached mode (background)
+bin/services up -d
+
+# Stop all services
+bin/services down
+
+# View logs
+bin/services logs
+
+# Restart a specific service
+bin/services restart postgres
+```
+
+See `bin/services --help` for more options.
 
 ### Rails Console
 

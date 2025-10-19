@@ -1,0 +1,88 @@
+#!/usr/bin/env ruby
+require "fileutils"
+
+APP_ROOT = File.expand_path("..", __dir__)
+
+def system!(*args)
+  system(*args, exception: true)
+end
+
+def create_env_file_if_missing
+  env_file = File.join(APP_ROOT, ".env")
+  sample_file = File.join(APP_ROOT, ".env.sample")
+
+  if !File.exist?(env_file) && File.exist?(sample_file)
+    puts "Creating .env from .env.sample..."
+    FileUtils.cp sample_file, env_file
+  elsif !File.exist?(env_file)
+    puts "Warning: No .env or .env.sample file found. Using defaults."
+  end
+end
+
+def show_help
+  puts <<~HELP
+    Usage: #{File.basename($0)} [OPTIONS] [COMMAND]
+
+    Manage Docker Compose services for #{APP_ROOT}.
+
+    Options:
+      -d, --daemon  Run in daemon mode (detached)
+      -h, --help    Show this help message
+
+    Commands:
+      up            Start services (default)
+      down          Stop and remove services
+      logs          View service logs
+      restart       Restart services
+      ps            List running services
+      [any]         Pass any docker compose command
+
+    Port Configuration:
+      All service ports can be configured via .env file:
+        POSTGRES_PORT (default: 5432)
+        REDIS_PORT (default: 6379)
+        MAILDEV_WEB_PORT (default: 1080)
+        MAILDEV_SMTP_PORT (default: 1025)
+
+      To run multiple dev environments, override ports in your .env file.
+
+    Examples:
+      #{File.basename($0)}          # Start services in interactive mode
+      #{File.basename($0)} -d       # Start services in daemon mode
+      #{File.basename($0)} down     # Stop and remove services
+      #{File.basename($0)} logs -f  # Follow service logs
+  HELP
+  exit 0
+end
+
+FileUtils.chdir APP_ROOT do
+  # Parse options
+  daemon_mode = []
+  command = "up"
+
+  ARGV.each do |arg|
+    case arg
+    when "-h", "--help"
+      show_help
+    when "-d", "--daemon"
+      daemon_mode = ["-d"]
+    when "up", "down", "logs", "restart", "ps", "stop", "start"
+      command = arg
+    else
+      # Pass through any other arguments to docker compose
+      command = ARGV.join(" ")
+      break
+    end
+  end
+
+  # Create .env if missing
+  create_env_file_if_missing
+
+  # Execute docker compose command
+  if command == "up"
+    system! "docker", "compose", "up", *daemon_mode
+  else
+    # Pass through the full command to docker compose
+    exec "docker compose #{command}"
+  end
+end
