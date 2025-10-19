@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Developer initialization script
+# Sets up workspace and prepares development environment
+
+set -e
+
+echo "=== LinkRadar Development Setup ==="
+echo ""
+
+# Workspace setup
+WORKSPACE_FILE="link-radar.code-workspace"
+TEMPLATE_FILE="link-radar.code-workspace.template"
+
+if [ -f "$WORKSPACE_FILE" ]; then
+  echo "✓ Workspace file already exists: $WORKSPACE_FILE"
+  echo ""
+  echo "To customize it, edit $WORKSPACE_FILE directly."
+  echo "See project/guides/vscode-settings-guide.md for details."
+else
+  if [ ! -f "$TEMPLATE_FILE" ]; then
+    echo "✗ Error: Template file not found: $TEMPLATE_FILE"
+    exit 1
+  fi
+
+  echo "Creating your personal workspace file..."
+  cp "$TEMPLATE_FILE" "$WORKSPACE_FILE"
+  echo "✓ Created $WORKSPACE_FILE"
+fi
+
+echo ""
+echo "Next steps:"
+echo "  1. Open your workspace in VSCode/Cursor:"
+echo "     code $WORKSPACE_FILE"
+echo "     # or: cursor $WORKSPACE_FILE"
+echo ""
+echo "  2. Install recommended extensions when prompted:"
+echo "     - Ruby LSP (shopify.ruby-lsp)"
+echo "     - Standard Ruby (testdouble.vscode-standard-ruby)"
+echo "     - Debug (koichisasada.vscode-rdbg)"
+echo ""
+echo "  3. Start coding! Formatting and linting work automatically."
+echo ""
+echo "For detailed documentation, see:"
+echo "  project/guides/vscode-guide.md"
+echo ""
+echo "NOTE: This script will eventually handle:"
+echo "  - Database setup"
+echo "  - Dependency installation"
+echo "  - Environment configuration"
+echo "  - And other bootstrap tasks"
+

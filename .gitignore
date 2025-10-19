@@ -13,3 +13,7 @@ playwright-report/
 !.cursor/rules/
 !.cursor/rules/*.mdc
 !.cursor/commands/
+
+# Developer workspace files (personal, not committed)
+*.code-workspace
+!*.code-workspace.template

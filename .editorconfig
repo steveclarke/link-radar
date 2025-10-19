@@ -1,0 +1,50 @@
+# EditorConfig: https://editorconfig.org
+# Ensures consistent coding styles across different editors and IDEs
+
+root = true
+
+# Default settings for all files
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+max_line_length = 80
+
+# Ruby files
+[*.{rb,rake,ru}]
+indent_size = 2
+
+# Gemfile and related files
+[{Gemfile,Gemfile.lock,*.gemspec}]
+indent_size = 2
+
+# YAML files (configs, CI)
+[*.{yml,yaml}]
+indent_size = 2
+
+# JavaScript/JSON
+[*.{js,json,jsonc}]
+indent_size = 2
+
+# JSON files may have inconsistent newlines from tools
+[*.json]
+insert_final_newline = ignore
+
+# Minified files shouldn't be modified
+[**.min.js]
+indent_style = ignore
+insert_final_newline = ignore
+trim_trailing_whitespace = ignore
+
+# Markdown uses trailing spaces for line breaks
+[*.md]
+trim_trailing_whitespace = false
+max_line_length = off
+
+# Shell scripts
+[*.sh]
+indent_size = 2
+

@@ -1,0 +1,11 @@
+{
+  "recommendations": [
+    "editorconfig.editorconfig",
+    "esbenp.prettier-vscode",
+    "fooo.ruby-spec-runner",
+    "koichisasada.vscode-rdbg",
+    "redhat.vscode-yaml",
+    "shopify.ruby-lsp",
+    "testdouble.vscode-standard-ruby"
+  ]
+}

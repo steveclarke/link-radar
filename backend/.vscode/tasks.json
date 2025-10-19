@@ -1,0 +1,33 @@
+{
+  // See https://go.microsoft.com/fwlink/?LinkId=733558
+  // for the documentation about the tasks.json format
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Rails Server w/Docker Services",
+      "detail": "Start the Services, then Dev Server",
+      "type": "shell",
+      "dependsOn": ["Docker Services", "Rails Server"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Docker Services",
+      "detail": "Start the Docker-based services",
+      "type": "docker-compose",
+      "dockerCompose": {
+        "up": {
+          "detached": false,
+          "build": true
+        },
+        "files": ["${workspaceFolder}/compose.yml"]
+      }
+    },
+    {
+      "label": "Rails Server",
+      "detail": "Start the development server",
+      "type": "shell",
+      "command": "${workspaceFolder}/bin/start --debug",
+      "problemMatcher": []
+    }
+  ]
+}

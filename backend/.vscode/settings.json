@@ -1,0 +1,89 @@
+{
+  // ==============================================================================
+  // BACKEND VSCODE SETTINGS
+  // ==============================================================================
+  //
+  // NOTE: If these settings appear GRAYED OUT, it's because you opened VSCode/Cursor
+  // using the workspace file (link-radar.code-workspace). This is normal and expected!
+  //
+  // VSCode/Cursor has two ways to open a project:
+  //   1. Direct folder: "cursor backend/" or "code backend/"
+  //      → Uses these settings from backend/.vscode/settings.json ✓
+  //
+  //   2. Via workspace file: "cursor link-radar.code-workspace"
+  //      (VSCode calls this a "multi-root workspace")
+  //      → Ignores these settings, uses workspace file instead ✗
+  //
+  // To support BOTH workflows, these settings are intentionally duplicated in
+  // link-radar.code-workspace.template. That way formatting/linting work correctly
+  // whether you open the backend folder directly OR use the workspace file.
+  //
+  // See project/guides/vscode-guide.md for complete explanation.
+  // ==============================================================================
+
+  // Ruby Formatting
+  // ---------------
+  // We use the Standard Ruby extension (testdouble.vscode-standard-ruby) for
+  // formatting instead of Ruby LSP because it works reliably in both VSCode and
+  // Cursor. Ruby LSP provides all other IDE features (completion, go-to-def, etc).
+  "[ruby]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "testdouble.vscode-standard-ruby"
+  },
+
+  // Gemfile Formatting
+  // ------------------
+  // Format Gemfiles on save using the same Ruby formatter
+  "[Gemfile]": {
+    "editor.formatOnSave": true
+  },
+
+  // JSON Formatting
+  // ---------------
+  // Use Prettier for consistent JSON formatting across the team
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+
+  // YAML Formatting
+  // ---------------
+  // Use RedHat's YAML extension for formatting YAML files (config, CI, etc)
+  "[yaml]": {
+    "editor.defaultFormatter": "redhat.vscode-yaml",
+    "editor.formatOnSave": true
+  },
+
+  // Ruby LSP Configuration
+  // ----------------------
+  // Ruby LSP provides IDE features. Standard Ruby extension handles formatting.
+
+  // Tell Ruby LSP to use Standard Ruby for diagnostics/linting
+  // (Formatting is handled by the Standard Ruby extension above, not Ruby LSP)
+  "rubyLsp.formatter": "standard",
+  "rubyLsp.linters": ["standard"],
+
+  // Enable all Ruby LSP IDE features
+  // These provide hover documentation, go-to-definition, completion, etc.
+  // Note: "formatting" is enabled here for Ruby LSP awareness, but actual
+  // formatting is done by the Standard Ruby extension (editor.defaultFormatter above)
+  "rubyLsp.enabledFeatures": {
+    "codeActions": true, // Quick fixes, refactorings
+    "diagnostics": true, // Show linting errors inline
+    "documentHighlights": true, // Highlight symbol occurrences
+    "documentLink": true, // Make source comments clickable
+    "documentSymbols": true, // File outline, breadcrumbs
+    "foldingRanges": true, // Code folding
+    "formatting": true, // Format document command
+    "hover": true, // Show documentation on hover
+    "inlayHint": true, // Inline type hints
+    "onTypeFormatting": true, // Format as you type
+    "selectionRanges": true, // Smart selection expansion
+    "semanticHighlighting": true, // Better syntax coloring
+    "completion": true, // Autocomplete suggestions
+    "codeLens": true, // Inline actionable buttons
+    "definition": true, // Go to definition
+    "workspaceSymbol": true, // Project-wide symbol search
+    "signatureHelp": true // Method parameter hints
+  }
+}

@@ -116,6 +116,49 @@ LinkRadar is being developed in the open as a personal project to solve a real p
 - LLM agent integration capabilities
 - Self-hosted deployment options
 
+### Development Setup
+
+**Quick Start**
+
+Run the initialization script to set up your development environment:
+
+```bash
+bin/dev-init
+```
+
+This creates your personal workspace file with all formatter/linter settings pre-configured.
+
+**Using VSCode/Cursor (Recommended)**
+
+After running `bin/dev-init`, open the workspace:
+
+```bash
+code link-radar.code-workspace  # or 'cursor' if using Cursor
+```
+
+Install recommended extensions when prompted. Formatting and linting work automatically.
+
+**Two Workflows Supported:**
+
+1. **Workspace workflow** (recommended): See all folders (backend, project, docs)
+   - Run `bin/dev-init` then open `link-radar.code-workspace`
+   
+2. **Single-folder workflow**: Focused backend development
+   - Open `backend/` directly: `code backend/` or `cursor backend/`
+
+Both workflows get identical formatter/linter settings automatically.
+
+**Settings Documentation**
+
+Settings are intentionally duplicated to work in both workflows:
+- `backend/.vscode/settings.json` - Works when opening backend directly
+- `link-radar.code-workspace` - Works when opening via workspace (personal, gitignored)
+
+For complete documentation on why settings are structured this way, see:
+- [VSCode Guide](project/guides/vscode-guide.md)
+
+**Note:** Your workspace file is gitignored. You can customize folder structure without affecting other developers.
+
 ### Tech Stack
 
 - **Backend**: Rails 8.1 (API-only), Ruby 3.4.x, PostgreSQL 18, Falcon

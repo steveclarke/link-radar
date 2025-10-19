@@ -1,0 +1,154 @@
+{
+  // ==============================================================================
+  // LINKRADAR WORKSPACE TEMPLATE
+  // ==============================================================================
+  //
+  // This is a template for your personal workspace file.
+  //
+  // SETUP:
+  // 1. Run: bin/dev-init (copies this to link-radar.code-workspace)
+  // 2. Open: code link-radar.code-workspace (or 'cursor' if using Cursor)
+  // 3. Install recommended extensions when prompted
+  //
+  // CUSTOMIZATION:
+  // - Add your own folders to the "folders" array below
+  // - Adjust folder paths if your setup is different
+  // - Your personal workspace file (link-radar.code-workspace) is gitignored
+  //
+  // See project/guides/vscode-guide.md for full documentation
+  // ==============================================================================
+
+  "folders": [
+    {
+      "name": "backend",
+      "path": "backend"
+    },
+    {
+      "name": "project",
+      "path": "project"
+    },
+    {
+      "name": "root",
+      "path": "."
+    }
+    // Add your own folders here if needed, e.g.:
+    // {
+    //   "name": "my-notes",
+    //   "path": "../my-notes"
+    // }
+  ],
+
+  "settings": {
+    // ===========================================================================
+    // WORKSPACE SETTINGS
+    // ===========================================================================
+    //
+    // These settings are duplicated from backend/.vscode/settings.json because
+    // VSCode multi-root workspaces ignore folder .vscode/ settings. This ensures
+    // formatter/linter settings work when opening via workspace file.
+    // ===========================================================================
+
+    // UI Settings
+    // -----------
+
+    // Hide redundant folders when viewing the root folder
+    // (backend and project are already visible as separate workspace folders)
+    "files.exclude": {
+      "backend": true,
+      "project": true
+    },
+    "search.exclude": {
+      "backend": true,
+      "project": true
+    },
+
+    // Show vertical ruler at 80 characters (Ruby style guide recommendation)
+    "editor.rulers": [80],
+
+    // File associations for syntax highlighting
+    "files.associations": {
+      "*.css": "tailwindcss"
+    },
+
+    // ===========================================================================
+    // FORMATTER & LINTER SETTINGS
+    // ===========================================================================
+    // These are identical to backend/.vscode/settings.json
+    // See that file for detailed comments on each setting
+    // ===========================================================================
+
+    // Ruby Formatting
+    // ---------------
+    // Using Standard Ruby extension for formatting (reliable in VSCode & Cursor)
+    // Ruby LSP provides IDE features (completion, go-to-def, diagnostics)
+    "[ruby]": {
+      "editor.formatOnSave": true,
+      "editor.defaultFormatter": "testdouble.vscode-standard-ruby"
+    },
+
+    // Gemfile Formatting
+    "[Gemfile]": {
+      "editor.formatOnSave": true
+    },
+
+    // JSON Formatting
+    // ---------------
+    // Use Prettier for consistent JSON formatting
+    "[json]": {
+      "editor.defaultFormatter": "esbenp.prettier-vscode",
+      "editor.formatOnSave": true
+    },
+
+    // YAML Formatting
+    // ---------------
+    // Use RedHat's YAML extension for config/CI files
+    "[yaml]": {
+      "editor.defaultFormatter": "redhat.vscode-yaml",
+      "editor.formatOnSave": true
+    },
+
+    // Ruby LSP Configuration
+    // ----------------------
+    // Tells Ruby LSP to use Standard for diagnostics/linting
+    "rubyLsp.formatter": "standard",
+    "rubyLsp.linters": ["standard"],
+
+    // Enable all Ruby LSP IDE features
+    "rubyLsp.enabledFeatures": {
+      "codeActions": true,
+      "diagnostics": true,
+      "documentHighlights": true,
+      "documentLink": true,
+      "documentSymbols": true,
+      "foldingRanges": true,
+      "formatting": true,
+      "hover": true,
+      "inlayHint": true,
+      "onTypeFormatting": true,
+      "selectionRanges": true,
+      "semanticHighlighting": true,
+      "completion": true,
+      "codeLens": true,
+      "definition": true,
+      "workspaceSymbol": true,
+      "signatureHelp": true
+    }
+  },
+
+  "extensions": {
+    "recommendations": [
+      // Ruby development
+      "shopify.ruby-lsp",
+      "testdouble.vscode-standard-ruby",
+      "koichisasada.vscode-rdbg",
+      "fooo.ruby-spec-runner",
+
+      // General development
+      "editorconfig.editorconfig",
+      "mikestead.dotenv",
+      "esbenp.prettier-vscode",
+      "redhat.vscode-yaml"
+    ]
+  }
+}
+
