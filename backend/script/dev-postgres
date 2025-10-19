@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Temporary PostgreSQL 18 instance for development
+# This will be replaced by proper PostgreSQL setup in a future card
+
+set -e
+
+CONTAINER_NAME="linkradar-dev-postgres"
+POSTGRES_VERSION="18"
+POSTGRES_USER="postgres"
+POSTGRES_PASSWORD="postgres"
+POSTGRES_DB="backend_development"
+PORT="5432"
+
+echo "🚀 Starting PostgreSQL ${POSTGRES_VERSION} for development..."
+echo ""
+echo "Connection details:"
+echo "  Host:     localhost"
+echo "  Port:     ${PORT}"
+echo "  User:     ${POSTGRES_USER}"
+echo "  Password: ${POSTGRES_PASSWORD}"
+echo "  Database: ${POSTGRES_DB}"
+echo ""
+echo "Press Ctrl+C to stop the database"
+echo "----------------------------------------"
+echo ""
+
+# Remove container if it already exists
+docker rm -f ${CONTAINER_NAME} 2>/dev/null || true
+
+# Run PostgreSQL in foreground (no -d flag)
+docker run --rm \
+  --name ${CONTAINER_NAME} \
+  -e POSTGRES_USER=${POSTGRES_USER} \
+  -e POSTGRES_PASSWORD=${POSTGRES_PASSWORD} \
+  -e POSTGRES_DB=${POSTGRES_DB} \
+  -p ${PORT}:5432 \
+  postgres:${POSTGRES_VERSION}
+
