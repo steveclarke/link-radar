@@ -83,9 +83,41 @@ See [project/future.md](project/future.md) for detailed roadmap.
 
 LinkRadar works at 100% capacity even if you never review anything. Just dump links and search later. But if you want to organize and refine, the power is there.
 
+## Project Structure
+
+LinkRadar is a monorepo containing:
+
+- **`backend/`** - Rails 8.1 API (Ruby 3.3.7, PostgreSQL 18)
+- **`project/`** - Planning documents and work items
+
+Additional components coming soon:
+- Frontend SPA (Vue 3 + Nuxt)
+- CLI tool
+- Browser extension
+
 ## Installation
 
-_Note: LinkRadar is currently in development. Installation instructions will be added as components are built._
+### Backend Setup
+
+```bash
+cd backend
+
+# Install dependencies
+bundle install
+
+# Start PostgreSQL (temporary dev instance)
+./script/dev-postgres
+
+# In another terminal, create and migrate database
+bin/rails db:create db:migrate
+
+# Start the server
+bin/rails server
+```
+
+See [backend/README.md](backend/README.md) for detailed setup instructions.
+
+_Note: Additional components will have installation instructions added as they are built._
 
 ## Usage
 
@@ -100,15 +132,26 @@ LinkRadar is being developed in the open as a personal project to solve a real p
 - LLM agent integration capabilities
 - Self-hosted deployment options
 
+### Tech Stack
+
+- **Backend**: Rails 8.1 (API-only), PostgreSQL 18, Falcon
+- **Frontend**: Vue 3, Nuxt, TypeScript (planned)
+- **CLI**: Ruby (planned)
+- **Extension**: JavaScript/TypeScript (planned)
+
 ## Project Status
 
-🚧 **Currently in vision and planning phase**
+🚧 **Currently in active development**
 
 - [x] Vision document
 - [x] Future roadmap
-- [ ] Requirements specification
-- [ ] Technical specification
-- [ ] Implementation
+- [x] Technical specification
+- [x] Core infrastructure setup (in progress - LR001)
+  - [x] Rails 8.1 API skeleton
+  - [ ] Database configuration with UUIDv7
+  - [ ] API versioning structure
+  - [ ] CORS configuration
+- [ ] Core features implementation
 
 ## Contributing
 
@@ -128,5 +171,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Status**: In Development | **Version**: 0.1.0 (Planning Phase)
+**Status**: Active Development | **Version**: 0.1.0-alpha | **Current Work**: LR001 Core Infrastructure
 
