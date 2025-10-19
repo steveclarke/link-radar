@@ -50,4 +50,9 @@ Rails.application.configure do
 
   # Raise error when a before_action's only/except options reference missing actions.
   config.action_controller.raise_on_missing_callback_actions = true
+
+  #---------------------------------------------------------------------------
+  #                     MAKE ALL CUSTOMIZATIONS BELOW
+  #  This makes it easier when doing upgrades to see what has been changed.
+  #---------------------------------------------------------------------------
 end
