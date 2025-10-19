@@ -5,12 +5,17 @@
 
 # Read more: https://github.com/cyu/rack-cors
 
-# Rails.application.config.middleware.insert_before 0, Rack::Cors do
-#   allow do
-#     origins "example.com"
-#
-#     resource "*",
-#       headers: :any,
-#       methods: [:get, :post, :put, :patch, :delete, :options, :head]
-#   end
-# end
+Rails.application.config.middleware.insert_before 0, Rack::Cors do
+  allow do
+    origins CoreConfig.new.cors_origins
+
+    resource "*",
+      headers: :any,
+      credentials: true,
+      methods: %i[get post put patch delete options head],
+      expose: [
+        "X-LinkRadar-Version",
+        "Content-Disposition" # Allows us to access filename from response headers in front-end
+      ]
+  end
+end

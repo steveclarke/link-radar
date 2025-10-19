@@ -31,3 +31,6 @@
 # Ignore key files for decrypting credentials and more.
 /config/*.key
 
+
+/config/*.local.yml
+/config/credentials/local.*
