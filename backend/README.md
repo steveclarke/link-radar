@@ -4,15 +4,15 @@ Rails 8.1 API backend for LinkRadar - a personal knowledge radar for capturing a
 
 ## Tech Stack
 
-- **Rails 8.1.0.rc1** (API-only mode)
-- **Ruby 3.3.7** (managed via mise)
+- **Rails 8.1** (API-only mode)
+- **Ruby 3.4.x** (managed via mise)
 - **PostgreSQL 18** with UUIDv7 primary keys
 - **Falcon** application server (planned)
 - **Rack Attack** for rate limiting (planned)
 
 ## Prerequisites
 
-- Ruby 3.3.7+ (managed via mise)
+- Ruby 3.4.x (managed via mise)
 - Docker (for PostgreSQL development instance)
 
 ## Getting Started

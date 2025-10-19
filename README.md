@@ -87,7 +87,7 @@ LinkRadar works at 100% capacity even if you never review anything. Just dump li
 
 LinkRadar is a monorepo containing:
 
-- **`backend/`** - Rails 8.1 API (Ruby 3.3.7, PostgreSQL 18)
+- **`backend/`** - Rails 8.1 API (Ruby 3.4.x, PostgreSQL 18)
 - **`project/`** - Planning documents and work items
 
 Additional components coming soon:
@@ -97,25 +97,9 @@ Additional components coming soon:
 
 ## Installation
 
-### Backend Setup
+See component-specific READMEs for setup instructions:
 
-```bash
-cd backend
-
-# Install dependencies
-bundle install
-
-# Start PostgreSQL (temporary dev instance)
-./script/dev-postgres
-
-# In another terminal, create and migrate database
-bin/rails db:create db:migrate
-
-# Start the server
-bin/rails server
-```
-
-See [backend/README.md](backend/README.md) for detailed setup instructions.
+- **Backend**: [backend/README.md](backend/README.md)
 
 _Note: Additional components will have installation instructions added as they are built._
 
@@ -134,7 +118,7 @@ LinkRadar is being developed in the open as a personal project to solve a real p
 
 ### Tech Stack
 
-- **Backend**: Rails 8.1 (API-only), PostgreSQL 18, Falcon
+- **Backend**: Rails 8.1 (API-only), Ruby 3.4.x, PostgreSQL 18, Falcon
 - **Frontend**: Vue 3, Nuxt, TypeScript (planned)
 - **CLI**: Ruby (planned)
 - **Extension**: JavaScript/TypeScript (planned)
