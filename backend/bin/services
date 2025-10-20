@@ -107,15 +107,11 @@ class ServicesRunner
 
   def execute_docker_command(options)
     if options[:command] == "up"
-      system!("docker", "compose", "up", *options[:daemon_mode])
+      LinkRadar::Support::RunnerSupport.system!("docker", "compose", "up", *options[:daemon_mode])
     else
       # Pass through the full command to docker compose
       exec "docker compose #{options[:command]}"
     end
-  end
-
-  def system!(*args)
-    system(*args, exception: true)
   end
 
   def show_additional_help

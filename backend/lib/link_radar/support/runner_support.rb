@@ -155,6 +155,25 @@ module LinkRadar
         puts ""
         exit 1
       end
+
+      # Execute a system command with error handling
+      #
+      # Runs a system command and raises an exception if it fails. Displays
+      # a formatted error message on failure.
+      #
+      # @param args [Array<String>] Command and arguments to execute
+      # @return [void]
+      # @raise [RuntimeError] If the command fails
+      #
+      # @example
+      #   RunnerSupport.system!("bundle", "install")
+      #   RunnerSupport.system!("bin/rails", "db:migrate")
+      def self.system!(*args)
+        system(*args, exception: true)
+      rescue
+        puts "\n❌ Command failed: #{args.join(" ")}"
+        raise
+      end
     end
   end
 end

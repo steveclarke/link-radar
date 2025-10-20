@@ -41,7 +41,7 @@ client = LinkRadar::Support::OnePasswordClient.new
 
 # Fetch by item ID (recommended—stable if renamed)
 secret = client.fetch_by_id(
-  item_id: "bnnbff4pii2cg6s6pp2mhn5f6a",
+  item_id: "abc123xyz",
   field: "credential",
   vault: "LinkRadar"
 )
@@ -105,6 +105,68 @@ end
 - Application configuration secrets
 - Anything that can be encrypted with `master.key`
 
+## Customizing master.key 1Password Configuration
+
+The `bin/setup` script automatically fetches `master.key` from 1Password. The default LinkRadar project configuration is defined in `SetupRunner::ONEPASSWORD_DEFAULTS`, but you can override it using environment variables:
+
+```bash
+# In your .env file or shell profile
+MASTER_KEY_OP_ITEM_ID="your-item-id-here"
+MASTER_KEY_OP_VAULT="YourVaultName"
+MASTER_KEY_OP_FIELD="credential"
+```
+
+**Default values:**
+- Item ID: (LinkRadar project's master.key item)
+- Vault: `LinkRadar`
+- Field: `credential`
+
+**When to customize:**
+- Testing with different 1Password items
+- Using a different vault organization
+- Team members with different 1Password setups
+- CI/CD pipelines with custom secret storage
+
+## Working Without 1Password CLI
+
+If you don't have 1Password CLI installed or prefer not to use it, you have several options:
+
+**Option 1: Skip 1Password Integration**
+
+Set `SKIP_ONEPASSWORD=true` in your `.env` file or shell:
+
+```bash
+# In .env or shell profile
+SKIP_ONEPASSWORD=true
+```
+
+The setup script will skip 1Password and fall back to other methods.
+
+**Option 2: Use RAILS_MASTER_KEY Environment Variable**
+
+```bash
+# In ~/.zshrc, ~/.bashrc, etc. (NOT in .env)
+export RAILS_MASTER_KEY=your-master-key-here
+```
+
+**Option 3: Manual Entry**
+
+If neither 1Password nor `RAILS_MASTER_KEY` is available, the setup script will prompt you to enter the master.key manually:
+
+```
+Enter your master.key: [input hidden]
+```
+
+**Option 4: Create master.key File Manually**
+
+```bash
+# Create the file with your key
+echo "your-master-key-here" > backend/config/master.key
+
+# Set secure permissions
+chmod 600 backend/config/master.key
+```
+
 ## Troubleshooting
 
 **"account is not signed in"**
@@ -118,6 +180,7 @@ end
 **CLI not found**
 - Install: `brew install 1password-cli`
 - Verify: `which op`
+- Or set `SKIP_ONEPASSWORD=true` to skip 1Password integration
 
 ## Documentation
 

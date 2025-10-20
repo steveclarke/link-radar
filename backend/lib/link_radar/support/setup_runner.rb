@@ -29,6 +29,14 @@ module LinkRadar
     #   runner = SetupRunner.new("/path/to/app")
     #   runner.run(["--reset"])
     class SetupRunner
+      APP_NAME = "link-radar"
+
+      ONEPASSWORD_DEFAULTS = {
+        item_id: "bnnbff4pii2cg6s6pp2mhn5f6a",
+        vault: "LinkRadar",
+        field: "credential"
+      }.freeze
+
       # @return [String] Path to application root directory
       attr_reader :app_root
 
@@ -82,7 +90,7 @@ module LinkRadar
       private
 
       def app_name
-        "link-radar"
+        APP_NAME
       end
 
       def parse_arguments(argv)
@@ -113,7 +121,7 @@ module LinkRadar
 
       def install_dependencies
         puts "\n== Installing dependencies =="
-        system("bundle check") || system!("bundle install")
+        system("bundle check") || RunnerSupport.system!("bundle install")
       end
 
       def create_env_file_if_missing
@@ -151,14 +159,23 @@ module LinkRadar
       end
 
       def fetch_master_key_from_onepassword
+        # Allow explicit skip for devs without 1Password
+        if ENV["SKIP_ONEPASSWORD"]
+          puts "  Skipping 1Password (SKIP_ONEPASSWORD is set)"
+          return nil
+        end
+
         # Allow customization via environment variables for testing/other developers
         # Defaults to LinkRadar project's 1Password configuration
-        item_id = ENV["MASTER_KEY_OP_ITEM_ID"] || "bnnbff4pii2cg6s6pp2mhn5f6a"
-        vault = ENV["MASTER_KEY_OP_VAULT"] || "LinkRadar"
-        field = ENV["MASTER_KEY_OP_FIELD"] || "credential"
+        item_id = ENV["MASTER_KEY_OP_ITEM_ID"] || ONEPASSWORD_DEFAULTS[:item_id]
+        vault = ENV["MASTER_KEY_OP_VAULT"] || ONEPASSWORD_DEFAULTS[:vault]
+        field = ENV["MASTER_KEY_OP_FIELD"] || ONEPASSWORD_DEFAULTS[:field]
 
         client = RunnerSupport.onepassword_client
-        return nil unless client.available?
+        unless client.available?
+          puts "  1Password CLI not available, skipping..."
+          return nil
+        end
 
         key = client.fetch_by_id(item_id: item_id, field: field, vault: vault)
         @key_source = "1Password (#{vault})" if key
@@ -180,24 +197,24 @@ module LinkRadar
       def install_apt_packages
         unless apt_package_installed?("libvips-dev")
           puts "\n== Installing libvips-dev =="
-          system!("sudo apt install -y libvips-dev")
+          RunnerSupport.system!("sudo apt install -y libvips-dev")
         end
 
         unless apt_package_installed?("ffmpeg")
           puts "\n== Installing ffmpeg =="
-          system!("sudo apt install -y ffmpeg")
+          RunnerSupport.system!("sudo apt install -y ffmpeg")
         end
       end
 
       def install_brew_packages
         unless system("brew list | grep -q vips")
           puts "\n== Installing vips =="
-          system! "brew install vips"
+          RunnerSupport.system! "brew install vips"
         end
 
         unless system("brew list | grep -q ffmpeg")
           puts "\n== Installing ffmpeg =="
-          system! "brew install ffmpeg"
+          RunnerSupport.system! "brew install ffmpeg"
         end
       end
 
@@ -205,22 +222,15 @@ module LinkRadar
         puts "\n== Preparing database =="
 
         if reset
-          system! "bin/rails db:reset"
+          RunnerSupport.system! "bin/rails db:reset"
         else
-          system! "bin/rails db:prepare"
+          RunnerSupport.system! "bin/rails db:prepare"
         end
       end
 
       def cleanup_logs
         puts "\n== Removing old logs and tempfiles =="
-        system! "bin/rails log:clear tmp:clear"
-      end
-
-      def system!(*args)
-        system(*args, exception: true)
-      rescue
-        puts "\n❌ Command failed: #{args.join(" ")}"
-        raise
+        RunnerSupport.system! "bin/rails log:clear tmp:clear"
       end
 
       def has_apt?

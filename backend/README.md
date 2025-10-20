@@ -149,12 +149,20 @@ Example endpoints (coming soon):
 
 Key configuration:
 - `DATABASE_URL` - PostgreSQL connection string (production)
-- `RAILS_MASTER_KEY` - Rails credentials encryption key (optional if using 1Password CLI)
 - `PORT` - Rails server port (default: 3000)
 - `POSTGRES_PORT` - PostgreSQL port (default: 5432)
 - `REDIS_PORT` - Redis port (default: 6379)
 - `MAILDEV_WEB_PORT` - MailDev web UI port (default: 1080)
 - `MAILDEV_SMTP_PORT` - MailDev SMTP port (default: 1025)
+
+**Rails Credentials:**
+- `RAILS_MASTER_KEY` - Can be set in shell environment (NOT `.env`) as fallback if not using 1Password CLI
+
+**1Password Configuration (optional):**
+- `SKIP_ONEPASSWORD` - Set to `true` to skip 1Password CLI integration (for developers without 1Password)
+- `MASTER_KEY_OP_ITEM_ID` - 1Password item ID for master.key (defaults to LinkRadar project item)
+- `MASTER_KEY_OP_VAULT` - 1Password vault name (default: `LinkRadar`)
+- `MASTER_KEY_OP_FIELD` - 1Password field name (default: `credential`)
 
 ### CORS
 
