@@ -4,6 +4,20 @@ require "optparse"
 require_relative "../lib/link_radar/support"
 
 # Docker Compose services runner for development environment
+#
+# This script manages Docker services required by the Rails application:
+# - PostgreSQL (database)
+# - Redis (caching/background jobs)
+# - MailDev (email testing)
+#
+# The script handles:
+# - Environment file creation (.env) if it doesn't exist
+# - Port configuration (manual or auto-discovery for multiple dev environments)
+# - Port conflict detection before starting services
+# - Docker Compose command execution with proper options
+#
+# Use --auto-ports when running multiple dev environments (e.g., git worktrees)
+# to automatically assign unique ports to avoid conflicts.
 class ServicesRunner
   attr_reader :app_root
 
@@ -15,15 +29,25 @@ class ServicesRunner
     FileUtils.chdir(app_root) do
       options = parse_arguments(argv)
 
+      # Ensure .env file exists
+      # Docker Compose needs this file for port configuration.
+      # Creates it with default values if missing.
       create_env_file_if_missing
 
+      # Configure and validate ports (only when starting services)
       if options[:command] == "up"
+        # Auto-discover available ports if requested
+        # This updates .env with ports that aren't in use
         if options[:auto_ports]
           auto_discover_and_set_ports
         end
+
+        # Check for port conflicts before starting
+        # Warns if any configured ports are already in use
         check_ports
       end
 
+      # Execute the Docker Compose command
       execute_docker_command(options)
     end
   end

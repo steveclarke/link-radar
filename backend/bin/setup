@@ -1,6 +1,20 @@
 #!/usr/bin/env ruby
 require_relative "../lib/link_radar/support"
 
-# Run the setup runner
+# Setup script for preparing the development environment
+#
+# This script ensures your Rails application is ready to run by:
+# - Installing/updating Ruby gem dependencies (bundle install)
+# - Creating/migrating the database (db:prepare)
+# - Setting up any additional application requirements
+#
+# Run this after cloning the repository or pulling updates that change
+# dependencies or database schema. It's safe to run multiple times.
+#
+# Usage:
+#   bin/setup              # Run all setup steps
+#   bin/setup --skip-deps  # Skip dependency installation
+#   bin/setup --help       # Show all available options
+
 APP_ROOT = File.expand_path("..", __dir__)
 LinkRadar::Support::SetupRunner.new(APP_ROOT).run(ARGV) if __FILE__ == $0

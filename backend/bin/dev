@@ -4,6 +4,12 @@ require "optparse"
 require_relative "../lib/link_radar/support"
 
 # Development server runner
+#
+# This script orchestrates starting the Rails development server with proper setup:
+# - Validates that required services (PostgreSQL) are running
+# - Runs bin/setup to ensure dependencies and database are ready
+# - Configures server port (manual, from .env, or auto-discovery)
+# - Starts the Rails server with optional debugging support
 class DevServerRunner
   attr_reader :app_root
 
@@ -15,19 +21,24 @@ class DevServerRunner
     options = parse_arguments(argv)
 
     FileUtils.chdir(app_root) do
-      # Check PostgreSQL is running (needed for Rails)
+      # Verify PostgreSQL is running
+      # Rails needs a database connection, so we check early and provide
+      # helpful instructions if the service isn't available
       LinkRadar::Support::RunnerSupport.check_postgres_or_exit("bin/services")
 
-      # Run setup unless explicitly skipped
+      # Run setup to prepare the application
+      # This installs gems, prepares the database, and ensures the app is ready.
+      # Can be skipped with --skip-setup for faster restarts
       unless options[:skip_setup]
         puts "== Running setup ==\n"
         LinkRadar::Support::SetupRunner.new(app_root).run([])
         puts ""
       end
 
-      # Determine port
+      # Determine which port to use
       port = if options[:auto_port]
-        # Auto-discover and assign available port
+        # Auto-discovery: find an available port and update .env
+        # Useful for running multiple dev environments (e.g., git worktrees)
         port_manager = LinkRadar::Support::PortManager.new(
           app_root,
           services: :rails_server
@@ -35,14 +46,15 @@ class DevServerRunner
         ports = port_manager.auto_discover_and_assign
         ports["PORT"].to_s
       else
-        # Load environment and get port from options, env, or default
+        # Manual: use --port flag, .env PORT variable, or default to 3000
         LinkRadar::Support::RunnerSupport.load_env_file(app_root)
         options[:port] || ENV["PORT"] || "3000"
       end
 
       bind = options[:bind]
 
-      # Start Rails server
+      # Start the Rails server
+      # Replaces this process with the Rails server for proper signal handling
       start_server(
         debug: options[:debug],
         bind: bind,
