@@ -1,8 +1,15 @@
 # 1Password CLI Quick Reference
 
-**What:** LinkRadar uses 1Password CLI to fetch bootstrap secrets (like `master.key`) with biometric authentication. The `OnePasswordClient` class (in `lib/one_password_client.rb`) handles all interactions.
+**What:** LinkRadar uses 1Password CLI to fetch secrets needed to set up the
+*application locally (like `master.key`) with biometric authentication. This is
+***only for developer workstations**—the `op` CLI integrates with your local
+*1Password desktop app. The `OnePasswordClient` class (in
+*`lib/one_password_client.rb`) handles all interactions.
 
-**Why:** Secure secret management without storing credentials in plaintext. Automatic fetch with biometric prompts.
+**Why:** Secure secret management for local development without storing
+*credentials in plaintext. Automatic fetch with biometric prompts when setting
+*up the app on your machine. Production and CI environments use different secret
+*management approaches.
 
 ## Setup (One-Time)
 
@@ -13,24 +20,11 @@ brew install 1password-cli
 # Enable desktop integration
 # 1Password app → Settings (⌘,) → Developer → Enable "Integrate with 1Password CLI"
 
-# Verify
+# Verify (will trigger biometric sign-in on first use)
 op whoami
 ```
 
-That's it. No `op signin` needed—biometric prompts appear automatically.
-
-## Where Things Live
-
-```
-backend/
-├── lib/link_radar/
-│   ├── support/
-│   │   ├── one_password_client.rb  # OnePasswordClient class
-│   │   ├── runner_support.rb       # RunnerSupport module
-│   │   └── setup_runner.rb         # SetupRunner class
-│   └── support.rb                  # Loader for all support utilities
-└── bin/setup                       # Auto-fetches master.key on setup
-```
+**Note:** On first use, you'll need to sign in with biometric authentication. Run `op signin` or any `op` command to trigger the biometric prompt.
 
 ## Quick Start
 
@@ -58,7 +52,7 @@ secret = client.fetch(
 
 | Task | Method | When to Use |
 |------|--------|-------------|
-| Fetch by ID | `client.fetch_by_id(item_id:, field:, vault:)` | Production code (stable) |
+| Fetch by ID | `client.fetch_by_id(item_id:, field:, vault:)` | Dev scripts (stable if item renamed) |
 | Fetch by name | `client.fetch(item:, field:, vault:)` | Quick scripts, exploration |
 | Check availability | `client.available?` | Before attempting fetch |
 | Get CLI path | `client.cli_path` | Debugging |
@@ -77,9 +71,9 @@ key = client.fetch_by_id(...) if client.available?
 ```ruby
 require_relative 'lib/link_radar/support'
 
-task :deploy do
+task :setup_local_env do
   client = LinkRadar::Support::OnePasswordClient.new
-  token = client.fetch_by_id(item_id: "xyz", field: "token", vault: "CI")
+  api_key = client.fetch_by_id(item_id: "xyz", field: "credential", vault: "LinkRadar")
 end
 ```
 
@@ -87,16 +81,15 @@ end
 
 - **Use item IDs, not names** - IDs won't break if items are renamed in 1Password
 - **Check availability first** - `client.available?` before fetch attempts
-- **Use Rails credentials for app secrets** - Only use `OnePasswordClient` for bootstrap/CI secrets
+- **Local development only** - Only use `OnePasswordClient` for setting up the app on developer workstations
 - **Let prompts happen** - The client uses `2>/dev/tty` to allow biometric prompts
 - **Fail gracefully** - Methods return `nil` on failure, not exceptions
 
 ## When to Use vs Rails Credentials
 
-**Use `OnePasswordClient`:**
-- `master.key` (can't encrypt itself)
-- CI/CD pipeline secrets
-- Pre-Rails bootstrap secrets
+**Use `OnePasswordClient` (local development only):**
+- `master.key` (needed to decrypt Rails credentials, can't encrypt itself)
+- Secrets needed during initial application setup on your machine
 - Developer-specific local credentials
 
 **Use Rails Credentials:**
@@ -104,10 +97,29 @@ end
 - Service URLs and tokens
 - Application configuration secrets
 - Anything that can be encrypted with `master.key`
+- **All production and CI secrets**
 
-## Customizing master.key 1Password Configuration
+## How LinkRadar Uses 1Password CLI
 
-The `bin/setup` script automatically fetches `master.key` from 1Password. The default LinkRadar project configuration is defined in `SetupRunner::ONEPASSWORD_DEFAULTS`, but you can override it using environment variables:
+LinkRadar uses the 1Password CLI in several places to fetch secrets during local development setup. These are secrets that can't be stored in git and need to be fetched securely on each developer's machine.
+
+### Fetching master.key During Setup
+
+The primary use case is fetching the Rails `master.key` during the `bin/setup` process. The `master.key` is needed to decrypt Rails credentials but can't encrypt itself, making it perfect for 1Password CLI integration.
+
+**How it works:**
+- When you run `bin/setup`, it automatically attempts to fetch `master.key` from 1Password
+- Uses biometric authentication via the desktop app
+- Creates `config/master.key` with the correct permissions
+
+**Default configuration:**
+- **Vault:** `LinkRadar`
+- **Item ID:** (LinkRadar project's master.key item)
+- **Field:** `credential`
+
+**Customizing the configuration:**
+
+If you need to use different 1Password items or vaults, you can override the defaults using environment variables:
 
 ```bash
 # In your .env file or shell profile
@@ -116,56 +128,10 @@ MASTER_KEY_OP_VAULT="YourVaultName"
 MASTER_KEY_OP_FIELD="credential"
 ```
 
-**Default values:**
-- Item ID: (LinkRadar project's master.key item)
-- Vault: `LinkRadar`
-- Field: `credential`
-
 **When to customize:**
 - Testing with different 1Password items
 - Using a different vault organization
 - Team members with different 1Password setups
-- CI/CD pipelines with custom secret storage
-
-## Working Without 1Password CLI
-
-If you don't have 1Password CLI installed or prefer not to use it, you have several options:
-
-**Option 1: Skip 1Password Integration**
-
-Set `SKIP_ONEPASSWORD=true` in your `.env` file or shell:
-
-```bash
-# In .env or shell profile
-SKIP_ONEPASSWORD=true
-```
-
-The setup script will skip 1Password and fall back to other methods.
-
-**Option 2: Use RAILS_MASTER_KEY Environment Variable**
-
-```bash
-# In ~/.zshrc, ~/.bashrc, etc. (NOT in .env)
-export RAILS_MASTER_KEY=your-master-key-here
-```
-
-**Option 3: Manual Entry**
-
-If neither 1Password nor `RAILS_MASTER_KEY` is available, the setup script will prompt you to enter the master.key manually:
-
-```
-Enter your master.key: [input hidden]
-```
-
-**Option 4: Create master.key File Manually**
-
-```bash
-# Create the file with your key
-echo "your-master-key-here" > backend/config/master.key
-
-# Set secure permissions
-chmod 600 backend/config/master.key
-```
 
 ## Troubleshooting
 
@@ -180,10 +146,10 @@ chmod 600 backend/config/master.key
 **CLI not found**
 - Install: `brew install 1password-cli`
 - Verify: `which op`
-- Or set `SKIP_ONEPASSWORD=true` to skip 1Password integration
 
 ## Documentation
 
 - **Official:** [1Password CLI Docs](https://developer.1password.com/docs/cli)
+- **Related:** [1Password Service Accounts Guide](1password-service-accounts-guide.md) (for production/staging/CI)
 - **Related:** [Configuration Management Guide](configuration-management-guide.md)
 
