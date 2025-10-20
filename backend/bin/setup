@@ -1,5 +1,5 @@
 #!/usr/bin/env ruby
-require_relative "../lib/link_radar/support"
+require_relative "../lib/link_radar/tooling"
 
 # Setup script for preparing the development environment
 #
@@ -17,4 +17,4 @@ require_relative "../lib/link_radar/support"
 #   bin/setup --help       # Show all available options
 
 APP_ROOT = File.expand_path("..", __dir__)
-LinkRadar::Support::SetupRunner.new(APP_ROOT).run(ARGV) if __FILE__ == $0
+LinkRadar::Tooling::SetupRunner.new(APP_ROOT).run(ARGV) if __FILE__ == $0

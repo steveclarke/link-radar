@@ -8,7 +8,7 @@ require "optparse"
 require_relative "runner_support"
 
 module LinkRadar
-  module Support
+  module Tooling
     # Idempotent setup runner for development environment
     #
     # Orchestrates the complete development environment setup process including:

@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 require "fileutils"
 require "optparse"
-require_relative "../lib/link_radar/support"
+require_relative "../lib/link_radar/tooling"
 
 # Development server runner
 #
@@ -24,14 +24,14 @@ class DevServerRunner
       # Verify PostgreSQL is running
       # Rails needs a database connection, so we check early and provide
       # helpful instructions if the service isn't available
-      LinkRadar::Support::RunnerSupport.check_postgres_or_exit("bin/services")
+      LinkRadar::Tooling::RunnerSupport.check_postgres_or_exit("bin/services")
 
       # Run setup to prepare the application
       # This installs gems, prepares the database, and ensures the app is ready.
       # Can be skipped with --skip-setup for faster restarts
       unless options[:skip_setup]
         puts "== Running setup ==\n"
-        LinkRadar::Support::SetupRunner.new(app_root).run([])
+        LinkRadar::Tooling::SetupRunner.new(app_root).run([])
         puts ""
       end
 
@@ -39,7 +39,7 @@ class DevServerRunner
       port = if options[:auto_port]
         # Auto-discovery: find an available port and update .env
         # Useful for running multiple dev environments (e.g., git worktrees)
-        port_manager = LinkRadar::Support::PortManager.new(
+        port_manager = LinkRadar::Tooling::PortManager.new(
           app_root,
           services: :rails_server
         )
@@ -47,7 +47,7 @@ class DevServerRunner
         ports["PORT"].to_s
       else
         # Manual: use --port flag, .env PORT variable, or default to 3000
-        LinkRadar::Support::RunnerSupport.load_env_file(app_root)
+        LinkRadar::Tooling::RunnerSupport.load_env_file(app_root)
         options[:port] || ENV["PORT"] || "3000"
       end
 

@@ -5,11 +5,11 @@
 require "open3"
 
 module LinkRadar
-  module Support
+  module Tooling
     # Client for interacting with 1Password CLI to fetch secrets
     #
     # Usage:
-    #   client = LinkRadar::Support::OnePasswordClient.new
+    #   client = LinkRadar::Tooling::OnePasswordClient.new
     #
     #   if client.available?
     #     secret = client.fetch_by_id(

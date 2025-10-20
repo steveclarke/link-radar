@@ -6,7 +6,7 @@ require "fileutils"
 require_relative "one_password_client"
 
 module LinkRadar
-  module Support
+  module Tooling
     # Shared utilities for bin runner scripts
     #
     # Provides helper methods for environment file management, 1Password CLI

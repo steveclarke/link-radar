@@ -6,7 +6,7 @@ require "socket"
 require_relative "runner_support"
 
 module LinkRadar
-  module Support
+  module Tooling
     # Port management for development services
     #
     # Handles port conflict detection, auto-discovery of available ports,
