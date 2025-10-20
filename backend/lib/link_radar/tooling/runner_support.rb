@@ -136,24 +136,23 @@ module LinkRadar
         system("docker compose ps -q postgres 2>/dev/null | grep -q .")
       end
 
-      # Check if PostgreSQL is running, exit with error message if not
+      # Warn user that PostgreSQL is not running
       #
-      # Verifies that the postgres docker compose service is running. If not,
-      # displays an error message and exits the process.
+      # Displays a helpful message instructing the user to start the postgres
+      # service using 'bin/services'.
       #
-      # @param suggest_command [String] Command to suggest running (default: "bin/services")
       # @return [void]
       #
       # @example
-      #   RunnerSupport.check_postgres_or_exit("bin/services")
-      def self.check_postgres_or_exit(suggest_command = "bin/services")
-        return if postgres_running?
-
+      #   unless RunnerSupport.postgres_running?
+      #     RunnerSupport.warn_postgres_not_running
+      #     exit 1
+      #   end
+      def self.warn_postgres_not_running
         puts "\n❌ PostgreSQL service is not running."
         puts ""
-        puts "Please run '#{suggest_command}' in another terminal first, then try again."
+        puts "Please run 'bin/services' in another terminal first, then try again."
         puts ""
-        exit 1
       end
 
       # Execute a system command with error handling

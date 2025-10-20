@@ -7,6 +7,9 @@ require_relative "runner_support"
 
 module LinkRadar
   module Tooling
+    # Custom exception for port discovery failures
+    class PortDiscoveryError < StandardError; end
+
     # Port management for development services
     #
     # Handles port conflict detection, auto-discovery of available ports,
@@ -35,6 +38,14 @@ module LinkRadar
 
       RAILS_SERVER = {
         "PORT" => 3000
+      }.freeze
+
+      SERVICE_NAMES = {
+        "PORT" => "Rails Server",
+        "POSTGRES_PORT" => "PostgreSQL",
+        "REDIS_PORT" => "Redis",
+        "MAILDEV_WEB_PORT" => "MailDev Web",
+        "MAILDEV_SMTP_PORT" => "MailDev SMTP"
       }.freeze
 
       attr_reader :app_root, :services
@@ -96,27 +107,15 @@ module LinkRadar
       #   ports = manager.auto_discover_and_assign
       #   #=> { "POSTGRES_PORT" => 5433, "REDIS_PORT" => 6380, ... }
       def auto_discover_and_assign
-        puts "🔍 Discovering available ports..."
-
-        discovered_ports = find_available_port_set(@services)
-
-        if discovered_ports.nil?
-          puts "❌ Could not find available ports after checking 50 offsets."
-          puts "Please manually configure ports in your .env file."
-          exit 1
-        end
-
-        # Persist to .env file via RunnerSupport
+        display_port_discovery_start
+        discovered_ports = find_available_port_set!(@services)
         RunnerSupport.update_env_file(@app_root, discovered_ports)
-
-        puts "📍 Assigned ports:"
-        discovered_ports.each do |env_var, port|
-          service_name = format_service_name(env_var)
-          puts "   #{service_name}: #{port}"
-        end
-        puts ""
-
+        display_assigned_ports(discovered_ports)
         discovered_ports
+      rescue PortDiscoveryError => e
+        puts "❌ #{e.message}"
+        puts "Please manually configure ports in your .env file."
+        exit 1
       end
 
       # Check for port conflicts and exit if any are found
@@ -169,13 +168,14 @@ module LinkRadar
       # Find an available set of ports by trying offsets from base ports
       #
       # Attempts to find a set of ports where all ports in the set are available.
-      # Tries up to 50 different offsets, incrementing each port by the offset.
+      # Tries multiple offsets, incrementing each port by the offset.
       #
       # @param base_ports [Hash<String, Integer>] Hash of env var names to base port numbers
-      # @return [Hash<String, Integer>, nil] Hash of available ports or nil if no set found
-      def find_available_port_set(base_ports)
-        # Try up to 50 different offsets
-        (0..49).each do |offset|
+      # @param max_attempts [Integer] Maximum number of offsets to try (default: 50)
+      # @return [Hash<String, Integer>] Hash of available ports
+      # @raise [PortDiscoveryError] If no available port set can be found
+      def find_available_port_set!(base_ports, max_attempts: 50)
+        (0...max_attempts).each do |offset|
           candidate_ports = base_ports.transform_values { |port| port + offset }
 
           # Check if all ports in this set are available
@@ -184,7 +184,7 @@ module LinkRadar
           return candidate_ports if all_available
         end
 
-        nil # Couldn't find an available set
+        raise PortDiscoveryError, "Could not find available ports after checking #{max_attempts} offsets."
       end
 
       # Format environment variable name to human-readable service name
@@ -192,22 +192,28 @@ module LinkRadar
       # @param env_var [String] Environment variable name (e.g., "POSTGRES_PORT")
       # @return [String] Formatted service name (e.g., "PostgreSQL")
       def format_service_name(env_var)
-        # Special cases for better formatting
-        case env_var
-        when "PORT"
-          "Rails Server"
-        when "POSTGRES_PORT"
-          "PostgreSQL"
-        when "REDIS_PORT"
-          "Redis"
-        when "MAILDEV_WEB_PORT"
-          "MailDev Web"
-        when "MAILDEV_SMTP_PORT"
-          "MailDev SMTP"
-        else
-          # Generic formatting: remove _PORT suffix and capitalize words
+        SERVICE_NAMES[env_var] ||
           env_var.sub("_PORT", "").split("_").map(&:capitalize).join(" ")
+      end
+
+      # Display port discovery start message
+      #
+      # @return [void]
+      def display_port_discovery_start
+        puts "🔍 Discovering available ports..."
+      end
+
+      # Display assigned ports
+      #
+      # @param ports [Hash<String, Integer>] Hash of environment variable names to assigned ports
+      # @return [void]
+      def display_assigned_ports(ports)
+        puts "📍 Assigned ports:"
+        ports.each do |env_var, port|
+          service_name = format_service_name(env_var)
+          puts "   #{service_name}: #{port}"
         end
+        puts ""
       end
 
       # Display port conflict error message with resolution options

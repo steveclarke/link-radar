@@ -11,59 +11,13 @@ require_relative "../lib/link_radar/tooling"
 # - Configures server port (manual, from .env, or auto-discovery)
 # - Starts the Rails server with optional debugging support
 class DevServerRunner
+  include LinkRadar::Tooling
+
   attr_reader :app_root
 
   def initialize(app_root)
     @app_root = app_root
   end
-
-  def run(argv)
-    options = parse_arguments(argv)
-
-    FileUtils.chdir(app_root) do
-      # Verify PostgreSQL is running
-      # Rails needs a database connection, so we check early and provide
-      # helpful instructions if the service isn't available
-      LinkRadar::Tooling::RunnerSupport.check_postgres_or_exit("bin/services")
-
-      # Run setup to prepare the application
-      # This installs gems, prepares the database, and ensures the app is ready.
-      # Can be skipped with --skip-setup for faster restarts
-      unless options[:skip_setup]
-        puts "== Running setup ==\n"
-        LinkRadar::Tooling::SetupRunner.new(app_root).run([])
-        puts ""
-      end
-
-      # Determine which port to use
-      port = if options[:auto_port]
-        # Auto-discovery: find an available port and update .env
-        # Useful for running multiple dev environments (e.g., git worktrees)
-        port_manager = LinkRadar::Tooling::PortManager.new(
-          app_root,
-          services: :rails_server
-        )
-        ports = port_manager.auto_discover_and_assign
-        ports["PORT"].to_s
-      else
-        # Manual: use --port flag, .env PORT variable, or default to 3000
-        LinkRadar::Tooling::RunnerSupport.load_env_file(app_root)
-        options[:port] || ENV["PORT"] || "3000"
-      end
-
-      bind = options[:bind]
-
-      # Start the Rails server
-      # Replaces this process with the Rails server for proper signal handling
-      start_server(
-        debug: options[:debug],
-        bind: bind,
-        port: port
-      )
-    end
-  end
-
-  private
 
   def parse_arguments(argv)
     options = {
@@ -118,6 +72,57 @@ class DevServerRunner
     parser.parse!(argv)
     options
   end
+
+  def run(argv)
+    options = parse_arguments(argv)
+
+    FileUtils.chdir(app_root) do
+      # Verify PostgreSQL is running
+      # Rails needs a database connection, so we check early and provide
+      # helpful instructions if the service isn't available
+      unless postgres_running?
+        warn_postgres_not_running
+        exit 1
+      end
+
+      # Run setup to prepare the application
+      # This installs gems, prepares the database, and ensures the app is ready.
+      # Can be skipped with --skip-setup for faster restarts
+      unless options[:skip_setup]
+        puts "== Running setup ==\n"
+        SetupRunner.new(app_root).run([])
+        puts ""
+      end
+
+      # Determine which port to use
+      port = if options[:auto_port]
+        # Auto-discovery: find an available port and update .env
+        # Useful for running multiple dev environments (e.g., git worktrees)
+        port_manager = PortManager.new(
+          app_root,
+          services: :rails_server
+        )
+        ports = port_manager.auto_discover_and_assign
+        ports["PORT"].to_s
+      else
+        # Manual: use --port flag, .env PORT variable, or default to 3000
+        load_env_file(app_root)
+        options[:port] || ENV["PORT"] || "3000"
+      end
+
+      bind = options[:bind]
+
+      # Start the Rails server
+      # Replaces this process with the Rails server for proper signal handling
+      start_server(
+        debug: options[:debug],
+        bind: bind,
+        port: port
+      )
+    end
+  end
+
+  private
 
   def start_server(debug:, bind:, port:)
     puts "== Starting development server =="

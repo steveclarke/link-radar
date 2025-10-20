@@ -74,7 +74,10 @@ module LinkRadar
           puts "== Setting up #{app_name} =="
 
           # Check PostgreSQL is running (needed for migrations)
-          RunnerSupport.check_postgres_or_exit("bin/services")
+          unless RunnerSupport.postgres_running?
+            RunnerSupport.warn_postgres_not_running
+            exit 1
+          end
 
           install_dependencies
           create_env_file_if_missing
