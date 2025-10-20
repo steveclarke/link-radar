@@ -1,2 +1,133 @@
 #!/usr/bin/env ruby
-exec "./bin/rails", "server", *ARGV
+require "fileutils"
+require "optparse"
+require_relative "../lib/link_radar/support"
+
+# Development server runner
+class DevServerRunner
+  attr_reader :app_root
+
+  def initialize(app_root)
+    @app_root = app_root
+  end
+
+  def run(argv)
+    options = parse_arguments(argv)
+
+    FileUtils.chdir(app_root) do
+      # Check PostgreSQL is running (needed for Rails)
+      LinkRadar::Support::RunnerSupport.check_postgres_or_exit("bin/services")
+
+      # Run setup unless explicitly skipped
+      unless options[:skip_setup]
+        puts "== Running setup ==\n"
+        LinkRadar::Support::SetupRunner.new(app_root).run([])
+        puts ""
+      end
+
+      # Determine port
+      port = if options[:auto_port]
+        # Auto-discover and assign available port
+        port_manager = LinkRadar::Support::PortManager.new(
+          app_root,
+          services: :rails_server
+        )
+        ports = port_manager.auto_discover_and_assign
+        ports["PORT"].to_s
+      else
+        # Load environment and get port from options, env, or default
+        LinkRadar::Support::RunnerSupport.load_env_file(app_root)
+        options[:port] || ENV["PORT"] || "3000"
+      end
+
+      bind = options[:bind]
+
+      # Start Rails server
+      start_server(
+        debug: options[:debug],
+        bind: bind,
+        port: port
+      )
+    end
+  end
+
+  private
+
+  def parse_arguments(argv)
+    options = {
+      debug: false,
+      bind: "0.0.0.0",
+      port: nil,
+      skip_setup: false,
+      auto_port: false
+    }
+
+    parser = OptionParser.new do |opts|
+      opts.banner = "Usage: #{File.basename($0)} [OPTIONS]"
+      opts.separator ""
+      opts.separator "Start the Rails development server."
+      opts.separator ""
+      opts.separator "Options:"
+
+      opts.on("-d", "--debug", "Run with rdbg debugger") do
+        options[:debug] = true
+      end
+
+      opts.on("-b", "--bind ADDRESS", "Bind to ADDRESS (default: 0.0.0.0)") do |address|
+        options[:bind] = address
+      end
+
+      opts.on("-p", "--port PORT", "Use PORT (default: from .env PORT or 3000)") do |port|
+        options[:port] = port
+      end
+
+      opts.on("-a", "--auto-port", "Auto-discover and assign available port") do
+        options[:auto_port] = true
+      end
+
+      opts.on("-s", "--skip-setup", "Skip running bin/setup first") do
+        options[:skip_setup] = true
+      end
+
+      opts.on("-h", "--help", "Show this help message") do
+        puts opts
+        puts ""
+        puts "Examples:"
+        puts "  #{File.basename($0)}         # Start server (runs setup first)"
+        puts "  #{File.basename($0)} -s      # Start server without setup"
+        puts "  #{File.basename($0)} -d      # Start with debugger"
+        puts "  #{File.basename($0)} -p 3001 # Start on port 3001"
+        puts "  #{File.basename($0)} -a      # Auto-discover available port"
+        puts "  #{File.basename($0)} -a -d   # Auto-port with debugger"
+        exit 0
+      end
+    end
+
+    parser.parse!(argv)
+    options
+  end
+
+  def start_server(debug:, bind:, port:)
+    puts "== Starting development server =="
+    puts "   Bind: #{bind}"
+    puts "   Port: #{port}"
+    puts "   Debug: #{debug ? 'enabled' : 'disabled'}"
+    puts ""
+
+    $stdout.flush # flush the output before exec(2) so that it displays
+
+    # exec replaces this Ruby process with the Rails server process
+    # This is intentional - we don't need the wrapper process anymore,
+    # and this ensures signal handling (Ctrl+C) works correctly
+    if debug
+      exec "bundle", "exec", "rdbg", "--nonstop", "--open", "--command", "--",
+           "bin/rails", "server", "-b", bind, "-p", port
+    else
+      exec "bin/rails", "server", "-b", bind, "-p", port
+    end
+  end
+end
+
+# Run the dev server runner
+APP_ROOT = File.expand_path("..", __dir__)
+DevServerRunner.new(APP_ROOT).run(ARGV) if __FILE__ == $0
