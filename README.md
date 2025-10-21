@@ -8,6 +8,28 @@ LinkRadar is a personal knowledge repository designed for voracious readers, res
 
 Unlike traditional bookmark managers that simply save links, LinkRadar acts as your personal "radar" — intelligently visualizing trends, momentum, and patterns in the content you save, helping you identify emerging technologies and topics worth your attention.
 
+## Table of Contents
+
+- [LinkRadar](#linkradar)
+  - [Overview](#overview)
+  - [Table of Contents](#table-of-contents)
+  - [The Problem](#the-problem)
+  - [The Solution](#the-solution)
+  - [Key Features](#key-features)
+    - [Version 1 (In Development)](#version-1-in-development)
+    - [Future Phases](#future-phases)
+  - [Core Philosophy](#core-philosophy)
+  - [Project Structure](#project-structure)
+  - [Installation](#installation)
+  - [Usage](#usage)
+  - [Development](#development)
+    - [Development Setup](#development-setup)
+    - [Tech Stack](#tech-stack)
+  - [Project Status](#project-status)
+  - [Contributing](#contributing)
+  - [Documentation](#documentation)
+  - [License](#license)
+
 ## The Problem
 
 Voracious readers and researchers face three fundamental challenges:

@@ -1,88 +1,172 @@
 #!/usr/bin/env ruby
 require "fileutils"
+require "optparse"
+require_relative "../lib/link_radar/tooling"
 
-APP_ROOT = File.expand_path("..", __dir__)
+# Docker Compose services runner for development environment
+#
+# This script manages Docker services required by the Rails application:
+# - PostgreSQL (database)
+# - Redis (caching/background jobs)
+# - MailDev (email testing)
+#
+# The script handles:
+# - Environment file creation (.env) if it doesn't exist
+# - Port configuration (manual or auto-discovery for multiple dev environments)
+# - Port conflict detection before starting services
+# - Docker Compose command execution with proper options
+#
+# Use --auto-ports when running multiple dev environments (e.g., git worktrees)
+# to automatically assign unique ports to avoid conflicts.
+class ServicesRunner
+  attr_reader :app_root
 
-def system!(*args)
-  system(*args, exception: true)
-end
-
-def create_env_file_if_missing
-  env_file = File.join(APP_ROOT, ".env")
-  sample_file = File.join(APP_ROOT, ".env.sample")
-
-  if !File.exist?(env_file) && File.exist?(sample_file)
-    puts "Creating .env from .env.sample..."
-    FileUtils.cp sample_file, env_file
-  elsif !File.exist?(env_file)
-    puts "Warning: No .env or .env.sample file found. Using defaults."
+  def initialize(app_root)
+    @app_root = app_root
   end
-end
 
-def show_help
-  puts <<~HELP
-    Usage: #{File.basename($0)} [OPTIONS] [COMMAND]
+  def run(argv)
+    FileUtils.chdir(app_root) do
+      options = parse_arguments(argv)
 
-    Manage Docker Compose services for #{APP_ROOT}.
+      # Ensure .env file exists
+      # Docker Compose needs this file for port configuration.
+      # Creates it with default values if missing.
+      create_env_file
 
-    Options:
-      -d, --daemon  Run in daemon mode (detached)
-      -h, --help    Show this help message
+      # Configure and validate ports (only when starting services)
+      if options[:command] == "up"
+        # Auto-discover available ports if requested
+        # This updates .env with ports that aren't in use
+        if options[:auto_ports]
+          auto_discover_and_set_ports
+        end
 
-    Commands:
-      up            Start services (default)
-      down          Stop and remove services
-      logs          View service logs
-      restart       Restart services
-      ps            List running services
-      [any]         Pass any docker compose command
+        # Check for port conflicts before starting
+        # Warns if any configured ports are already in use
+        check_for_port_conflicts
+      end
 
-    Port Configuration:
-      All service ports can be configured via .env file:
-        POSTGRES_PORT (default: 5432)
-        REDIS_PORT (default: 6379)
-        MAILDEV_WEB_PORT (default: 1080)
-        MAILDEV_SMTP_PORT (default: 1025)
-
-      To run multiple dev environments, override ports in your .env file.
-
-    Examples:
-      #{File.basename($0)}          # Start services in interactive mode
-      #{File.basename($0)} -d       # Start services in daemon mode
-      #{File.basename($0)} down     # Stop and remove services
-      #{File.basename($0)} logs -f  # Follow service logs
-  HELP
-  exit 0
-end
-
-FileUtils.chdir APP_ROOT do
-  # Parse options
-  daemon_mode = []
-  command = "up"
-
-  ARGV.each do |arg|
-    case arg
-    when "-h", "--help"
-      show_help
-    when "-d", "--daemon"
-      daemon_mode = ["-d"]
-    when "up", "down", "logs", "restart", "ps", "stop", "start"
-      command = arg
-    else
-      # Pass through any other arguments to docker compose
-      command = ARGV.join(" ")
-      break
+      # Execute the Docker Compose command
+      execute_docker_command(options)
     end
   end
 
-  # Create .env if missing
-  create_env_file_if_missing
+  private
 
-  # Execute docker compose command
-  if command == "up"
-    system! "docker", "compose", "up", *daemon_mode
-  else
-    # Pass through the full command to docker compose
-    exec "docker compose #{command}"
+  def parse_arguments(argv)
+    options = {
+      daemon_mode: [],
+      command: "up",
+      auto_ports: false
+    }
+
+    parser = OptionParser.new do |opts|
+      opts.banner = "Usage: #{File.basename($0)} [OPTIONS] [COMMAND]"
+      opts.separator ""
+      opts.separator "Manage Docker Compose services for #{app_root}."
+      opts.separator ""
+      opts.separator "Options:"
+
+      opts.on("-d", "--daemon", "Run in daemon mode (detached)") do
+        options[:daemon_mode] = ["-d"]
+      end
+
+      opts.on("-a", "--auto-ports", "Automatically find and assign available ports") do
+        options[:auto_ports] = true
+      end
+
+      opts.on("-h", "--help", "Show this help message") do
+        puts opts
+        show_additional_help
+        exit 0
+      end
+
+      opts.separator ""
+      opts.separator "Commands:"
+      opts.separator "  up            Start services (default)"
+      opts.separator "  down          Stop and remove services"
+      opts.separator "  logs          View service logs"
+      opts.separator "  restart       Restart services"
+      opts.separator "  ps            List running services"
+      opts.separator "  [any]         Pass any docker compose command"
+    end
+
+    # Parse options, leaving commands in place
+    parser.parse!(argv)
+
+    # Remaining arguments are the command
+    if argv.any?
+      known_commands = %w[up down logs restart ps stop start]
+      if known_commands.include?(argv.first)
+        options[:command] = argv.shift
+      else
+        # Pass through any other arguments to docker compose
+        options[:command] = argv.join(" ")
+      end
+    end
+
+    options
+  end
+
+  def create_env_file
+    LinkRadar::Tooling::RunnerSupport.create_env_file(app_root)
+  end
+
+  def auto_discover_and_set_ports
+    port_manager = LinkRadar::Tooling::PortManager.new(
+      app_root,
+      services: :backend_services
+    )
+    port_manager.auto_discover_and_set_ports
+  end
+
+  def check_for_port_conflicts
+    port_manager = LinkRadar::Tooling::PortManager.new(
+      app_root,
+      services: :backend_services
+    )
+    port_manager.check_for_port_conflicts
+  end
+
+  def execute_docker_command(options)
+    if options[:command] == "up"
+      LinkRadar::Tooling::RunnerSupport.system!("docker", "compose", "up", *options[:daemon_mode])
+    else
+      # Pass through the full command to docker compose
+      exec "docker compose #{options[:command]}"
+    end
+  end
+
+  def show_additional_help
+    puts <<~HELP
+
+      Port Configuration:
+        All service ports can be configured via .env file:
+          POSTGRES_PORT (default: 5432)
+          REDIS_PORT (default: 6379)
+          MAILDEV_WEB_PORT (default: 1080)
+          MAILDEV_SMTP_PORT (default: 1025)
+
+        To run multiple dev environments (e.g., git worktrees), you can:
+          1. Use --auto-ports to automatically find and assign available ports
+          2. Manually set ports in your .env file
+
+      Examples:
+        #{File.basename($0)}            # Start services in interactive mode
+        #{File.basename($0)} -a         # Auto-discover available ports and update .env
+        #{File.basename($0)} -d         # Start services in daemon mode
+        #{File.basename($0)} -a -d      # Auto-discover ports and run in daemon mode
+        #{File.basename($0)} down       # Stop and remove services
+        #{File.basename($0)} logs -f    # Follow service logs
+
+      Git Worktrees:
+        When working with multiple worktrees, use --auto-ports in each worktree
+        to automatically get a unique set of ports without conflicts.
+    HELP
   end
 end
+
+# Run the services runner
+APP_ROOT = File.expand_path("..", __dir__)
+ServicesRunner.new(APP_ROOT).run(ARGV) if __FILE__ == $0
