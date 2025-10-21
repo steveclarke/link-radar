@@ -4,8 +4,8 @@
 
 require "fileutils"
 require "io/console"
-require "optparse"
 require_relative "runner_support"
+require_relative "one_password_client"
 
 module LinkRadar
   module Tooling
@@ -23,11 +23,11 @@ module LinkRadar
     #
     # @example Basic usage
     #   runner = SetupRunner.new("/path/to/app")
-    #   runner.run(ARGV)
+    #   runner.run
     #
     # @example With database reset
     #   runner = SetupRunner.new("/path/to/app")
-    #   runner.run(["--reset"])
+    #   runner.run(reset: true)
     class SetupRunner
       APP_NAME = "link-radar"
 
@@ -35,6 +35,19 @@ module LinkRadar
         item_id: "bnnbff4pii2cg6s6pp2mhn5f6a",
         vault: "LinkRadar",
         field: "credential"
+      }.freeze
+
+      SYSTEM_PACKAGES = {
+        vips: {
+          apt: "libvips-dev",
+          brew: "vips",
+          description: "Image processing library"
+        },
+        ffmpeg: {
+          apt: "ffmpeg",
+          brew: "ffmpeg",
+          description: "Video/audio processing"
+        }
       }.freeze
 
       # @return [String] Path to application root directory
@@ -50,26 +63,20 @@ module LinkRadar
         @app_root = app_root
       end
 
-      # Run the setup process with given arguments
+      # Run the setup process
       #
-      # Parses command-line arguments and executes the complete setup sequence.
+      # Executes the complete setup sequence.
       # The process is idempotent and safe to run multiple times.
       #
-      # @param argv [Array<String>] Command-line arguments (e.g., ARGV)
+      # @param reset [Boolean] If true, resets the database before preparing
       # @return [void]
-      # @raise [SystemExit] Exits if --help flag is provided
       #
       # @example Run normal setup
-      #   runner.run([])
+      #   runner.run
       #
       # @example Reset database during setup
-      #   runner.run(["--reset"])
-      #
-      # @example Show help
-      #   runner.run(["--help"])  # Exits after showing help
-      def run(argv)
-        options = parse_arguments(argv)
-
+      #   runner.run(reset: true)
+      def run(reset: false)
         FileUtils.chdir(app_root) do
           puts "== Setting up #{app_name} =="
 
@@ -80,10 +87,10 @@ module LinkRadar
           end
 
           install_dependencies
-          create_env_file_if_missing
+          create_env_file
           check_master_key
           install_system_packages
-          prepare_database(options[:reset])
+          prepare_database(reset)
           cleanup_logs
 
           puts "\n✅ Setup complete!"
@@ -96,40 +103,14 @@ module LinkRadar
         APP_NAME
       end
 
-      def parse_arguments(argv)
-        options = {
-          reset: false
-        }
-
-        parser = OptionParser.new do |opts|
-          opts.banner = "Usage: #{File.basename($0)} [OPTIONS]"
-          opts.separator ""
-          opts.separator "Idempotent setup script for the development environment."
-          opts.separator ""
-          opts.separator "Options:"
-
-          opts.on("--reset", "Reset the database before preparing") do
-            options[:reset] = true
-          end
-
-          opts.on("-h", "--help", "Show this help message") do
-            puts opts
-            exit 0
-          end
-        end
-
-        parser.parse!(argv)
-        options
-      end
-
       def install_dependencies
         puts "\n== Installing dependencies =="
         system("bundle check") || RunnerSupport.system!("bundle install")
       end
 
-      def create_env_file_if_missing
+      def create_env_file
         puts "\n== Copying sample files =="
-        RunnerSupport.create_env_file_if_missing(app_root)
+        RunnerSupport.create_env_file(app_root)
       end
 
       def check_master_key
@@ -151,7 +132,7 @@ module LinkRadar
           key = $stdin.noecho(&:gets).chomp
           puts "" # newline after hidden input
         else
-          puts "✓ Retrieved master.key from #{key_source}"
+          puts "✓ Retrieved master.key from #{master_key_source}"
         end
         # rubocop:enable Rails/Blank
 
@@ -174,19 +155,19 @@ module LinkRadar
         vault = ENV["MASTER_KEY_OP_VAULT"] || ONEPASSWORD_DEFAULTS[:vault]
         field = ENV["MASTER_KEY_OP_FIELD"] || ONEPASSWORD_DEFAULTS[:field]
 
-        client = RunnerSupport.onepassword_client
+        client = OnePasswordClient.new
         unless client.available?
           puts "  1Password CLI not available, skipping..."
           return nil
         end
 
-        key = client.fetch_by_id(item_id: item_id, field: field, vault: vault)
-        @key_source = "1Password (#{vault})" if key
+        key = client.fetch(item: item_id, field: field, vault: vault)
+        @master_key_source = "1Password (#{vault})" if key
         key
       end
 
-      def key_source
-        @key_source || "environment variable"
+      def master_key_source
+        @master_key_source || "environment variable"
       end
 
       def install_system_packages
@@ -194,31 +175,40 @@ module LinkRadar
           install_apt_packages
         elsif has_macos?
           install_brew_packages
+        else
+          show_manual_install_message
         end
       end
 
       def install_apt_packages
-        unless apt_package_installed?("libvips-dev")
-          puts "\n== Installing libvips-dev =="
-          RunnerSupport.system!("sudo apt install -y libvips-dev")
-        end
-
-        unless apt_package_installed?("ffmpeg")
-          puts "\n== Installing ffmpeg =="
-          RunnerSupport.system!("sudo apt install -y ffmpeg")
+        SYSTEM_PACKAGES.each do |name, config|
+          unless apt_package_installed?(config[:apt])
+            puts "\n== Installing #{config[:apt]} (#{config[:description]}) =="
+            RunnerSupport.system!("sudo apt install -y #{config[:apt]}")
+          end
         end
       end
 
       def install_brew_packages
-        unless system("brew list | grep -q vips")
-          puts "\n== Installing vips =="
-          RunnerSupport.system! "brew install vips"
+        SYSTEM_PACKAGES.each do |name, config|
+          unless system("brew list | grep -q #{config[:brew]}")
+            puts "\n== Installing #{config[:brew]} (#{config[:description]}) =="
+            RunnerSupport.system!("brew install #{config[:brew]}")
+          end
+        end
+      end
+
+      def show_manual_install_message
+        puts "\n== System packages (manual installation required) =="
+        puts "Your system is not Ubuntu/Debian or macOS."
+        puts "Please install these packages using your package manager:\n\n"
+
+        SYSTEM_PACKAGES.each do |name, config|
+          puts "  • #{name} - #{config[:description]}"
+          puts "    (apt: #{config[:apt]}, brew: #{config[:brew]})"
         end
 
-        unless system("brew list | grep -q ffmpeg")
-          puts "\n== Installing ffmpeg =="
-          RunnerSupport.system! "brew install ffmpeg"
-        end
+        puts "\nContinuing setup..."
       end
 
       def prepare_database(reset = false)
@@ -237,11 +227,18 @@ module LinkRadar
       end
 
       def has_apt?
+        return false unless File.exist?("/etc/os-release")
+
+        os_release = File.read("/etc/os-release")
+        # Check if distro uses apt (Debian, Ubuntu, Linux Mint, Pop!_OS, etc.)
+        os_release.match?(/ID(_LIKE)?=.*(debian|ubuntu)/)
+      rescue
+        # Fallback to legacy detection for older systems
         File.exist?("/etc/lsb-release") || File.exist?("/etc/debian_version")
       end
 
       def has_macos?
-        RbConfig::CONFIG["host_os"].downcase.include?("darwin")
+        RUBY_PLATFORM.include?("darwin")
       end
 
       def apt_package_installed?(pkg)

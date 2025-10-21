@@ -19,6 +19,70 @@ class DevServerRunner
     @app_root = app_root
   end
 
+  def run(argv)
+    options = parse_arguments(argv)
+
+    FileUtils.chdir(app_root) do
+      # Verify required services are running
+      verify_services
+
+      # Run setup to prepare the application
+      run_setup(options)
+
+      # Determine which port to use
+      port = determine_port(options)
+      bind = options[:bind]
+
+      # Start the Rails server
+      start_server(
+        debug: options[:debug],
+        bind: bind,
+        port: port
+      )
+    end
+  end
+
+  private
+
+  def verify_services
+    # Verify PostgreSQL is running
+    # Rails needs a database connection, so we check early and provide
+    # helpful instructions if the service isn't available
+    unless RunnerSupport.postgres_running?
+      RunnerSupport.warn_postgres_not_running
+      exit 1
+    end
+  end
+
+  def run_setup(options)
+    # Run setup to prepare the application
+    # This installs gems, prepares the database, and ensures the app is ready.
+    # Can be skipped with --skip-setup for faster restarts
+    unless options[:skip_setup]
+      puts "== Running setup ==\n"
+      SetupRunner.new(app_root).run
+      puts ""
+    end
+  end
+
+  def determine_port(options)
+    # Determine which port to use for the Rails server
+    if options[:auto_port]
+      # Auto-discovery: find an available port and update .env
+      # Useful for running multiple dev environments (e.g., git worktrees)
+      port_manager = PortManager.new(
+        app_root,
+        services: :rails_server
+      )
+      ports = port_manager.auto_discover_and_set_ports
+      ports["RAILS_PORT"].to_s
+    else
+      # Manual: use --port flag, .env RAILS_PORT variable, or default to 3000
+      RunnerSupport.load_env_file(app_root)
+      options[:port] || ENV["RAILS_PORT"] || "3000"
+    end
+  end
+
   def parse_arguments(argv)
     options = {
       debug: false,
@@ -43,7 +107,7 @@ class DevServerRunner
         options[:bind] = address
       end
 
-      opts.on("-p", "--port PORT", "Use PORT (default: from .env PORT or 3000)") do |port|
+      opts.on("-p", "--port PORT", "Use PORT (default: from .env RAILS_PORT or 3000)") do |port|
         options[:port] = port
       end
 
@@ -72,57 +136,6 @@ class DevServerRunner
     parser.parse!(argv)
     options
   end
-
-  def run(argv)
-    options = parse_arguments(argv)
-
-    FileUtils.chdir(app_root) do
-      # Verify PostgreSQL is running
-      # Rails needs a database connection, so we check early and provide
-      # helpful instructions if the service isn't available
-      unless postgres_running?
-        warn_postgres_not_running
-        exit 1
-      end
-
-      # Run setup to prepare the application
-      # This installs gems, prepares the database, and ensures the app is ready.
-      # Can be skipped with --skip-setup for faster restarts
-      unless options[:skip_setup]
-        puts "== Running setup ==\n"
-        SetupRunner.new(app_root).run([])
-        puts ""
-      end
-
-      # Determine which port to use
-      port = if options[:auto_port]
-        # Auto-discovery: find an available port and update .env
-        # Useful for running multiple dev environments (e.g., git worktrees)
-        port_manager = PortManager.new(
-          app_root,
-          services: :rails_server
-        )
-        ports = port_manager.auto_discover_and_assign
-        ports["PORT"].to_s
-      else
-        # Manual: use --port flag, .env PORT variable, or default to 3000
-        load_env_file(app_root)
-        options[:port] || ENV["PORT"] || "3000"
-      end
-
-      bind = options[:bind]
-
-      # Start the Rails server
-      # Replaces this process with the Rails server for proper signal handling
-      start_server(
-        debug: options[:debug],
-        bind: bind,
-        port: port
-      )
-    end
-  end
-
-  private
 
   def start_server(debug:, bind:, port:)
     puts "== Starting development server =="

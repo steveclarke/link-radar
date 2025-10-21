@@ -14,14 +14,12 @@ Rails 8.1 API backend for LinkRadar - a personal knowledge radar for capturing a
       - [2. Start Backend Services](#2-start-backend-services)
       - [3. Start Development Server](#3-start-development-server)
       - [4. Verify Health Check](#4-verify-health-check)
-    - [Manual Setup (Advanced)](#manual-setup-advanced)
   - [API Structure](#api-structure)
   - [Configuration](#configuration)
     - [Environment Variables](#environment-variables)
     - [CORS](#cors)
     - [1Password CLI Integration](#1password-cli-integration)
   - [Development](#development)
-    - [Development Server](#development-server)
     - [Setup](#setup)
     - [Backend Services](#backend-services)
     - [Rails Console](#rails-console)
@@ -56,13 +54,14 @@ The easiest way to get the backend running is to use our automated scripts:
 The setup script automatically retrieves your Rails `master.key` in priority order:
 
 1. **1Password CLI** (recommended) - Automatic fetch with biometric prompt
-2. **`RAILS_MASTER_KEY` env var** - Set in `.env` or shell profile
+2. **`RAILS_MASTER_KEY` env var** - Set in shell environment/profile
 3. **Manual entry** - Prompts if neither above is available
 
 **Quick setup for 1Password CLI:**
 ```bash
 brew install 1password-cli
 # Enable in: 1Password app → Settings → Developer → Integrate with 1Password CLI
+op signin
 op whoami  # Verify (prompts for biometric auth)
 ```
 
@@ -83,6 +82,13 @@ The services include:
 - **Redis 7** on `localhost:6379`
 - **MailDev** on `localhost:1080` (web) and `localhost:1025` (SMTP)
 
+**Options:**
+- `bin/services -d` - Start in detached mode (background)
+- `bin/services --auto-ports` or `-a` - Auto-discover and use available ports
+- `bin/services down` - Stop all services
+- `bin/services logs -f` - Follow logs in real-time
+- `bin/services --help` - See all available options
+
 #### 3. Start Development Server
 
 In a new terminal, run:
@@ -94,7 +100,7 @@ bin/dev
 This single command will:
 - Check that PostgreSQL is running
 - Run the idempotent setup (dependencies, database, etc.)
-- Prompt for your `master.key` (if not present)
+- Fetch your `master.key` from 1Password CLI (if not present)
 - Start the Rails development server
 
 **Options:**
@@ -103,6 +109,7 @@ This single command will:
 - `bin/dev --port 3001` or `-p 3001` - Start on a specific port
 - `bin/dev --auto-port` or `-a` - Auto-discover and assign available port
 - `bin/dev --bind 127.0.0.1` or `-b 127.0.0.1` - Bind to a specific address
+- `bin/dev --help` - See all available options
 
 #### 4. Verify Health Check
 
@@ -113,26 +120,6 @@ curl http://localhost:3000/up
 ```
 
 You should see a green HTML page indicating the system is healthy.
-
-**Note:** If port 3000 is already in use, you can:
-- Use `bin/dev --auto-port` to automatically find and assign an available port
-- Use `bin/dev -p 3001` to manually specify a different port
-- Set `PORT=3001` (or any available port) in your `.env` file
-
-### Manual Setup (Advanced)
-
-If you prefer manual control or need to troubleshoot:
-
-1. Start services: `bin/services`
-2. Run setup: `bin/setup`
-3. Start server: `bin/dev --skip-setup`
-
-Or even more granular:
-
-1. Start services: `bin/services`
-2. Install dependencies: `bundle install`
-3. Set up database: `bin/rails db:prepare`
-4. Start server: `bin/rails server`
 
 ## API Structure
 
@@ -148,7 +135,6 @@ Example endpoints (coming soon):
 ### Environment Variables
 
 Key configuration:
-- `DATABASE_URL` - PostgreSQL connection string (production)
 - `PORT` - Rails server port (default: 3000)
 - `POSTGRES_PORT` - PostgreSQL port (default: 5432)
 - `REDIS_PORT` - Redis port (default: 6379)
@@ -156,7 +142,7 @@ Key configuration:
 - `MAILDEV_SMTP_PORT` - MailDev SMTP port (default: 1025)
 
 **Rails Credentials:**
-- `RAILS_MASTER_KEY` - Can be set in shell environment (NOT `.env`) as fallback if not using 1Password CLI
+- `RAILS_MASTER_KEY` - Can be set in shell environment as fallback if not using 1Password CLI
 
 **1Password Configuration (optional):**
 - `SKIP_ONEPASSWORD` - Set to `true` to skip 1Password CLI integration (for developers without 1Password)
@@ -170,46 +156,9 @@ CORS is configured for Single Page Application (SPA) communication. See `config/
 
 ### 1Password CLI Integration
 
-The `LinkRadar::Support::OnePasswordClient` class provides secure secret fetching with biometric authentication. Used for bootstrap secrets like `master.key`, CI/CD tokens, and developer credentials.
-
-```ruby
-require_relative 'lib/link_radar/support'
-
-client = LinkRadar::Support::OnePasswordClient.new
-secret = client.fetch_by_id(item_id: "abc", field: "password", vault: "MyVault")
-```
-
-**For most application secrets**, use Rails credentials (`bin/rails credentials:edit`).
-
-See the [1Password CLI Guide](../project/guides/backend/1password-cli-guide.md) for complete documentation.
+For complete documentation on using 1Password CLI for secret management, see the [1Password CLI Guide](../project/guides/backend/1password-cli-guide.md).
 
 ## Development
-
-### Development Server
-
-Start the Rails development server:
-
-```bash
-# Start server (runs setup automatically)
-bin/dev
-
-# Start without running setup
-bin/dev --skip-setup
-
-# Start with debugger
-bin/dev --debug
-
-# Start on custom port
-bin/dev -p 3001
-
-# Auto-discover and assign available port
-bin/dev --auto-port
-
-# Combine options
-bin/dev --skip-setup -d -a
-```
-
-See `bin/dev --help` for all options.
 
 ### Setup
 

@@ -3,21 +3,19 @@
 # rubocop:disable Rails/Output, Rails/Exit
 
 require "fileutils"
-require_relative "one_password_client"
+require "bundler/inline"
+
+gemfile do
+  source "https://rubygems.org"
+  gem "dotenv"
+end
 
 module LinkRadar
   module Tooling
     # Shared utilities for bin runner scripts
     #
-    # Provides helper methods for environment file management, 1Password CLI
-    # integration, and service verification. Used by bin/setup, bin/dev, and
-    # bin/services scripts.
-    #
-    # @example Load environment file
-    #   RunnerSupport.load_env_file("/path/to/app")
-    #
-    # @example Update environment file
-    #   RunnerSupport.update_env_file("/app", { "PORT" => 3001, "DEBUG" => "true" })
+    # Provides helper methods for environment file management and service
+    # verification. Used by bin/setup, bin/dev, and bin/services scripts.
     module RunnerSupport
       # Create .env file from .env.sample if it doesn't exist
       #
@@ -28,8 +26,8 @@ module LinkRadar
       # @return [void]
       #
       # @example
-      #   RunnerSupport.create_env_file_if_missing("/path/to/app")
-      def self.create_env_file_if_missing(app_root)
+      #   RunnerSupport.create_env_file("/path/to/app")
+      def self.create_env_file(app_root)
         env_file = File.join(app_root, ".env")
         sample_file = File.join(app_root, ".env.sample")
 
@@ -43,23 +41,16 @@ module LinkRadar
 
       # Load environment variables from .env file using dotenv gem
       #
-      # Uses bundler/inline to load the dotenv gem and parse the .env file.
-      # This allows environment variables to be available in the current process.
+      # Parses the .env file and makes environment variables available in the
+      # current process.
       #
       # @param app_root [String] Path to application root directory
       # @return [void]
       #
       # @example
       #   RunnerSupport.load_env_file("/path/to/app")
-      #   ENV["PORT"] #=> "3000"
+      #   ENV["RAILS_PORT"] #=> "3000"
       def self.load_env_file(app_root)
-        require "bundler/inline"
-
-        gemfile do
-          source "https://rubygems.org"
-          gem "dotenv"
-        end
-
         env_file = File.join(app_root, ".env")
         Dotenv.load(env_file) if File.exist?(env_file)
       end
@@ -110,20 +101,6 @@ module LinkRadar
 
         # Write back to file
         File.write(env_file, env_content)
-      end
-
-      # Get singleton instance of OnePasswordClient
-      #
-      # Returns a cached instance of OnePasswordClient for fetching secrets
-      # from 1Password CLI.
-      #
-      # @return [OnePasswordClient] Singleton instance of OnePasswordClient
-      #
-      # @example
-      #   client = RunnerSupport.onepassword_client
-      #   secret = client.fetch_by_id(item_id: "abc", field: "password", vault: "Dev")
-      def self.onepassword_client
-        @onepassword_client ||= OnePasswordClient.new
       end
 
       # Check if PostgreSQL service is running via docker compose

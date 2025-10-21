@@ -32,7 +32,7 @@ class ServicesRunner
       # Ensure .env file exists
       # Docker Compose needs this file for port configuration.
       # Creates it with default values if missing.
-      create_env_file_if_missing
+      create_env_file
 
       # Configure and validate ports (only when starting services)
       if options[:command] == "up"
@@ -44,7 +44,7 @@ class ServicesRunner
 
         # Check for port conflicts before starting
         # Warns if any configured ports are already in use
-        check_ports
+        check_for_port_conflicts
       end
 
       # Execute the Docker Compose command
@@ -109,8 +109,8 @@ class ServicesRunner
     options
   end
 
-  def create_env_file_if_missing
-    LinkRadar::Tooling::RunnerSupport.create_env_file_if_missing(app_root)
+  def create_env_file
+    LinkRadar::Tooling::RunnerSupport.create_env_file(app_root)
   end
 
   def auto_discover_and_set_ports
@@ -118,15 +118,15 @@ class ServicesRunner
       app_root,
       services: :backend_services
     )
-    port_manager.auto_discover_and_assign
+    port_manager.auto_discover_and_set_ports
   end
 
-  def check_ports
+  def check_for_port_conflicts
     port_manager = LinkRadar::Tooling::PortManager.new(
       app_root,
       services: :backend_services
     )
-    port_manager.check_for_conflicts
+    port_manager.check_for_port_conflicts
   end
 
   def execute_docker_command(options)

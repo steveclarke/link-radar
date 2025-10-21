@@ -21,34 +21,21 @@ module LinkRadar
     #
     # @example Auto-discover ports for backend services
     #   manager = PortManager.new(app_root, services: :backend_services)
-    #   ports = manager.auto_discover_and_assign
+    #   ports = manager.auto_discover_and_set_ports
     #   #=> { "POSTGRES_PORT" => 5432, "REDIS_PORT" => 6379, ... }
     #
     # @example Check for port conflicts
     #   manager = PortManager.new(app_root, services: :rails_server)
-    #   manager.check_for_conflicts #=> exits if conflicts found
+    #   manager.check_for_port_conflicts #=> exits if conflicts found
     class PortManager
-      # Preset service configurations
-      BACKEND_SERVICES = {
-        "POSTGRES_PORT" => 5432,
-        "REDIS_PORT" => 6379,
-        "MAILDEV_WEB_PORT" => 1080,
-        "MAILDEV_SMTP_PORT" => 1025
+      # Service configurations with all metadata
+      SERVICES = {
+        "RAILS_PORT" => {port: 3000, name: "Rails Server", group: :rails_server},
+        "POSTGRES_PORT" => {port: 5432, name: "PostgreSQL", group: :backend_services},
+        "REDIS_PORT" => {port: 6379, name: "Redis", group: :backend_services},
+        "MAILDEV_WEB_PORT" => {port: 1080, name: "MailDev Web", group: :backend_services},
+        "MAILDEV_SMTP_PORT" => {port: 1025, name: "MailDev SMTP", group: :backend_services}
       }.freeze
-
-      RAILS_SERVER = {
-        "PORT" => 3000
-      }.freeze
-
-      SERVICE_NAMES = {
-        "PORT" => "Rails Server",
-        "POSTGRES_PORT" => "PostgreSQL",
-        "REDIS_PORT" => "Redis",
-        "MAILDEV_WEB_PORT" => "MailDev Web",
-        "MAILDEV_SMTP_PORT" => "MailDev SMTP"
-      }.freeze
-
-      attr_reader :app_root, :services
 
       # Check if a TCP port is currently in use
       #
@@ -80,14 +67,13 @@ module LinkRadar
       # Initialize a new PortManager
       #
       # @param app_root [String] Path to application root directory
-      # @param services [Symbol, Hash] Either a preset symbol (:backend_services, :rails_server)
-      #   or a custom hash of service names to port numbers
+      # @param services [Symbol] Service preset (:backend_services or :rails_server)
       #
-      # @example Using preset
+      # @example Using backend services preset
       #   PortManager.new("/app", services: :backend_services)
       #
-      # @example Using custom services
-      #   PortManager.new("/app", services: { "API_PORT" => 4000, "WEB_PORT" => 3000 })
+      # @example Using rails server preset
+      #   PortManager.new("/app", services: :rails_server)
       def initialize(app_root, services:)
         @app_root = app_root
         @services = resolve_services(services)
@@ -104,12 +90,12 @@ module LinkRadar
       #
       # @example
       #   manager = PortManager.new(app_root, services: :backend_services)
-      #   ports = manager.auto_discover_and_assign
+      #   ports = manager.auto_discover_and_set_ports
       #   #=> { "POSTGRES_PORT" => 5433, "REDIS_PORT" => 6380, ... }
-      def auto_discover_and_assign
-        display_port_discovery_start
-        discovered_ports = find_available_port_set!(@services)
-        RunnerSupport.update_env_file(@app_root, discovered_ports)
+      def auto_discover_and_set_ports
+        puts "🔍 Discovering available ports..."
+        discovered_ports = find_available_port_set!(services)
+        RunnerSupport.update_env_file(app_root, discovered_ports)
         display_assigned_ports(discovered_ports)
         discovered_ports
       rescue PortDiscoveryError => e
@@ -129,12 +115,12 @@ module LinkRadar
       #
       # @example
       #   manager = PortManager.new(app_root, services: :rails_server)
-      #   manager.check_for_conflicts # exits with error if port 3000 is in use
-      def check_for_conflicts
-        RunnerSupport.load_env_file(@app_root)
+      #   manager.check_for_port_conflicts # exits with error if port 3000 is in use
+      def check_for_port_conflicts
+        RunnerSupport.load_env_file(app_root)
 
         conflicts = []
-        @services.each do |env_var, default_port|
+        services.each do |env_var, default_port|
           port = ENV[env_var] || default_port.to_s
           service_name = format_service_name(env_var)
           conflicts << "  • #{service_name}: port #{port}" if self.class.port_in_use?(port.to_i)
@@ -148,31 +134,42 @@ module LinkRadar
 
       private
 
+      attr_reader :app_root, :services
+
       # Resolve services parameter to a hash
       #
-      # @param services [Symbol, Hash] Service preset or custom hash
+      # @param services [Symbol] Service preset (:backend_services or :rails_server)
       # @return [Hash<String, Integer>] Resolved service configuration
       def resolve_services(services)
-        case services
-        when :backend_services
-          BACKEND_SERVICES
-        when :rails_server
-          RAILS_SERVER
-        when Hash
-          services
-        else
-          raise ArgumentError, "services must be :backend_services, :rails_server, or a Hash"
+        unless %i[backend_services rails_server].include?(services)
+          raise ArgumentError, "services must be :backend_services or :rails_server"
         end
+
+        # Filter SERVICES by group and extract env_var => port pairs
+        SERVICES.select { |_key, meta| meta[:group] == services }
+          .transform_values { |meta| meta[:port] }
       end
 
       # Find an available set of ports by trying offsets from base ports
       #
-      # Attempts to find a set of ports where all ports in the set are available.
-      # Tries multiple offsets, incrementing each port by the offset.
+      # This method finds ALL ports as a cohesive set - they must all be available together.
+      # It does NOT find ports individually. This ensures that when running multiple dev
+      # environments (e.g., git worktrees), each environment gets a consistent port offset.
+      #
+      # Algorithm:
+      # - Try offset 0: If ALL base ports are free, use them
+      # - Try offset 1: Add 1 to ALL ports, check if ALL are free
+      # - Try offset 2: Add 2 to ALL ports, check if ALL are free
+      # - Continue up to max_attempts
+      #
+      # Example: For {POSTGRES_PORT: 5432, REDIS_PORT: 6379}
+      # - Offset 0: 5432, 6379 (both must be free)
+      # - Offset 1: 5433, 6380 (both must be free)
+      # - Offset 2: 5434, 6381 (both must be free)
       #
       # @param base_ports [Hash<String, Integer>] Hash of env var names to base port numbers
       # @param max_attempts [Integer] Maximum number of offsets to try (default: 50)
-      # @return [Hash<String, Integer>] Hash of available ports
+      # @return [Hash<String, Integer>] Hash of available ports (all with same offset applied)
       # @raise [PortDiscoveryError] If no available port set can be found
       def find_available_port_set!(base_ports, max_attempts: 50)
         (0...max_attempts).each do |offset|
@@ -192,15 +189,8 @@ module LinkRadar
       # @param env_var [String] Environment variable name (e.g., "POSTGRES_PORT")
       # @return [String] Formatted service name (e.g., "PostgreSQL")
       def format_service_name(env_var)
-        SERVICE_NAMES[env_var] ||
+        SERVICES.dig(env_var, :name) ||
           env_var.sub("_PORT", "").split("_").map(&:capitalize).join(" ")
-      end
-
-      # Display port discovery start message
-      #
-      # @return [void]
-      def display_port_discovery_start
-        puts "🔍 Discovering available ports..."
       end
 
       # Display assigned ports

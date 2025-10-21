@@ -1,4 +1,5 @@
 #!/usr/bin/env ruby
+require "optparse"
 require_relative "../lib/link_radar/tooling"
 
 # Setup script for preparing the development environment
@@ -12,9 +13,33 @@ require_relative "../lib/link_radar/tooling"
 # dependencies or database schema. It's safe to run multiple times.
 #
 # Usage:
-#   bin/setup              # Run all setup steps
-#   bin/setup --skip-deps  # Skip dependency installation
-#   bin/setup --help       # Show all available options
+#   bin/setup         # Run all setup steps
+#   bin/setup --reset # Reset database before preparing
+#   bin/setup --help  # Show all available options
 
 APP_ROOT = File.expand_path("..", __dir__)
-LinkRadar::Tooling::SetupRunner.new(APP_ROOT).run(ARGV) if __FILE__ == $0
+
+# Parse command-line arguments
+options = { reset: false }
+
+parser = OptionParser.new do |opts|
+  opts.banner = "Usage: bin/setup [OPTIONS]"
+  opts.separator ""
+  opts.separator "Idempotent setup script for the development environment."
+  opts.separator ""
+  opts.separator "Options:"
+
+  opts.on("--reset", "Reset the database before preparing") do
+    options[:reset] = true
+  end
+
+  opts.on("-h", "--help", "Show this help message") do
+    puts opts
+    exit 0
+  end
+end
+
+parser.parse!(ARGV)
+
+# Run the setup
+LinkRadar::Tooling::SetupRunner.new(APP_ROOT).run(reset: options[:reset]) if __FILE__ == $0
