@@ -1,0 +1,23 @@
+meta {
+  name: Get Link
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/links/:id
+  body: none
+  auth: none
+}
+
+params:path {
+  id: {{linkId}}
+}
+
+docs {
+  Get a single link by ID.
+
+  Returns a link object with all fields except raw_html.
+  Returns 404 if link not found.
+}
+

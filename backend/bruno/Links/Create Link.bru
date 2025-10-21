@@ -1,0 +1,41 @@
+meta {
+  name: Create Link
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/v1/links
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "link": {
+      "submitted_url": "https://example.com",
+      "title": "Example Link",
+      "description": "An example link description",
+      "image_url": "https://example.com/image.jpg"
+    }
+  }
+}
+
+docs {
+  Create a new link.
+
+  Required fields:
+  - submitted_url: The URL to save
+
+  Optional fields:
+  - title: Link title
+  - description: Link description
+  - image_url: Link preview image URL
+
+  The submitted_url will be normalized to the url field.
+  The link will be created with fetch_state: "pending".
+
+  Returns 201 Created on success with the created link.
+  Returns 422 Unprocessable Entity on validation errors.
+}
+
