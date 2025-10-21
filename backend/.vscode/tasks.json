@@ -4,30 +4,107 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Rails Server w/Docker Services",
-      "detail": "Start the Services, then Dev Server",
+      "label": "Start Dev Environment (Auto-Port)",
+      "detail": "Start services and Rails with auto port discovery (fast, worktree-friendly)",
       "type": "shell",
-      "dependsOn": ["Docker Services", "Rails Server"],
-      "problemMatcher": []
-    },
-    {
-      "label": "Docker Services",
-      "detail": "Start the Docker-based services",
-      "type": "docker-compose",
-      "dockerCompose": {
-        "up": {
-          "detached": false,
-          "build": true
-        },
-        "files": ["${workspaceFolder}/compose.yml"]
+      "dependsOn": ["Docker Services (Auto-Port)"],
+      "dependsOrder": "sequence",
+      "command": "${workspaceFolder}/bin/dev --auto-port --skip-setup",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
       }
     },
     {
-      "label": "Rails Server",
-      "detail": "Start the development server",
+      "label": "Rails Server w/Docker Services",
+      "detail": "Start services in daemon mode, then Rails dev server",
       "type": "shell",
-      "command": "${workspaceFolder}/bin/start --debug",
+      "dependsOn": ["Docker Services (Daemon)"],
+      "dependsOrder": "sequence",
+      "command": "${workspaceFolder}/bin/dev",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Docker Services (Daemon)",
+      "detail": "Start Docker services in daemon mode",
+      "type": "shell",
+      "command": "${workspaceFolder}/bin/services -d up",
+      "problemMatcher": [],
+      "isBackground": false
+    },
+    {
+      "label": "Docker Services",
+      "detail": "Start Docker services (PostgreSQL, Redis, MailDev)",
+      "type": "shell",
+      "command": "${workspaceFolder}/bin/services up",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Docker Services (Auto-Port)",
+      "detail": "Start Docker services with auto port discovery",
+      "type": "shell",
+      "command": "${workspaceFolder}/bin/services -a -d up",
       "problemMatcher": []
+    },
+    {
+      "label": "Docker Services (Down)",
+      "detail": "Stop and remove Docker services",
+      "type": "shell",
+      "command": "${workspaceFolder}/bin/services down",
+      "problemMatcher": []
+    },
+    {
+      "label": "Rails Server",
+      "detail": "Start the Rails development server",
+      "type": "shell",
+      "command": "${workspaceFolder}/bin/dev",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Rails Server (Debug)",
+      "detail": "Start Rails server with rdbg debugger",
+      "type": "shell",
+      "command": "${workspaceFolder}/bin/dev --debug",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Rails Server (Skip Setup)",
+      "detail": "Start Rails server without running setup first",
+      "type": "shell",
+      "command": "${workspaceFolder}/bin/dev --skip-setup",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Rails Server (Auto-Port)",
+      "detail": "Start Rails server with auto port discovery (for git worktrees)",
+      "type": "shell",
+      "command": "${workspaceFolder}/bin/dev --auto-port",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
     }
   ]
 }
