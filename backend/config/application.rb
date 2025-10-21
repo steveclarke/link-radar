@@ -18,7 +18,7 @@ require "action_cable/engine"
 # you've limited to :test, :development, or :production.
 Bundler.require(*Rails.groups)
 
-module Backend
+module LinkRadar
   class Application < Rails::Application
     # Configure the path for configuration classes that should be used before initialization
     # NOTE: path should be relative to the project root (Rails.root)

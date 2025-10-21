@@ -34,6 +34,9 @@ group :development, :test do
   # Load environment variables from .env files
   gem "dotenv-rails"
 
+  # Generate fake data for testing and development
+  gem "faker"
+
   # Audits gems for known security defects (use config/bundler-audit.yml to ignore issues)
   gem "bundler-audit", require: false
 
@@ -46,6 +49,11 @@ group :development, :test do
   # (https://github.com/standardrb/standard-rails/issues/72)
   # Safe to switch back to RubyGems once version > 1.4.0 is published
   gem "standard-rails", github: "standardrb/standard-rails", require: false
+end
+
+group :development do
+  # Annotate models with schema information
+  gem "annotaterb"
 end
 
 # Configuration library for Ruby gems and applications

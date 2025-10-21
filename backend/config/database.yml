@@ -19,10 +19,9 @@ default: &default
   # https://guides.rubyonrails.org/configuring.html#database-pooling
   max_connections: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
 
-
 development:
   <<: *default
-  database: backend_development
+  database: linkradar_development
   username: <%= ENV.fetch("POSTGRES_USER") { "postgres" } %>
   password: <%= ENV.fetch("POSTGRES_PASSWORD") { "postgres" } %>
   host: <%= ENV.fetch("POSTGRES_HOST") { "localhost" } %>
@@ -47,7 +46,7 @@ development:
 # Do not set this db to the same as development or production.
 test:
   <<: *default
-  database: backend_test
+  database: linkradar_test
   username: <%= ENV.fetch("POSTGRES_USER") { "postgres" } %>
   password: <%= ENV.fetch("POSTGRES_PASSWORD") { "postgres" } %>
   host: <%= ENV.fetch("POSTGRES_HOST") { "localhost" } %>
@@ -81,6 +80,6 @@ test:
 #
 production:
   <<: *default
-  database: backend_production
-  username: backend
-  password: <%= ENV["BACKEND_DATABASE_PASSWORD"] %>
+  database: linkradar_production
+  username: linkradar
+  password: <%= ENV["LINKRADAR_DATABASE_PASSWORD"] %>

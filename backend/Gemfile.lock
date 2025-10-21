@@ -83,6 +83,9 @@ GEM
       securerandom (>= 0.3)
       tzinfo (~> 2.0, >= 2.0.5)
       uri (>= 0.13.1)
+    annotaterb (4.20.0)
+      activerecord (>= 6.0.0)
+      activesupport (>= 6.0.0)
     anyway_config (2.7.2)
       ruby-next-core (~> 1.0)
     ast (2.4.3)
@@ -110,6 +113,8 @@ GEM
     drb (2.2.3)
     erb (5.1.1)
     erubi (1.13.1)
+    faker (3.5.2)
+      i18n (>= 1.8.11, < 2)
     ffi (1.17.2-aarch64-linux-gnu)
     ffi (1.17.2-aarch64-linux-musl)
     ffi (1.17.2-arm-linux-gnu)
@@ -320,12 +325,14 @@ PLATFORMS
   x86_64-linux-musl
 
 DEPENDENCIES
+  annotaterb
   anyway_config
   bootsnap
   brakeman
   bundler-audit
   debug
   dotenv-rails
+  faker
   image_processing (~> 1.2)
   jbuilder
   pg (~> 1.1)
