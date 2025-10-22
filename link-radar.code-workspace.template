@@ -28,14 +28,13 @@
       "path": "project"
     },
     {
+      "name": "data",
+      "path": "data"
+    },
+    {
       "name": "root",
       "path": "."
     }
-    // Add your own folders here if needed, e.g.:
-    // {
-    //   "name": "my-notes",
-    //   "path": "../my-notes"
-    // }
   ],
 
   "settings": {
@@ -55,11 +54,13 @@
     // (backend and project are already visible as separate workspace folders)
     "files.exclude": {
       "backend": true,
-      "project": true
+      "project": true,
+      "data": true
     },
     "search.exclude": {
       "backend": true,
-      "project": true
+      "project": true,
+      "data": true
     },
 
     // Show vertical ruler at 80 characters (Ruby style guide recommendation)
@@ -151,4 +152,3 @@
     ]
   }
 }
-
