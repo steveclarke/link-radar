@@ -17,19 +17,30 @@ export default defineBackground(() => {
 });
 
 async function saveLinkToBackend(linkData: any) {
-  // TODO: Implement API call to backend
   const backendUrl = 'http://localhost:3000/api/v1/links';
+  const apiKey = 'dev_api_key_change_in_production'; // From Rails config
+
+  // Transform the data to match Rails API expectations
+  const railsData = {
+    link: {
+      submitted_url: linkData.url,
+      title: linkData.title,
+      note: linkData.note
+    }
+  };
 
   const response = await fetch(backendUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
     },
-    body: JSON.stringify(linkData),
+    body: JSON.stringify(railsData),
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to save link: ${response.statusText}`);
+    const errorText = await response.text();
+    throw new Error(`Failed to save link: ${response.status} ${response.statusText} - ${errorText}`);
   }
 
   return response.json();

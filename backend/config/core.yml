@@ -2,6 +2,8 @@ default: &default
   api_key: "dev_api_key_change_in_production"
   cors_origins:
     - "http://linkradar.localhost:9000"
+    - "chrome-extension://*"
+    - "moz-extension://*"
   log_level: "debug"
   frontend_url: "http://linkradar.localhost:9000"
 
@@ -17,4 +19,3 @@ production:
     - "https://linkradar.app"
   log_level: info
   frontend_url: "https://linkradar.app"
-
