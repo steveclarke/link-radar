@@ -7,7 +7,7 @@ meta {
 get {
   url: {{baseUrl}}/api/v1/links/:id
   body: none
-  auth: none
+  auth: inherit
 }
 
 params:path {
@@ -16,8 +16,7 @@ params:path {
 
 docs {
   Get a single link by ID.
-
+  
   Returns a link object with all fields except raw_html.
   Returns 404 if link not found.
 }
-

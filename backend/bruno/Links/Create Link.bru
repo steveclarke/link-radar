@@ -7,7 +7,7 @@ meta {
 post {
   url: {{baseUrl}}/api/v1/links
   body: json
-  auth: none
+  auth: inherit
 }
 
 body:json {
@@ -23,19 +23,18 @@ body:json {
 
 docs {
   Create a new link.
-
+  
   Required fields:
   - submitted_url: The URL to save
-
+  
   Optional fields:
   - title: Link title
   - description: Link description
   - image_url: Link preview image URL
-
+  
   The submitted_url will be normalized to the url field.
   The link will be created with fetch_state: "pending".
-
+  
   Returns 201 Created on success with the created link.
   Returns 422 Unprocessable Entity on validation errors.
 }
-

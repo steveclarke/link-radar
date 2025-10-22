@@ -1,4 +1,5 @@
 default: &default
+  api_key: "dev_api_key_change_in_production"
   cors_origins:
     - "http://linkradar.localhost:9000"
   log_level: "debug"

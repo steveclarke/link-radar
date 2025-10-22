@@ -7,7 +7,7 @@ meta {
 get {
   url: {{baseUrl}}/api/v1/links
   body: none
-  auth: none
+  auth: inherit
 }
 
 script:post-response {
@@ -18,10 +18,9 @@ script:post-response {
 
 docs {
   Get all links ordered by created_at (newest first).
-
+  
   Returns an array of link objects with all fields except raw_html.
-
+  
   This script automatically sets the linkId variable to the first link's ID
   for use in other requests (Get Link, Update Link, Delete Link).
 }
-

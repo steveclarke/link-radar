@@ -7,7 +7,7 @@ meta {
 patch {
   url: {{baseUrl}}/api/v1/links/:id
   body: json
-  auth: none
+  auth: inherit
 }
 
 params:path {
@@ -27,18 +27,17 @@ body:json {
 
 docs {
   Update an existing link.
-
+  
   Allowed fields:
   - submitted_url: Update the URL (removes tracking params, fixes typos, etc.)
   - title: Link title
   - description: Link description
   - image_url: Link preview image URL
-
+  
   Note: If submitted_url is updated, the url field is re-normalized and
   fetch_state is reset to "pending" (fetched data is cleared).
-
+  
   Returns 200 OK on success with the updated link.
   Returns 404 Not Found if link doesn't exist.
   Returns 422 Unprocessable Entity on validation errors or duplicate URL.
 }
-
