@@ -213,7 +213,7 @@ Set up production deployment infrastructure:
 - **Board**: Planning → Plan
 - **Linked to**: Infrastructure module (card 62) under Platform domain (card 25)
 - **Tags**: `mvp`, `infrastructure`, `phase-1`
-- **Planning docs**: `/project/work-items/LR001-core-infrastructure/plan.md`
+- **Planning docs**: `/project/features/LR001-core-infrastructure/plan.md`
 
 ### Development Cards (Development Board)
 Create 7 child cards on Development board, each linked to LR001:

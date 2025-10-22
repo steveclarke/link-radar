@@ -174,13 +174,13 @@ This creates rollup progress tracking:
 2. Link to appropriate Module card as its child
 3. Move through planning stages as you write documentation
 4. At "Plan" stage: Create child cards for development work
-5. Planning docs live in monorepo at `/project/work-items/LR###-feature-name/`
+5. Planning docs live in monorepo at `/project/features/LR###-feature-name/`
 6. Project inheritance flows from Module → Planning → Development cards
 
 **Lightweight Approach**:
 - Always write vision docs for major features
 - Requirements/Spec as needed for complexity
-- Skip documentation phases for simple work items
+- Skip documentation phases for simple features
 - Use the process loosely - it's for solo development
 
 ### 4. Development Board
@@ -208,10 +208,10 @@ This creates rollup progress tracking:
 
 ### Location
 
-All planning documents live in the LinkRadar monorepo at `/project/work-items/`:
+All planning documents live in the LinkRadar monorepo at `/project/features/`:
 
 ```
-/project/work-items/
+/project/features/
 ├── LR001-auto-tagging/
 │   ├── vision.md
 │   ├── requirements.md
@@ -241,7 +241,7 @@ All planning documents live in the LinkRadar monorepo at `/project/work-items/`:
 ### Superthread Card → Planning Doc Link
 
 - **Card Title**: "LR001 - Auto-Tagging System"
-- **Planning Docs**: `/project/work-items/LR001-auto-tagging/`
+- **Planning Docs**: `/project/features/LR001-auto-tagging/`
 - **Card Description**: Should link to the planning directory in monorepo
 
 The LR### numbering creates a clear 1:1 relationship between Superthread planning cards and monorepo documentation directories.
@@ -256,7 +256,7 @@ The LR### numbering creates a clear 1:1 relationship between Superthread plannin
    - Add relevant tags (mvp, feature, phase-1, etc.)
 
 2. **Write planning documents** in monorepo
-   - Create `/project/work-items/LR###-feature-name/` directory
+   - Create `/project/features/LR###-feature-name/` directory
    - Move card through: Backlog → Vision → Requirements → Spec → Plan
    - Write docs as needed (vision always, requirements/spec as complexity demands)
 

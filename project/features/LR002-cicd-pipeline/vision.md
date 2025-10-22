@@ -2,7 +2,7 @@
 
 ## Vision
 
-Establish a robust, automated CI/CD workflow for the LinkRadar monorepo that enforces code quality standards, streamlines development, and prepares the foundation for safe, reproducible deployments. This work item focuses on implementing the **groundwork and validation layers** that can be done immediately, with deployment automation coming in future iterations once infrastructure is stable.
+Establish a robust, automated CI/CD workflow for the LinkRadar monorepo that enforces code quality standards, streamlines development, and prepares the foundation for safe, reproducible deployments. This feature focuses on implementing the **groundwork and validation layers** that can be done immediately, with deployment automation coming in future iterations once infrastructure is stable.
 
 ## Problem Statement
 
@@ -37,7 +37,7 @@ As LinkRadar grows from initial prototype to production system, we need:
 4. **Document Development Workflow**
    - Complete `docs/development-workflow.md` covering branching strategy, commit conventions, PR process, labeling, reviews, and release tagging
 
-### Future Goals (Separate Work Items)
+### Future Goals (Separate Features)
 
 - Docker image builds with semantic tagging (`:sha-<gitsha>`, `:main`, `:vX.Y.Z`)
 - Image digest extraction and storage for reproducibility
@@ -128,7 +128,7 @@ Prove the deployment trigger mechanisms work without actual deployments:
 - Monitoring and alerting
 - Secrets management beyond basic GitHub secrets setup
 
-These will be addressed in future work items after core infrastructure (LR001) is stable.
+These will be addressed in future features after core infrastructure (LR001) is stable.
 
 ## Risks and Mitigation
 
@@ -146,7 +146,7 @@ These will be addressed in future work items after core infrastructure (LR001) i
 
 ## Timeline and Phases
 
-This is a **single work item** (LR002) that should take approximately **1-2 days** to complete:
+This is a **single feature** (LR002) that should take approximately **1-2 days** to complete:
 
 - **Day 1:** Repository configuration, PR template, documentation
 - **Day 2:** CI validation workflows, deployment trigger placeholders, testing
@@ -155,9 +155,9 @@ This is a **single work item** (LR002) that should take approximately **1-2 days
 
 **None** - This work can begin immediately without waiting for LR001 infrastructure work to complete. The workflows are designed to work on an empty or minimal repository.
 
-## Related Work Items
+## Related Features
 
-- **LR001 - Core Infrastructure Setup** - When Docker infrastructure is ready, follow-up work items will build on LR002's foundation
+- **LR001 - Core Infrastructure Setup** - When Docker infrastructure is ready, follow-up features will build on LR002's foundation
 - **Future: Docker Build Pipeline** - Will extend Phase 3 placeholders to build real images
 - **Future: Staging Deployment Automation** - Will replace staging placeholder with real deployment
 - **Future: Production Deployment Automation** - Will replace production placeholder with real promotion

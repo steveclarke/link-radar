@@ -6,12 +6,12 @@
 #
 #  id            :uuid             not null, primary key
 #  content_text  :text
-#  description   :text
 #  fetch_error   :text
 #  fetch_state   :enum             default("pending"), not null
 #  fetched_at    :datetime
 #  image_url     :string(2048)
 #  metadata      :jsonb
+#  note          :text
 #  raw_html      :text
 #  submitted_url :string(2048)     not null
 #  title         :string(500)

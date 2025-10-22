@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_10_21_142619) do
+ActiveRecord::Schema[8.1].define(version: 2025_10_22_005647) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -20,12 +20,12 @@ ActiveRecord::Schema[8.1].define(version: 2025_10_21_142619) do
   create_table "links", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
     t.text "content_text"
     t.datetime "created_at", null: false
-    t.text "description"
     t.text "fetch_error"
     t.enum "fetch_state", default: "pending", null: false, enum_type: "link_fetch_state"
     t.datetime "fetched_at"
     t.string "image_url", limit: 2048
     t.jsonb "metadata", default: {}
+    t.text "note"
     t.text "raw_html"
     t.string "submitted_url", limit: 2048, null: false
     t.string "title", limit: 500

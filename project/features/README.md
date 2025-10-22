@@ -1,14 +1,14 @@
-# Work Items
+# Features
 
-This directory contains all LinkRadar work items (features, infrastructure, bugs, improvements) tracked using the **LR###** numbering scheme.
+This directory contains all LinkRadar features (features, infrastructure, bugs, improvements) tracked using the **LR###** numbering scheme.
 
 ## Purpose
 
-Work items are the planning and documentation artifacts for LinkRadar development. Each work item corresponds to cards in Superthread and provides the detailed context needed for implementation.
+Features are the planning and documentation artifacts for LinkRadar development. Each feature corresponds to cards in Superthread and provides the detailed context needed for implementation.
 
 ## Naming Convention
 
-Work items follow the **LR###** format:
+Features follow the **LR###** format:
 - **LR** = LinkRadar prefix
 - **###** = Three-digit sequential number (e.g., 001, 002, 003)
 
@@ -19,10 +19,10 @@ Examples:
 
 ## Directory Structure
 
-Each work item gets its own directory:
+Each feature gets its own directory:
 
 ```
-/project/work-items/
+/project/features/
 ├── README.md (this file)
 ├── LR001-core-infrastructure/
 │   ├── plan.md
@@ -50,7 +50,7 @@ Each work item gets its own directory:
 
 ## Superthread Integration
 
-Each work item in this directory corresponds to cards in Superthread:
+Each feature in this directory corresponds to cards in Superthread:
 
 1. **Planning Card** - Created on Planning board, moves through: Backlog → Vision → Requirements → Spec → Plan
 2. **Development Cards** - Child cards created on Development board at Plan stage
@@ -61,7 +61,7 @@ See [Project Workflow](../project-workflow.md) for complete workflow details.
 
 ## LLM-Ready Documentation
 
-All work item documents are written to be consumed by AI coding assistants:
+All feature documents are written to be consumed by AI coding assistants:
 - Clear, unambiguous language
 - Sufficient detail (data shapes, edge cases, acceptance criteria)
 - Consistent naming across documents
@@ -73,10 +73,10 @@ This enables AI tools to:
 - Maintain consistency across the codebase
 - Answer questions about requirements and design
 
-## Example Work Item Lifecycle
+## Example Feature Lifecycle
 
 1. **Create Planning Card** in Superthread (Planning board → Backlog)
-2. **Create Work Item Directory** (`/project/work-items/LR###-feature-name/`)
+2. **Create Feature Directory** (`/project/features/LR###-feature-name/`)
 3. **Write Planning Documents** as you move card through planning stages
 4. **Create Development Cards** when planning is complete (at Plan stage)
 5. **Implement** by moving development cards through workflow
@@ -84,10 +84,10 @@ This enables AI tools to:
 
 ## Quick Start
 
-To create a new work item:
+To create a new feature:
 
 1. Determine the next LR### number (check existing directories)
-2. Create directory: `/project/work-items/LR###-descriptive-name/`
+2. Create directory: `/project/features/LR###-descriptive-name/`
 3. Start with what you need:
    - Major feature? Write `vision.md` first
    - Infrastructure? Write `plan.md` directly

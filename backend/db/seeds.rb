@@ -10,15 +10,15 @@ Link.destroy_all
 puts "Creating sample links..."
 
 # Helper to generate metadata
-def generate_metadata(title, description, image_url)
+def generate_metadata(title, note, image_url)
   {
     "og:title" => title,
-    "og:description" => description,
+    "og:description" => note,
     "og:image" => image_url,
     "og:type" => "article",
     "twitter:card" => "summary_large_image",
     "twitter:title" => title,
-    "twitter:description" => description
+    "twitter:description" => note
   }
 end
 
@@ -37,7 +37,7 @@ puts "Creating 70 successful links..."
 70.times do
   url = Faker::Internet.url(host: Faker::Internet.domain_name, path: "/#{Faker::Internet.slug}")
   title = Faker::Hacker.say_something_smart
-  description = Faker::Lorem.paragraph(sentence_count: 2)
+  note = Faker::Lorem.paragraph(sentence_count: 2)
   image_url = Faker::LoremFlickr.image(size: "1200x630", search_terms: ["technology"])
 
   paragraphs = Array.new(rand(3..5)) { Faker::Lorem.paragraph(sentence_count: rand(3..7)) }
@@ -58,13 +58,13 @@ puts "Creating 70 successful links..."
     url: url,
     submitted_url: submitted_url,
     title: title,
-    description: description,
+    note: note,
     image_url: image_url,
     content_text: content_text,
     raw_html: raw_html,
     fetch_state: "success",
     fetched_at: fetched_at,
-    metadata: generate_metadata(title, description, image_url),
+    metadata: generate_metadata(title, note, image_url),
     created_at: created_at,
     updated_at: fetched_at
   )
