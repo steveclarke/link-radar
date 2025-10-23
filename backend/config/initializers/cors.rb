@@ -15,8 +15,7 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
       methods: %i[get post put patch delete options head],
       expose: [
         "X-LinkRadar-Version",
-        "Content-Disposition", # Allows us to access filename from response headers in front-end
-        "Authorization" # Allow extension to read Authorization header
+        "Content-Disposition" # Allows us to access filename from response headers in front-end
       ]
   end
 end
