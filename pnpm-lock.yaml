@@ -20,6 +20,9 @@ importers:
         specifier: ^3.5.21
         version: 3.5.22(typescript@5.9.3)
     devDependencies:
+      '@types/chrome':
+        specifier: ^0.1.24
+        version: 0.1.24
       '@wxt-dev/module-vue':
         specifier: ^1.0.2
         version: 1.0.3(vite@7.1.11(@types/node@24.9.1)(jiti@2.6.1))(vue@3.5.22(typescript@5.9.3))(wxt@0.20.11(@types/node@24.9.1)(jiti@2.6.1)(rollup@4.52.5))
@@ -402,6 +405,9 @@ packages:
     resolution: {integrity: sha512-TAcgQh2sSkykPRWLrdyy2AiceMckNf5loITqXxFI5VuQjS5tSuw3WlwdN8qv8vzjLAUTvYaH/mVjSFpbkFbpTg==}
     cpu: [x64]
     os: [win32]
+
+  '@types/chrome@0.1.24':
+    resolution: {integrity: sha512-9iO9HL2bMeGS4C8m6gNFWUyuPE5HEUFk+rGh+7oriUjg+ata4Fc9PoVlu8xvGm7yoo3AmS3J6fAjoFj61NL2rw==}
 
   '@types/estree@1.0.8':
     resolution: {integrity: sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w==}
@@ -2151,6 +2157,11 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.52.5':
     optional: true
+
+  '@types/chrome@0.1.24':
+    dependencies:
+      '@types/filesystem': 0.0.36
+      '@types/har-format': 1.2.16
 
   '@types/estree@1.0.8': {}
 
