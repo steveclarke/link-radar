@@ -1,9 +1,14 @@
 default: &default
   api_key: "dev_api_key_change_in_production"
+  # CORS origins can be exact URLs or regex patterns wrapped in forward slashes
+  # Examples:
+  #   - "http://localhost:3000"           # Exact match
+  #   - "/chrome-extension://.*/"         # Regex: any Chrome extension
+  #   - "/https://.*\.example\.com/"      # Regex: any subdomain of example.com
   cors_origins:
     - "http://linkradar.localhost:9000"
-    - "chrome-extension://*"
-    - "moz-extension://*"
+    - "/chrome-extension://.*/"
+    - "/moz-extension://.*/"
   log_level: "debug"
   frontend_url: "http://linkradar.localhost:9000"
 
