@@ -24,12 +24,20 @@
       "path": "backend"
     },
     {
-      "name": "project",
-      "path": "project"
+      "name": "extension",
+      "path": "extension"
     },
     {
       "name": "data",
       "path": "data"
+    },
+    {
+      "name": "deploy",
+      "path": "deploy"
+    },
+    {
+      "name": "project",
+      "path": "project"
     },
     {
       "name": "root",
@@ -55,12 +63,16 @@
     "files.exclude": {
       "backend": true,
       "project": true,
-      "data": true
+      "data": true,
+      "extension": true,
+      "deploy": true
     },
     "search.exclude": {
       "backend": true,
       "project": true,
-      "data": true
+      "data": true,
+      "extension": true,
+      "deploy": true
     },
 
     // Show vertical ruler at 80 characters (Ruby style guide recommendation)
