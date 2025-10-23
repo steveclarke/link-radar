@@ -1,6 +1,7 @@
 {
   "name": "link-radar-extension",
   "version": "1.0.0",
+  "private": true,
   "description": "Link Radar Chrome Extension",
   "type": "module",
   "scripts": {
@@ -10,13 +11,21 @@
     "build:firefox": "wxt build -b firefox",
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
+    "compile": "vue-tsc --noEmit",
     "postinstall": "wxt prepare"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "packageManager": "pnpm@10.10.0",
+  "dependencies": {
+    "vue": "^3.5.21",
+    "@vueuse/core": "^11.3.0"
+  },
   "devDependencies": {
+    "@wxt-dev/module-vue": "^1.0.2",
+    "typescript": "^5.9.2",
+    "vue-tsc": "^3.0.6",
     "wxt": "^0.20.11"
   }
 }
