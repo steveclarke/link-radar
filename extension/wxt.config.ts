@@ -8,6 +8,12 @@ export default defineConfig({
     name: 'Link Radar',
     description: 'Save and organize links from your browser',
     permissions: ['storage', 'activeTab'],
+    icons: {
+      '16': 'icon/16.png',
+      '32': 'icon/32.png',
+      '48': 'icon/48.png',
+      '128': 'icon/128.png',
+    },
     options_ui: {
       page: 'options/index.html',
       open_in_tab: true,
