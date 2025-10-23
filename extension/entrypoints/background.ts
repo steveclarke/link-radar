@@ -15,6 +15,24 @@ export default defineBackground(() => {
 
       return true; // Keep the message channel open for async response
     }
+
+    if (message.type === 'CHECK_LINK_EXISTS') {
+      // Check if a link with this URL already exists
+      checkLinkExists(message.url)
+        .then((result) => sendResponse({ success: true, ...result }))
+        .catch((error) => sendResponse({ success: false, error: error.message }));
+
+      return true; // Keep the message channel open for async response
+    }
+
+    if (message.type === 'DELETE_LINK') {
+      // Delete an existing link
+      deleteLinkFromBackend(message.linkId)
+        .then(() => sendResponse({ success: true }))
+        .catch((error) => sendResponse({ success: false, error: error.message }));
+
+      return true; // Keep the message channel open for async response
+    }
   });
 });
 
@@ -57,5 +75,53 @@ async function saveLinkToBackend(linkData: any) {
   }
 
   return response.json();
+}
+
+async function checkLinkExists(url: string): Promise<{ exists: boolean; linkId?: string }> {
+  // Get API key from storage
+  const apiKey = await getApiKey();
+
+  // Query the backend for links with this URL
+  const queryUrl = `${BACKEND_URL}/links?url=${encodeURIComponent(url)}`;
+
+  const response = await fetch(queryUrl, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to check link existence: ${response.status} ${response.statusText}`);
+  }
+
+  const links = await response.json();
+
+  // If we found a link with this URL, return its ID
+  if (links && links.length > 0) {
+    return { exists: true, linkId: links[0].id };
+  }
+
+  return { exists: false };
+}
+
+async function deleteLinkFromBackend(linkId: string) {
+  // Get API key from storage
+  const apiKey = await getApiKey();
+
+  const response = await fetch(`${BACKEND_URL}/links/${linkId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to delete link: ${response.status} ${response.statusText} - ${errorText}`);
+  }
+
+  // DELETE returns 204 No Content, so no need to parse response
+  return;
 }
 

@@ -13,6 +13,10 @@ const pageInfo = ref<TabInfo | null>(null);
 const notes = ref('');
 const message = ref<{ text: string; type: 'success' | 'error' } | null>(null);
 const apiKeyConfigured = ref(false);
+const isBookmarked = ref(false);
+const bookmarkId = ref<string | null>(null);
+const isCheckingBookmark = ref(false);
+const isDeleting = ref(false);
 
 // Use VueUse clipboard composable
 const { copy, isSupported } = useClipboard();
@@ -41,9 +45,38 @@ async function loadCurrentPageInfo() {
       url: tab.url,
       favicon: tab.favIconUrl
     };
+
+    // Check if this page is already bookmarked
+    await checkIfBookmarked(tab.url);
   } catch (error) {
     console.error('Error getting tab info:', error);
     showError('Error loading page information');
+  }
+}
+
+async function checkIfBookmarked(url: string) {
+  if (!apiKeyConfigured.value) {
+    // Don't check if API key is not configured
+    return;
+  }
+
+  isCheckingBookmark.value = true;
+  try {
+    const response = await chrome.runtime.sendMessage({
+      type: 'CHECK_LINK_EXISTS',
+      url: url
+    });
+
+    if (response.success) {
+      isBookmarked.value = response.exists;
+      bookmarkId.value = response.linkId || null;
+    } else {
+      console.error('Failed to check bookmark status:', response.error);
+    }
+  } catch (error) {
+    console.error('Error checking bookmark:', error);
+  } finally {
+    isCheckingBookmark.value = false;
   }
 }
 
@@ -70,12 +103,41 @@ async function saveLink() {
     if (response.success) {
       showSuccess('Link saved successfully!');
       notes.value = '';
+      // Update bookmark status
+      isBookmarked.value = true;
+      await checkIfBookmarked(pageInfo.value.url);
     } else {
       showError('Failed to save link: ' + (response.error || 'Unknown error'));
     }
   } catch (error) {
     console.error('Error saving link:', error);
     showError('Error saving link');
+  }
+}
+
+async function deleteBookmark() {
+  if (!bookmarkId.value || !pageInfo.value) return;
+
+  isDeleting.value = true;
+  try {
+    const response = await chrome.runtime.sendMessage({
+      type: 'DELETE_LINK',
+      linkId: bookmarkId.value
+    });
+
+    if (response.success) {
+      showSuccess('Bookmark deleted successfully!');
+      isBookmarked.value = false;
+      bookmarkId.value = null;
+      notes.value = '';
+    } else {
+      showError('Failed to delete bookmark: ' + (response.error || 'Unknown error'));
+    }
+  } catch (error) {
+    console.error('Error deleting bookmark:', error);
+    showError('Error deleting bookmark');
+  } finally {
+    isDeleting.value = false;
   }
 }
 
@@ -141,7 +203,22 @@ onMounted(() => {
     </div>
 
     <div class="actions">
-      <button @click="saveLink" class="save-button" :disabled="!apiKeyConfigured">Save This Link</button>
+      <button
+        v-if="!isBookmarked"
+        @click="saveLink"
+        class="save-button"
+        :disabled="!apiKeyConfigured || isCheckingBookmark"
+      >
+        {{ isCheckingBookmark ? 'Checking...' : 'Save This Link' }}
+      </button>
+      <button
+        v-else
+        @click="deleteBookmark"
+        class="delete-button"
+        :disabled="isDeleting"
+      >
+        {{ isDeleting ? 'Deleting...' : 'Delete Bookmark' }}
+      </button>
       <button @click="copyToClipboard" class="copy-button">Copy URL</button>
     </div>
 
@@ -294,7 +371,7 @@ h2 {
   color: #533f03;
 }
 
-.save-button, .copy-button {
+.save-button, .delete-button, .copy-button {
   flex: 1;
   padding: 8px 12px;
   border: none;
@@ -315,6 +392,20 @@ h2 {
 }
 
 .save-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.delete-button {
+  background: #dc3545;
+  color: white;
+}
+
+.delete-button:hover:not(:disabled) {
+  background: #c82333;
+}
+
+.delete-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
