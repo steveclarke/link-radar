@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { ref, onMounted } from 'vue';
 import { useClipboard } from '@vueuse/core';
+import { STORAGE_KEYS } from '../../lib/config';
 
 interface TabInfo {
   title: string;
@@ -11,9 +12,20 @@ interface TabInfo {
 const pageInfo = ref<TabInfo | null>(null);
 const notes = ref('');
 const message = ref<{ text: string; type: 'success' | 'error' } | null>(null);
+const apiKeyConfigured = ref(false);
 
 // Use VueUse clipboard composable
 const { copy, isSupported } = useClipboard();
+
+async function checkApiKey() {
+  try {
+    const result = await chrome.storage.sync.get(STORAGE_KEYS.API_KEY);
+    apiKeyConfigured.value = !!result[STORAGE_KEYS.API_KEY];
+  } catch (error) {
+    console.error('Error checking API key:', error);
+    apiKeyConfigured.value = false;
+  }
+}
 
 async function loadCurrentPageInfo() {
   try {
@@ -33,6 +45,10 @@ async function loadCurrentPageInfo() {
     console.error('Error getting tab info:', error);
     showError('Error loading page information');
   }
+}
+
+function openSettings() {
+  chrome.runtime.openOptionsPage();
 }
 
 async function saveLink() {
@@ -85,12 +101,15 @@ function showError(text: string) {
 
 function showMessage(text: string, type: 'success' | 'error') {
   message.value = { text, type };
+  // Error messages stay for 15 seconds, success messages for 3 seconds
+  const timeout = type === 'error' ? 15000 : 3000;
   setTimeout(() => {
     message.value = null;
-  }, 3000);
+  }, timeout);
 }
 
 onMounted(() => {
+  checkApiKey();
   loadCurrentPageInfo();
 });
 </script>
@@ -98,8 +117,16 @@ onMounted(() => {
 <template>
   <div class="page-info">
     <div class="header">
-      <h1>Link Radar</h1>
-      <span class="vue-badge">⚡ Vue 3</span>
+      <div class="header-left">
+        <h1>Link Radar</h1>
+        <span class="vue-badge">⚡ Vue 3</span>
+      </div>
+      <button @click="openSettings" class="settings-button" title="Settings">⚙️</button>
+    </div>
+
+    <div v-if="!apiKeyConfigured" class="warning-banner">
+      ⚠️ API key not configured.
+      <a @click="openSettings" class="warning-link">Click here to set it up</a>
     </div>
 
     <div v-if="pageInfo" class="current-page">
@@ -114,7 +141,7 @@ onMounted(() => {
     </div>
 
     <div class="actions">
-      <button @click="saveLink" class="save-button">Save This Link</button>
+      <button @click="saveLink" class="save-button" :disabled="!apiKeyConfigured">Save This Link</button>
       <button @click="copyToClipboard" class="copy-button">Copy URL</button>
     </div>
 
@@ -154,7 +181,13 @@ body {
 .header {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
   gap: 12px;
 }
 
@@ -162,6 +195,21 @@ h1 {
   margin: 0;
   font-size: 24px;
   color: #1a1a1a;
+}
+
+.settings-button {
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  background: #f8f9fa;
+  cursor: pointer;
+  font-size: 18px;
+  transition: background-color 0.2s;
+  line-height: 1;
+}
+
+.settings-button:hover {
+  background: #e9ecef;
 }
 
 .vue-badge {
@@ -225,6 +273,27 @@ h2 {
   gap: 8px;
 }
 
+.warning-banner {
+  background: #fff3cd;
+  color: #856404;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid #ffeaa7;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.warning-link {
+  color: #856404;
+  text-decoration: underline;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.warning-link:hover {
+  color: #533f03;
+}
+
 .save-button, .copy-button {
   flex: 1;
   padding: 8px 12px;
@@ -233,7 +302,7 @@ h2 {
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0.2s, opacity 0.2s;
 }
 
 .save-button {
@@ -241,8 +310,13 @@ h2 {
   color: white;
 }
 
-.save-button:hover {
+.save-button:hover:not(:disabled) {
   background: #0056b3;
+}
+
+.save-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .copy-button {

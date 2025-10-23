@@ -8,6 +8,10 @@ export default defineConfig({
     name: 'Link Radar',
     description: 'Save and organize links from your browser',
     permissions: ['storage', 'activeTab'],
+    options_ui: {
+      page: 'options/index.html',
+      open_in_tab: true,
+    },
   },
   // Browser startup configuration for development
   runner: {

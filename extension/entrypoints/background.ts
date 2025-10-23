@@ -1,3 +1,5 @@
+import { BACKEND_URL, STORAGE_KEYS } from '../lib/config';
+
 export default defineBackground(() => {
   console.log('Link Radar background script loaded');
 
@@ -16,9 +18,20 @@ export default defineBackground(() => {
   });
 });
 
+async function getApiKey(): Promise<string> {
+  const result = await chrome.storage.sync.get(STORAGE_KEYS.API_KEY);
+  const apiKey = result[STORAGE_KEYS.API_KEY];
+
+  if (!apiKey) {
+    throw new Error('API key not configured. Please set your API key in the extension settings.');
+  }
+
+  return apiKey;
+}
+
 async function saveLinkToBackend(linkData: any) {
-  const backendUrl = 'http://localhost:3000/api/v1/links';
-  const apiKey = 'dev_api_key_change_in_production'; // From Rails config
+  // Get API key from storage
+  const apiKey = await getApiKey();
 
   // Transform the data to match Rails API expectations
   const railsData = {
@@ -29,7 +42,7 @@ async function saveLinkToBackend(linkData: any) {
     }
   };
 
-  const response = await fetch(backendUrl, {
+  const response = await fetch(`${BACKEND_URL}/links`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

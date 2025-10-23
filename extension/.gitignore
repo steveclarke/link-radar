@@ -4,6 +4,10 @@ dist/
 *.log
 .DS_Store
 
+# Environment files (but not templates)
+.env
+!.env.template
+
 # Additional patterns from WXT Vue template
 logs
 npm-debug.log*
