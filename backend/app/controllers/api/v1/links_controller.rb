@@ -4,8 +4,17 @@ module Api
       before_action :set_link, only: [:show, :update, :destroy]
 
       # GET /api/v1/links
+      # Supports optional ?url= query parameter to find a specific link by URL
       def index
-        @links = Link.all.order(created_at: :desc)
+        @links = Link.all
+
+        # Filter by URL if provided (normalized for consistent matching)
+        if params[:url].present?
+          normalized_query_url = normalize_url(params[:url])
+          @links = @links.where(url: normalized_query_url)
+        end
+
+        @links = @links.order(created_at: :desc)
       end
 
       # GET /api/v1/links/:id
