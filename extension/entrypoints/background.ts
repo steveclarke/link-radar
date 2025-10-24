@@ -3,7 +3,6 @@ import { BACKEND_URL, STORAGE_KEYS } from "../lib/config"
 export default defineBackground(() => {
   // Listen for messages from content scripts or popup
   browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
-
     if (message.type === "SAVE_LINK") {
       // Handle saving link to backend
       saveLinkToBackend(message.data)

@@ -32,18 +32,21 @@ pnpm dev
 ```
 
 This will:
+
 - Build the extension in development mode
 - Watch for file changes
 - Automatically reload the extension
 - Start the dev server on port 9001
 
 To load the extension in Chrome:
+
 1. Open Chrome and navigate to `chrome://extensions/`
 2. Enable "Developer mode" (toggle in top right)
 3. Click "Load unpacked"
 4. Select the `dist/chrome-mv3-dev` directory from this project
 
 For Firefox development:
+
 ```bash
 pnpm dev:firefox
 ```
@@ -106,6 +109,7 @@ Before using the extension, you need to configure your API key:
 The API key is stored securely in your browser's sync storage and will sync across your devices.
 
 **Default Development API Key:**
+
 ```
 dev_api_key_change_in_production
 ```
@@ -147,6 +151,7 @@ VITE_BACKEND_URL=http://localhost:3001/api/v1 pnpm dev
 The extension is designed to work with the Link Radar Rails backend API at `http://localhost:3000/api/v1` by default.
 
 **If your backend is running on a different port:**
+
 1. Edit the `.env` file in the extension directory
 2. Set `VITE_BACKEND_URL=http://localhost:YOUR_PORT/api/v1`
 3. Restart the development server
