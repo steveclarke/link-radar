@@ -1,9 +1,13 @@
 {
   "name": "link-radar-extension",
+  "type": "module",
   "version": "1.0.0",
   "private": true,
+  "packageManager": "pnpm@10.10.0",
   "description": "Link Radar Chrome Extension",
-  "type": "module",
+  "author": "",
+  "license": "ISC",
+  "keywords": [],
   "scripts": {
     "dev": "wxt",
     "dev:firefox": "wxt -b firefox",
@@ -12,19 +16,19 @@
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
     "compile": "vue-tsc --noEmit",
-    "postinstall": "wxt prepare"
+    "postinstall": "wxt prepare",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "packageManager": "pnpm@10.10.0",
   "dependencies": {
     "@vueuse/core": "^11.3.0",
     "vue": "^3.5.21"
   },
   "devDependencies": {
+    "@antfu/eslint-config": "^3.9.0",
     "@types/chrome": "^0.1.24",
     "@wxt-dev/module-vue": "^1.0.2",
+    "eslint": "^9.17.0",
     "typescript": "^5.9.2",
     "vue-tsc": "^3.0.6",
     "wxt": "^0.20.11"

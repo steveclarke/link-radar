@@ -1,179 +1,193 @@
 <script lang="ts" setup>
-import { ref, onMounted } from 'vue';
-import { useClipboard } from '@vueuse/core';
-import { STORAGE_KEYS } from '../../lib/config';
+import { useClipboard } from "@vueuse/core"
+import { onMounted, ref } from "vue"
+import { STORAGE_KEYS } from "../../lib/config"
 
 interface TabInfo {
-  title: string;
-  url: string;
-  favicon?: string;
+  title: string
+  url: string
+  favicon?: string
 }
 
-const pageInfo = ref<TabInfo | null>(null);
-const notes = ref('');
-const message = ref<{ text: string; type: 'success' | 'error' } | null>(null);
-const apiKeyConfigured = ref(false);
-const isBookmarked = ref(false);
-const bookmarkId = ref<string | null>(null);
-const isCheckingBookmark = ref(false);
-const isDeleting = ref(false);
+const pageInfo = ref<TabInfo | null>(null)
+const notes = ref("")
+const message = ref<{ text: string, type: "success" | "error" } | null>(null)
+const apiKeyConfigured = ref(false)
+const isBookmarked = ref(false)
+const bookmarkId = ref<string | null>(null)
+const isCheckingBookmark = ref(false)
+const isDeleting = ref(false)
 
 // Use VueUse clipboard composable
-const { copy, isSupported } = useClipboard();
+const { copy, isSupported } = useClipboard()
 
 async function checkApiKey() {
   try {
-    const result = await chrome.storage.sync.get(STORAGE_KEYS.API_KEY);
-    apiKeyConfigured.value = !!result[STORAGE_KEYS.API_KEY];
-  } catch (error) {
-    console.error('Error checking API key:', error);
-    apiKeyConfigured.value = false;
+    const result = await chrome.storage.sync.get(STORAGE_KEYS.API_KEY)
+    apiKeyConfigured.value = !!result[STORAGE_KEYS.API_KEY]
+  }
+  catch (error) {
+    console.error("Error checking API key:", error)
+    apiKeyConfigured.value = false
   }
 }
 
 async function loadCurrentPageInfo() {
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
 
     if (!tab || !tab.url) {
-      showError('Unable to access current page');
-      return;
+      showError("Unable to access current page")
+      return
     }
 
     pageInfo.value = {
-      title: tab.title || 'Untitled',
+      title: tab.title || "Untitled",
       url: tab.url,
-      favicon: tab.favIconUrl
-    };
+      favicon: tab.favIconUrl,
+    }
 
     // Check if this page is already bookmarked
-    await checkIfBookmarked(tab.url);
-  } catch (error) {
-    console.error('Error getting tab info:', error);
-    showError('Error loading page information');
+    await checkIfBookmarked(tab.url)
+  }
+  catch (error) {
+    console.error("Error getting tab info:", error)
+    showError("Error loading page information")
   }
 }
 
 async function checkIfBookmarked(url: string) {
   if (!apiKeyConfigured.value) {
     // Don't check if API key is not configured
-    return;
+    return
   }
 
-  isCheckingBookmark.value = true;
+  isCheckingBookmark.value = true
   try {
     const response = await chrome.runtime.sendMessage({
-      type: 'CHECK_LINK_EXISTS',
-      url: url
-    });
+      type: "CHECK_LINK_EXISTS",
+      url,
+    })
 
     if (response.success) {
-      isBookmarked.value = response.exists;
-      bookmarkId.value = response.linkId || null;
-    } else {
-      console.error('Failed to check bookmark status:', response.error);
+      isBookmarked.value = response.exists
+      bookmarkId.value = response.linkId || null
     }
-  } catch (error) {
-    console.error('Error checking bookmark:', error);
-  } finally {
-    isCheckingBookmark.value = false;
+    else {
+      console.error("Failed to check bookmark status:", response.error)
+    }
+  }
+  catch (error) {
+    console.error("Error checking bookmark:", error)
+  }
+  finally {
+    isCheckingBookmark.value = false
   }
 }
 
 function openSettings() {
-  chrome.runtime.openOptionsPage();
+  chrome.runtime.openOptionsPage()
 }
 
 async function saveLink() {
-  if (!pageInfo.value) return;
+  if (!pageInfo.value)
+    return
 
   const linkData = {
     title: pageInfo.value.title,
     url: pageInfo.value.url,
     note: notes.value,
-    saved_at: new Date().toISOString()
-  };
+    saved_at: new Date().toISOString(),
+  }
 
   try {
     const response = await chrome.runtime.sendMessage({
-      type: 'SAVE_LINK',
-      data: linkData
-    });
+      type: "SAVE_LINK",
+      data: linkData,
+    })
 
     if (response.success) {
-      showSuccess('Link saved successfully!');
-      notes.value = '';
+      showSuccess("Link saved successfully!")
+      notes.value = ""
       // Update bookmark status
-      isBookmarked.value = true;
-      await checkIfBookmarked(pageInfo.value.url);
-    } else {
-      showError('Failed to save link: ' + (response.error || 'Unknown error'));
+      isBookmarked.value = true
+      await checkIfBookmarked(pageInfo.value.url)
     }
-  } catch (error) {
-    console.error('Error saving link:', error);
-    showError('Error saving link');
+    else {
+      showError(`Failed to save link: ${response.error || "Unknown error"}`)
+    }
+  }
+  catch (error) {
+    console.error("Error saving link:", error)
+    showError("Error saving link")
   }
 }
 
 async function deleteBookmark() {
-  if (!bookmarkId.value || !pageInfo.value) return;
+  if (!bookmarkId.value || !pageInfo.value)
+    return
 
-  isDeleting.value = true;
+  isDeleting.value = true
   try {
     const response = await chrome.runtime.sendMessage({
-      type: 'DELETE_LINK',
-      linkId: bookmarkId.value
-    });
+      type: "DELETE_LINK",
+      linkId: bookmarkId.value,
+    })
 
     if (response.success) {
-      showSuccess('Bookmark deleted successfully!');
-      isBookmarked.value = false;
-      bookmarkId.value = null;
-      notes.value = '';
-    } else {
-      showError('Failed to delete bookmark: ' + (response.error || 'Unknown error'));
+      showSuccess("Bookmark deleted successfully!")
+      isBookmarked.value = false
+      bookmarkId.value = null
+      notes.value = ""
     }
-  } catch (error) {
-    console.error('Error deleting bookmark:', error);
-    showError('Error deleting bookmark');
-  } finally {
-    isDeleting.value = false;
+    else {
+      showError(`Failed to delete bookmark: ${response.error || "Unknown error"}`)
+    }
+  }
+  catch (error) {
+    console.error("Error deleting bookmark:", error)
+    showError("Error deleting bookmark")
+  }
+  finally {
+    isDeleting.value = false
   }
 }
 
 async function copyToClipboard() {
-  if (!pageInfo.value || !isSupported.value) return;
+  if (!pageInfo.value || !isSupported.value)
+    return
 
   try {
-    await copy(pageInfo.value.url);
-    showSuccess('URL copied to clipboard!');
-  } catch (error) {
-    console.error('Error copying to clipboard:', error);
-    showError('Failed to copy URL');
+    await copy(pageInfo.value.url)
+    showSuccess("URL copied to clipboard!")
+  }
+  catch (error) {
+    console.error("Error copying to clipboard:", error)
+    showError("Failed to copy URL")
   }
 }
 
 function showSuccess(text: string) {
-  showMessage(text, 'success');
+  showMessage(text, "success")
 }
 
 function showError(text: string) {
-  showMessage(text, 'error');
+  showMessage(text, "error")
 }
 
-function showMessage(text: string, type: 'success' | 'error') {
-  message.value = { text, type };
+function showMessage(text: string, type: "success" | "error") {
+  message.value = { text, type }
   // Error messages stay for 15 seconds, success messages for 3 seconds
-  const timeout = type === 'error' ? 15000 : 3000;
+  const timeout = type === "error" ? 15000 : 3000
   setTimeout(() => {
-    message.value = null;
-  }, timeout);
+    message.value = null
+  }, timeout)
 }
 
 onMounted(() => {
-  checkApiKey();
-  loadCurrentPageInfo();
-});
+  checkApiKey()
+  loadCurrentPageInfo()
+})
 </script>
 
 <template>
@@ -183,12 +197,14 @@ onMounted(() => {
         <h1>Link Radar</h1>
         <span class="vue-badge">⚡ Vue 3</span>
       </div>
-      <button @click="openSettings" class="settings-button" title="Settings">⚙️</button>
+      <button class="settings-button" title="Settings" @click="openSettings">
+        ⚙️
+      </button>
     </div>
 
     <div v-if="!apiKeyConfigured" class="warning-banner">
       ⚠️ API key not configured.
-      <a @click="openSettings" class="warning-link">Click here to set it up</a>
+      <a class="warning-link" @click="openSettings">Click here to set it up</a>
     </div>
 
     <div v-if="pageInfo" class="current-page">
@@ -196,8 +212,12 @@ onMounted(() => {
       <div class="page-details">
         <img v-if="pageInfo.favicon" :src="pageInfo.favicon" class="favicon" alt="Site icon">
         <div class="page-text">
-          <div class="page-title">{{ pageInfo.title }}</div>
-          <div class="page-url">{{ pageInfo.url }}</div>
+          <div class="page-title">
+            {{ pageInfo.title }}
+          </div>
+          <div class="page-url">
+            {{ pageInfo.url }}
+          </div>
         </div>
       </div>
     </div>
@@ -205,21 +225,23 @@ onMounted(() => {
     <div class="actions">
       <button
         v-if="!isBookmarked"
-        @click="saveLink"
         class="save-button"
         :disabled="!apiKeyConfigured || isCheckingBookmark"
+        @click="saveLink"
       >
         {{ isCheckingBookmark ? 'Checking...' : 'Save This Link' }}
       </button>
       <button
         v-else
-        @click="deleteBookmark"
         class="delete-button"
         :disabled="isDeleting"
+        @click="deleteBookmark"
       >
         {{ isDeleting ? 'Deleting...' : 'Delete Bookmark' }}
       </button>
-      <button @click="copyToClipboard" class="copy-button">Copy URL</button>
+      <button class="copy-button" @click="copyToClipboard">
+        Copy URL
+      </button>
     </div>
 
     <div class="notes-section">
@@ -228,10 +250,10 @@ onMounted(() => {
         id="notes"
         v-model="notes"
         placeholder="Add your thoughts about this link..."
-      ></textarea>
+      />
     </div>
 
-    <div v-if="message" :class="['message', `message-${message.type}`]">
+    <div v-if="message" class="message" :class="[`message-${message.type}`]">
       {{ message.text }}
     </div>
   </div>
@@ -476,4 +498,3 @@ h2 {
   border: 1px solid #f5c6cb;
 }
 </style>
-

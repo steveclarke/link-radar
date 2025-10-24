@@ -1,73 +1,78 @@
 <script lang="ts" setup>
-import { ref, onMounted } from 'vue';
-import { STORAGE_KEYS } from '../../lib/config';
+import { onMounted, ref } from "vue"
+import { STORAGE_KEYS } from "../../lib/config"
 
-const apiKey = ref('');
-const showApiKey = ref(false);
-const message = ref<{ text: string; type: 'success' | 'error' } | null>(null);
-const isSaving = ref(false);
+const apiKey = ref("")
+const showApiKey = ref(false)
+const message = ref<{ text: string, type: "success" | "error" } | null>(null)
+const isSaving = ref(false)
 
 async function loadSettings() {
   try {
-    const result = await chrome.storage.sync.get(STORAGE_KEYS.API_KEY);
+    const result = await chrome.storage.sync.get(STORAGE_KEYS.API_KEY)
     if (result[STORAGE_KEYS.API_KEY]) {
-      apiKey.value = result[STORAGE_KEYS.API_KEY];
+      apiKey.value = result[STORAGE_KEYS.API_KEY]
     }
-  } catch (error) {
-    console.error('Error loading settings:', error);
-    showError('Failed to load settings');
+  }
+  catch (error) {
+    console.error("Error loading settings:", error)
+    showError("Failed to load settings")
   }
 }
 
 async function saveSettings() {
   if (!apiKey.value.trim()) {
-    showError('Please enter an API key');
-    return;
+    showError("Please enter an API key")
+    return
   }
 
-  isSaving.value = true;
+  isSaving.value = true
   try {
     await chrome.storage.sync.set({
-      [STORAGE_KEYS.API_KEY]: apiKey.value.trim()
-    });
-    showSuccess('Settings saved successfully!');
-  } catch (error) {
-    console.error('Error saving settings:', error);
-    showError('Failed to save settings');
-  } finally {
-    isSaving.value = false;
+      [STORAGE_KEYS.API_KEY]: apiKey.value.trim(),
+    })
+    showSuccess("Settings saved successfully!")
+  }
+  catch (error) {
+    console.error("Error saving settings:", error)
+    showError("Failed to save settings")
+  }
+  finally {
+    isSaving.value = false
   }
 }
 
 function toggleShowApiKey() {
-  showApiKey.value = !showApiKey.value;
+  showApiKey.value = !showApiKey.value
 }
 
 function showSuccess(text: string) {
-  showMessage(text, 'success');
+  showMessage(text, "success")
 }
 
 function showError(text: string) {
-  showMessage(text, 'error');
+  showMessage(text, "error")
 }
 
-function showMessage(text: string, type: 'success' | 'error') {
-  message.value = { text, type };
+function showMessage(text: string, type: "success" | "error") {
+  message.value = { text, type }
   setTimeout(() => {
-    message.value = null;
-  }, 3000);
+    message.value = null
+  }, 3000)
 }
 
 onMounted(() => {
-  loadSettings();
-});
+  loadSettings()
+})
 </script>
 
 <template>
   <div class="settings-container">
     <div class="settings-header">
       <h1>Link Radar Settings</h1>
-      <p class="subtitle">Configure your Link Radar extension</p>
+      <p class="subtitle">
+        Configure your Link Radar extension
+      </p>
     </div>
 
     <div class="settings-content">
@@ -86,12 +91,12 @@ onMounted(() => {
               :type="showApiKey ? 'text' : 'password'"
               placeholder="Enter your API key"
               class="api-key-input"
-            />
+            >
             <button
               type="button"
-              @click="toggleShowApiKey"
               class="toggle-visibility-btn"
               :title="showApiKey ? 'Hide API key' : 'Show API key'"
+              @click="toggleShowApiKey"
             >
               {{ showApiKey ? '👁️' : '👁️‍🗨️' }}
             </button>
@@ -99,9 +104,9 @@ onMounted(() => {
         </div>
 
         <button
-          @click="saveSettings"
           :disabled="isSaving"
           class="save-button"
+          @click="saveSettings"
         >
           {{ isSaving ? 'Saving...' : 'Save Settings' }}
         </button>
@@ -121,7 +126,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <div v-if="message" :class="['message', `message-${message.type}`]">
+    <div v-if="message" class="message" :class="[`message-${message.type}`]">
       {{ message.text }}
     </div>
   </div>
@@ -308,4 +313,3 @@ code {
   border: 1px solid #f5c6cb;
 }
 </style>
-

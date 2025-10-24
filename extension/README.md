@@ -157,4 +157,3 @@ Make sure the backend is running and you have configured your API key in the ext
 
 - [WXT Documentation](https://wxt.dev/)
 - [Chrome Extension API](https://developer.chrome.com/docs/extensions/)
-
