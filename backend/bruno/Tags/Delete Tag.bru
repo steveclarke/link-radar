@@ -1,0 +1,27 @@
+meta {
+  name: Delete Tag
+  type: http
+  seq: 6
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/tags/:id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: {{tagId}}
+}
+
+docs {
+  Delete a tag permanently.
+  
+  This removes the tag from all links that were using it.
+  The link_tags associations are automatically destroyed via dependent: :destroy.
+  
+  Returns 204 No Content on success.
+  Returns 404 Not Found if tag doesn't exist.
+}
+
+

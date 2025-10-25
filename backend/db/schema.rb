@@ -10,13 +10,23 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_10_22_005647) do
+ActiveRecord::Schema[8.1].define(version: 2025_10_25_190833) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
   # Custom types defined in this database.
   # Note that some types may not work with other database engines. Be careful if changing database.
   create_enum "link_fetch_state", ["pending", "success", "failed"]
+
+  create_table "link_tags", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.uuid "link_id", null: false
+    t.uuid "tag_id", null: false
+    t.index ["link_id", "tag_id"], name: "index_link_tags_on_link_id_and_tag_id", unique: true
+    t.index ["link_id"], name: "index_link_tags_on_link_id"
+    t.index ["tag_id"], name: "index_link_tags_on_tag_id"
+  end
+
   create_table "links", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
     t.text "content_text"
     t.datetime "created_at", null: false
@@ -36,4 +46,19 @@ ActiveRecord::Schema[8.1].define(version: 2025_10_22_005647) do
     t.index ["metadata"], name: "index_links_on_metadata", using: :gin
     t.index ["url"], name: "index_links_on_url", unique: true
   end
+
+  create_table "tags", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.text "description"
+    t.datetime "last_used_at"
+    t.string "name", null: false
+    t.string "slug", null: false
+    t.datetime "updated_at", null: false
+    t.integer "usage_count", default: 0, null: false
+    t.index ["name"], name: "index_tags_on_name"
+    t.index ["slug"], name: "index_tags_on_slug", unique: true
+  end
+
+  add_foreign_key "link_tags", "links"
+  add_foreign_key "link_tags", "tags"
 end
