@@ -34,6 +34,9 @@ module Api
         end
 
         if @link.save
+          # Assign tags if provided
+          @link.assign_tags(params[:link][:tag_names]) if params[:link][:tag_names].present?
+          
           render :show, status: :created
         else
           render json: {errors: @link.errors.full_messages}, status: :unprocessable_entity
@@ -67,6 +70,9 @@ module Api
         end
 
         if @link.save
+          # Assign tags if provided
+          @link.assign_tags(params[:link][:tag_names]) if params[:link][:tag_names].present?
+          
           render :show
         else
           render json: {errors: @link.errors.full_messages}, status: :unprocessable_entity

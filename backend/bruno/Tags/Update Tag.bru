@@ -1,0 +1,41 @@
+meta {
+  name: Update Tag
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/tags/:id
+  body: json
+  auth: inherit
+}
+
+params:path {
+  id: {{tagId}}
+}
+
+body:json {
+  {
+    "tag": {
+      "name": "Ruby on Rails",
+      "description": "Updated description for Ruby framework"
+    }
+  }
+}
+
+docs {
+  Update an existing tag.
+
+  Allowed fields:
+  - name: Tag name (updates slug automatically)
+  - description: Tag description
+
+  Note: Updating the name will regenerate the slug.
+  usage_count and last_used_at cannot be manually updated.
+
+  Returns 200 OK on success with the updated tag.
+  Returns 404 Not Found if tag doesn't exist.
+  Returns 422 Unprocessable Entity on validation errors (duplicate name, etc).
+}
+
+
