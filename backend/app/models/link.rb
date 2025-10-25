@@ -31,6 +31,9 @@ class Link < ApplicationRecord
   has_many :link_tags, dependent: :destroy
   has_many :tags, through: :link_tags
 
+  # Virtual attribute for tag assignment
+  attr_accessor :tag_names
+
   # Fetch state enum backed by Postgres enum type
   enum :fetch_state, {
     pending: "pending",
@@ -44,23 +47,35 @@ class Link < ApplicationRecord
   validates :title, length: {maximum: 500}
   validates :image_url, length: {maximum: 2048}
 
-  # Assign tags by name, creating new tags as needed
-  # @param tag_names [Array<String>] array of tag names
-  # @return [Array<Tag>] the assigned tags
-  # @example
-  #   link.assign_tags(["Ruby", "Rails", "API"])
-  def assign_tags(tag_names)
-    return [] if tag_names.blank?
+  # Callbacks
+  # Check @tag_names (instance variable) to distinguish: nil (not provided) vs [] (clear tags)
+  after_save :process_tag_names, if: -> { !@tag_names.nil? }
 
+  private
+
+  # Process tag names after save, wrapped in a transaction
+  def process_tag_names
+    transaction do
+      assign_tags(@tag_names)
+    end
+  ensure
+    # Clear the virtual attribute after processing
+    @tag_names = nil
+  end
+
+  # Assign tags by name, creating new tags as needed
+  # @param tag_names [Array<String>] array of tag names (empty array clears all tags)
+  # @return [Array<Tag>] the assigned tags
+  def assign_tags(tag_names)
     # Normalize tag names
-    normalized_names = tag_names.map(&:strip).compact_blank.uniq
+    normalized_names = Array(tag_names).map(&:strip).compact_blank.uniq
 
     # Find or create tags
     new_tags = normalized_names.map do |name|
       Tag.find_or_create_by(name: name)
     end
 
-    # Replace existing tags with new set
+    # Replace existing tags with new set (including empty array to clear all)
     self.tags = new_tags
   end
 end

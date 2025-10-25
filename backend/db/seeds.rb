@@ -4,8 +4,17 @@
 
 require "faker"
 
-$stdout.puts "Clearing existing links..."
+$stdout.puts "Clearing existing data..."
 Link.destroy_all
+Tag.destroy_all
+
+$stdout.puts "Creating sample tags..."
+TAG_POOL = [
+  "Ruby", "Rails", "JavaScript", "TypeScript", "API", "Tutorial",
+  "News", "Documentation", "Best Practices", "Performance",
+  "Security", "Testing", "DevOps", "Database", "Frontend",
+  "Backend", "Design", "UX", "Mobile", "Web Development"
+]
 
 $stdout.puts "Creating sample links..."
 
@@ -54,6 +63,9 @@ $stdout.puts "Creating 70 successful links..."
   created_at = Faker::Time.between(from: 90.days.ago, to: Time.zone.now)
   fetched_at = created_at + rand(1..300).seconds
 
+  # Randomly assign 0-3 tags
+  tag_names = TAG_POOL.sample(rand(0..3))
+
   Link.create!(
     url: url,
     submitted_url: submitted_url,
@@ -65,6 +77,7 @@ $stdout.puts "Creating 70 successful links..."
     fetch_state: "success",
     fetched_at: fetched_at,
     metadata: generate_metadata(title, note, image_url),
+    tag_names: tag_names,
     created_at: created_at,
     updated_at: fetched_at
   )
@@ -84,10 +97,14 @@ $stdout.puts "Creating 20 pending links..."
 
   created_at = Faker::Time.between(from: 7.days.ago, to: Time.zone.now)
 
+  # Randomly assign 0-3 tags
+  tag_names = TAG_POOL.sample(rand(0..3))
+
   Link.create!(
     url: url,
     submitted_url: submitted_url,
     fetch_state: "pending",
+    tag_names: tag_names,
     created_at: created_at,
     updated_at: created_at
   )
@@ -120,12 +137,16 @@ error_messages = [
   created_at = Faker::Time.between(from: 30.days.ago, to: Time.zone.now)
   fetched_at = created_at + rand(5..30).seconds
 
+  # Randomly assign 0-3 tags
+  tag_names = TAG_POOL.sample(rand(0..3))
+
   Link.create!(
     url: url,
     submitted_url: submitted_url,
     fetch_state: "failed",
     fetch_error: error_messages[i],
     fetched_at: fetched_at,
+    tag_names: tag_names,
     created_at: created_at,
     updated_at: fetched_at
   )
@@ -136,3 +157,5 @@ $stdout.puts "Total links: #{Link.count}"
 $stdout.puts "  - Success: #{Link.where(fetch_state: "success").count}"
 $stdout.puts "  - Pending: #{Link.where(fetch_state: "pending").count}"
 $stdout.puts "  - Failed: #{Link.where(fetch_state: "failed").count}"
+$stdout.puts "Total tags: #{Tag.count}"
+$stdout.puts "Total link-tag associations: #{LinkTag.count}"

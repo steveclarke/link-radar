@@ -34,9 +34,6 @@ module Api
         end
 
         if @link.save
-          # Assign tags if provided
-          @link.assign_tags(params[:link][:tag_names]) if params[:link][:tag_names].present?
-
           render :show, status: :created
         else
           render json: {errors: @link.errors.full_messages}, status: :unprocessable_entity
@@ -70,9 +67,6 @@ module Api
         end
 
         if @link.save
-          # Assign tags if provided
-          @link.assign_tags(params[:link][:tag_names]) if params[:link][:tag_names].present?
-
           render :show
         else
           render json: {errors: @link.errors.full_messages}, status: :unprocessable_entity
@@ -96,11 +90,11 @@ module Api
       end
 
       def link_params
-        params.require(:link).permit(:submitted_url, :title, :note, :image_url)
+        params.require(:link).permit(:submitted_url, :title, :note, :image_url, tag_names: [])
       end
 
       def link_update_params
-        params.require(:link).permit(:submitted_url, :title, :note, :image_url)
+        params.require(:link).permit(:submitted_url, :title, :note, :image_url, tag_names: [])
       end
 
       def normalize_url(url)
