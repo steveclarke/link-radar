@@ -4,10 +4,10 @@
 
 require "faker"
 
-puts "Clearing existing links..."
+$stdout.puts "Clearing existing links..."
 Link.destroy_all
 
-puts "Creating sample links..."
+$stdout.puts "Creating sample links..."
 
 # Helper to generate metadata
 def generate_metadata(title, note, image_url)
@@ -33,7 +33,7 @@ def generate_html_content(paragraphs)
 end
 
 # 70 successful links with full content
-puts "Creating 70 successful links..."
+$stdout.puts "Creating 70 successful links..."
 70.times do
   url = Faker::Internet.url(host: Faker::Internet.domain_name, path: "/#{Faker::Internet.slug}")
   title = Faker::Hacker.say_something_smart
@@ -51,7 +51,7 @@ puts "Creating 70 successful links..."
     url
   end
 
-  created_at = Faker::Time.between(from: 90.days.ago, to: Time.now)
+  created_at = Faker::Time.between(from: 90.days.ago, to: Time.zone.now)
   fetched_at = created_at + rand(1..300).seconds
 
   Link.create!(
@@ -71,7 +71,7 @@ puts "Creating 70 successful links..."
 end
 
 # 20 pending links with minimal content
-puts "Creating 20 pending links..."
+$stdout.puts "Creating 20 pending links..."
 20.times do
   url = Faker::Internet.url(host: Faker::Internet.domain_name, path: "/#{Faker::Internet.slug}")
 
@@ -82,7 +82,7 @@ puts "Creating 20 pending links..."
     url
   end
 
-  created_at = Faker::Time.between(from: 7.days.ago, to: Time.now)
+  created_at = Faker::Time.between(from: 7.days.ago, to: Time.zone.now)
 
   Link.create!(
     url: url,
@@ -94,7 +94,7 @@ puts "Creating 20 pending links..."
 end
 
 # 10 failed links with error messages
-puts "Creating 10 failed links..."
+$stdout.puts "Creating 10 failed links..."
 error_messages = [
   "Connection timeout after 15 seconds",
   "HTTP 404 Not Found",
@@ -117,7 +117,7 @@ error_messages = [
     url
   end
 
-  created_at = Faker::Time.between(from: 30.days.ago, to: Time.now)
+  created_at = Faker::Time.between(from: 30.days.ago, to: Time.zone.now)
   fetched_at = created_at + rand(5..30).seconds
 
   Link.create!(
@@ -131,8 +131,8 @@ error_messages = [
   )
 end
 
-puts "Seed data created successfully!"
-puts "Total links: #{Link.count}"
-puts "  - Success: #{Link.where(fetch_state: "success").count}"
-puts "  - Pending: #{Link.where(fetch_state: "pending").count}"
-puts "  - Failed: #{Link.where(fetch_state: "failed").count}"
+$stdout.puts "Seed data created successfully!"
+$stdout.puts "Total links: #{Link.count}"
+$stdout.puts "  - Success: #{Link.where(fetch_state: "success").count}"
+$stdout.puts "  - Pending: #{Link.where(fetch_state: "pending").count}"
+$stdout.puts "  - Failed: #{Link.where(fetch_state: "failed").count}"

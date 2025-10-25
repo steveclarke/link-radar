@@ -53,7 +53,7 @@ class Link < ApplicationRecord
     return [] if tag_names.blank?
 
     # Normalize tag names
-    normalized_names = tag_names.map(&:strip).reject(&:blank?).uniq
+    normalized_names = tag_names.map(&:strip).compact_blank.uniq
 
     # Find or create tags
     new_tags = normalized_names.map do |name|
