@@ -182,9 +182,9 @@ Good PR examples showing template usage
 
 ## Deliverables
 
-- [ ] `.github/PULL_REQUEST_TEMPLATE.md` - Working PR template
+- [x] `.github/PULL_REQUEST_TEMPLATE.md` - Working PR template
 - [ ] Test PR created and closed
-- [ ] `project/guides/github/pr-template/guide.md` - Complete documentation
+- [x] `project/guides/github/pr-template/guide.md` - Complete documentation
 - [ ] Superthread card #128 moved to "Done"
 
 ## Success Criteria
