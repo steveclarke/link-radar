@@ -16,7 +16,7 @@ You are a Git/GitHub workflow automation specialist responsible for creating pul
 
 **Follow the workflow exactly.** Use empty commits, create draft PRs immediately, apply correct labels, and link Superthread cards as documented in `project/guides/github/workflow/guide.md`.
 
-**Leverage Superthread integration.** Always include the card ID (ST-XXX) in both branch name and PR title to enable automatic card linking and status updates.
+**Leverage Superthread integration.** Always include the card ID (ST-XXX) in the branch name OR PR title to enable automatic card linking and status updates. Prefer including it in branch name following our conventions: `type/ST-XXX-description`.
 
 **Reference, don't duplicate.** Use the actual PR template from `.github/PULL_REQUEST_TEMPLATE.md` - never duplicate template content here to avoid documentation drift.
 
@@ -37,7 +37,7 @@ Ask the user for the following (provide examples for each):
 - Card number only (e.g., `130` - will convert to `ST-130`) OR
 - Full card URL (e.g., `https://clevertakes.superthread.com/card/130`)
 - Card title/description for context
-- **Note:** Including the card ID in the branch name and PR title enables Superthread's automatic linking and status updates
+- **Note:** Including the card ID (`ST-XXX`) in the branch name OR PR title enables Superthread's automatic linking and status updates. We prefer it in the branch name following our conventions.
 
 **Change Type:**
 - `feat` - New features
@@ -58,12 +58,13 @@ Ask the user for the following (provide examples for each):
 - (Can select multiple if change spans areas)
 
 **Branch Name:**
-- **Preferred:** Use "Copy git branch name" button in Superthread card header (includes card ID automatically)
-- **Alternative:** Suggest based on type and card: `{type}/{card-id}-{brief-description}`
-- Example: `feat/ST-130-workflow-guide` or `docs/ST-128-pr-template`
-- **Must include card ID** (`ST-XXX`) for automatic Superthread linking
-- Must be lowercase, hyphenated
-- If user provides branch name from Superthread, use it directly
+- **Preferred:** Follow LinkRadar conventions: `{type}/ST-{number}-{brief-description}`
+  - Example: `feat/ST-130-workflow-guide`, `docs/ST-128-pr-template`
+  - Lowercase, hyphenated, includes card ID for Superthread auto-linking
+- **Alternative:** User can provide Superthread's suggested name (usually has underscores)
+  - Will work for auto-linking but doesn't follow our conventions
+- **Key requirement:** Must include `ST-XXX` somewhere in branch name OR PR title for Superthread integration
+- Suggest converting Superthread names to our format (replace underscores with hyphens, add type prefix)
 
 **PR Description:**
 - Brief description of what the PR will accomplish (1-3 sentences)
@@ -72,10 +73,12 @@ Ask the user for the following (provide examples for each):
 
 Before executing:
 - Confirm user is on `master` branch or offer to switch
-- Verify branch name follows conventions (lowercase, hyphenated, starts with type/)
 - **Verify branch name includes card ID** (ST-XXX format) for Superthread auto-linking
+- If user provides Superthread's suggested name (with underscores):
+  - Offer to convert to LinkRadar conventions (type/ST-XXX-description with hyphens)
+  - Or use as-is if user prefers
+- Verify branch name follows conventions (lowercase, hyphenated, starts with type/) if using our format
 - Ensure at least one type and one area are selected
-- Validate Superthread card format
 - Convert card number (130) to card ID (ST-130) if needed
 
 ### 3. Execute PR Creation Workflow
@@ -176,17 +179,17 @@ Before considering the command complete:
 2. "What's the card about?" → `Document Development Workflow`
 3. "What type of change is this? (feat/fix/docs/style/refactor/test/chore)" → `docs`
 4. "Which area(s) does this affect? (backend/extension/frontend/cli/infrastructure/project)" → `project`
-5. "Did you copy the branch name from Superthread? If yes, paste it. If no, I'll suggest one." → `No`
-6. "Suggested branch name: `docs/ST-130-workflow-guide` - use this or provide your own?" → Use suggested
+5. "Do you have a branch name? (You can paste from Superthread or I'll suggest one)" → `st-130_lr002_p3_document_development_workflow`
+6. "I see that's Superthread's format. Convert to our conventions: `docs/ST-130-workflow-guide`?" → `Yes`
 7. "Brief description for the PR (1-3 sentences)?" → `Create comprehensive workflow guide documenting branching, commits, PRs, and reviews`
 
 **Assistant executes:**
 - Switches to master, pulls latest
-- Creates branch `docs/ST-130-workflow-guide`
+- Creates branch `docs/ST-130-workflow-guide` (converted from Superthread's suggestion to our conventions)
 - Makes empty commit: `docs(project): initialize workflow guide documentation`
 - Pushes branch
 - Creates draft PR with title: `docs(project): Create comprehensive workflow guide ST-130`
 - Fills PR template with Superthread card link
 - Applies labels `type: docs` and `area: project`
-- Shows PR URL and confirms Superthread auto-linking is active
+- Shows PR URL and confirms Superthread auto-linking is active (ST-130 in branch name enables this)
 
