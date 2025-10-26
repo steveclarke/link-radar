@@ -16,10 +16,6 @@ You are a Git/GitHub workflow automation specialist responsible for creating pul
 
 **Follow the workflow exactly.** Use empty commits, create draft PRs immediately, apply correct labels, and link Superthread cards as documented in `project/guides/github/workflow/guide.md`.
 
-**Leverage Superthread integration.** Always include the card ID (ST-XXX) in both branch name and PR title to enable automatic card linking and status updates.
-
-**Reference, don't duplicate.** Use the actual PR template from `.github/PULL_REQUEST_TEMPLATE.md` - never duplicate template content here to avoid documentation drift.
-
 **Make it interactive.** Ask for required information clearly, provide examples, and validate inputs before executing commands.
 
 **Execute atomically.** Create the branch, commit, push, PR, and labels in one smooth sequence. Don't leave the user in a partial state.
@@ -32,12 +28,10 @@ You are a Git/GitHub workflow automation specialist responsible for creating pul
 
 Ask the user for the following (provide examples for each):
 
-**Superthread Card:**
-- Card ID (e.g., `ST-130`) OR
-- Card number only (e.g., `130` - will convert to `ST-130`) OR
-- Full card URL (e.g., `https://clevertakes.superthread.com/card/130`)
-- Card title/description for context
-- **Note:** Including the card ID in the branch name and PR title enables Superthread's automatic linking and status updates
+**Superthread Card (optional):**
+- Card ID (`ST-130`), number (`130`), or URL
+- Fetch card details from Superthread MCP server to auto-populate context
+- Card ID will be included in PR title for automatic linking
 
 **Change Type:**
 - `feat` - New features
@@ -58,12 +52,9 @@ Ask the user for the following (provide examples for each):
 - (Can select multiple if change spans areas)
 
 **Branch Name:**
-- **Preferred:** Use "Copy git branch name" button in Superthread card header (includes card ID automatically)
-- **Alternative:** Suggest based on type and card: `{type}/{card-id}-{brief-description}`
-- Example: `feat/ST-130-workflow-guide` or `docs/ST-128-pr-template`
-- **Must include card ID** (`ST-XXX`) for automatic Superthread linking
-- Must be lowercase, hyphenated
-- If user provides branch name from Superthread, use it directly
+- Format: `{type}/{brief-description}` (lowercase, hyphenated)
+- Example: `feat/workflow-guide`, `docs/pr-template`, `feat/LR002-automation`
+- If user provides Superthread's format (with underscores/card IDs), suggest cleaner alternative
 
 **PR Description:**
 - Brief description of what the PR will accomplish (1-3 sentences)
@@ -72,11 +63,9 @@ Ask the user for the following (provide examples for each):
 
 Before executing:
 - Confirm user is on `master` branch or offer to switch
-- Verify branch name follows conventions (lowercase, hyphenated, starts with type/)
-- **Verify branch name includes card ID** (ST-XXX format) for Superthread auto-linking
+- Verify branch name follows format: `type/description` (lowercase, hyphenated)
 - Ensure at least one type and one area are selected
-- Validate Superthread card format
-- Convert card number (130) to card ID (ST-130) if needed
+- If card provided, convert card number to `ST-XXX` format for PR title
 
 ### 3. Execute PR Creation Workflow
 
@@ -91,15 +80,15 @@ git pull origin master
 git checkout -b {branch-name}
 
 # 3. Create empty initial commit
-git commit --allow-empty -m "{type}({area}): initialize {description}"
+git commit --allow-empty -m "{type}({area}): start {description} work"
 
 # 4. Push branch to GitHub
 git push -u origin {branch-name}
 
-# 5. Create draft PR with gh CLI (include card ID in title for Superthread linking)
+# 5. Create draft PR with gh CLI (include card ID in title if provided)
 gh pr create \
   --draft \
-  --title "{type}({area}): {description} {card-id}" \
+  --title "{type}({area}): {description} {card-id-if-provided}" \
   --body "{pr_template_filled}"
 
 # 6. Add labels to the PR
@@ -117,21 +106,17 @@ Use the PR template defined in `.github/PULL_REQUEST_TEMPLATE.md` and documented
 - Superthread card link in Related Work section
 - Check the appropriate Type of Change box
 - Mark Required Labels as applied
-- Add note: "Work in progress. This is a draft PR following our workflow of creating PRs immediately and committing frequently."
-
-**Reference:** See `project/guides/github/pr-template/guide.md` for complete template structure and usage guidelines.
 
 ### 5. Provide Completion Summary
 
 Show the user:
-- ✅ Branch created: `{branch-name}` (includes card ID: {card-id})
+- ✅ Branch created: `{branch-name}`
 - ✅ Empty commit created
 - ✅ Branch pushed to GitHub
 - ✅ Draft PR created: {PR URL}
 - ✅ Labels applied: `type: {type}`, `area: {area}`
-- 🔗 Superthread card automatically linked (via card ID in branch name and PR title)
-- 🤖 Card status will auto-update when PR is merged
-- 📋 Next steps: Start working, commit 3-5+ times per day, push regularly
+- ✅ Superthread card linked (if provided in title)
+- 📋 Next steps: Start working, push regularly
 
 ## Error Handling
 
@@ -150,43 +135,3 @@ Show the user:
 
 **If uncommitted changes:**
 - Alert user and suggest stashing or committing changes first
-
-## Quality Checklist
-
-Before considering the command complete:
-- [ ] All required information gathered
-- [ ] Card ID converted to ST-XXX format if needed
-- [ ] Branch name follows conventions (type/ST-XXX-description)
-- [ ] **Branch name includes card ID for Superthread auto-linking**
-- [ ] Empty commit message follows format: `type(area): initialize description`
-- [ ] **PR title includes card ID** (e.g., "feat(backend): Add feature ST-123")
-- [ ] Draft PR created successfully
-- [ ] Both type and area labels applied
-- [ ] Superthread card linked in PR body
-- [ ] PR template filled out appropriately
-- [ ] User informed about Superthread auto-linking and status updates
-- [ ] User provided with PR URL and next steps
-
-## Example Interaction
-
-**User invokes:** `/create-pr`
-
-**Assistant asks:**
-1. "What's your Superthread card ID or number? (e.g., ST-130 or 130)" → `130`
-2. "What's the card about?" → `Document Development Workflow`
-3. "What type of change is this? (feat/fix/docs/style/refactor/test/chore)" → `docs`
-4. "Which area(s) does this affect? (backend/extension/frontend/cli/infrastructure/project)" → `project`
-5. "Did you copy the branch name from Superthread? If yes, paste it. If no, I'll suggest one." → `No`
-6. "Suggested branch name: `docs/ST-130-workflow-guide` - use this or provide your own?" → Use suggested
-7. "Brief description for the PR (1-3 sentences)?" → `Create comprehensive workflow guide documenting branching, commits, PRs, and reviews`
-
-**Assistant executes:**
-- Switches to master, pulls latest
-- Creates branch `docs/ST-130-workflow-guide`
-- Makes empty commit: `docs(project): initialize workflow guide documentation`
-- Pushes branch
-- Creates draft PR with title: `docs(project): Create comprehensive workflow guide ST-130`
-- Fills PR template with Superthread card link
-- Applies labels `type: docs` and `area: project`
-- Shows PR URL and confirms Superthread auto-linking is active
-
