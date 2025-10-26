@@ -43,25 +43,25 @@ This is especially valuable as a pattern to lift to your bigger team project.
 **Time Estimate:** 30 minutes
 
 **Branching Documentation Checklist:**
-- [ ] Document branch naming conventions (feature/, fix/, etc.)
+- [ ] Document branch naming conventions (feat/, fix/, etc.)
 - [ ] Define when to create a branch
 - [ ] Define how to name branches (lowercase, hyphenated, descriptive)
 - [ ] Decide merge vs rebase strategy
 - [ ] Define when to delete branches
-- [ ] Document that main branch is always deployable
+- [ ] Document that master branch is always deployable
 - [ ] Write clear examples for each branch type
 
 **Recommended Strategy:**
 ```
-main (protected)
-  ├── feature/lr002-p1-pr-template
+master (protected)
+  ├── feat/lr002-p1-pr-template
   ├── fix/backend-link-validation
   ├── chore/update-dependencies
   └── docs/improve-readme
 ```
 
 **Branch Naming Conventions:**
-- `feature/` - New features
+- `feat/` - New features
 - `fix/` - Bug fixes
 - `chore/` - Maintenance, dependencies, tooling
 - `docs/` - Documentation updates
@@ -79,8 +79,11 @@ main (protected)
 - [ ] Write good commit subject guidelines
 - [ ] Document when to include body text
 - [ ] Document how to reference issues/cards
+- [ ] **Document commit frequency best practices**
+- [ ] **Document "no uncommitted work at end of day" rule**
 - [ ] Create 5+ LinkRadar-specific examples
 - [ ] Include examples of good vs bad commits
+- [ ] Explain benefits of frequent, small commits
 
 Detail Conventional Commits format with LinkRadar-specific examples:
 
@@ -137,12 +140,14 @@ Bump base image for security patches and performance improvements.
 
 ### Step 4: Detail PR Process
 
-**Time Estimate:** 45 minutes
+**Time Estimate:** 60 minutes
 
 **PR Process Documentation Checklist:**
-- [ ] Document complete PR workflow (10 steps)
+- [ ] Document complete PR workflow (11 steps)
+- [ ] Document draft PR creation immediately upon starting work
+- [ ] Document frequent commit practices
 - [ ] Define how to handle merge conflicts
-- [ ] Define when to update from main
+- [ ] Define when to update from master
 - [ ] Document PR description best practices
 - [ ] Document how to link to Superthread cards
 - [ ] Create review checklist items
@@ -150,24 +155,38 @@ Bump base image for security patches and performance improvements.
 - [ ] Add examples of good PR descriptions
 
 **Steps:**
-1. **Create branch** from `main`
-2. **Make changes** with good commits
-3. **Push branch** to GitHub
-4. **Create PR** (template loads automatically)
-5. **Fill out template** completely
+1. **Create branch** from `master`
+2. **Make initial empty commit** to enable PR creation:
+   ```bash
+   git commit --allow-empty -m "feat(area): initialize [feature name]"
+   ```
+3. **Push branch** to GitHub immediately
+4. **Create DRAFT PR** right away (template loads automatically)
+5. **Fill out template** as much as possible (can be refined later)
 6. **Add labels** (type + area, required)
 7. **Link Superthread card** in description
-8. **Request review** (even for solo dev, good habit)
-9. **Address feedback** if any
-10. **Merge when approved** using squash merge
-11. **Delete branch** after merge
+8. **Commit frequently** as you work (multiple times per day)
+9. **Mark ready for review** when complete
+10. **Request review** (even for solo dev, good habit)
+11. **Address feedback** if any
+12. **Merge when approved** using squash merge
+13. **Delete branch** after merge
+
+**Critical Practices:**
+- **Use empty commits to start** - `git commit --allow-empty` enables immediate PR creation
+- **Create draft PR immediately** - Don't wait until work is done
+- **Commit multiple times per day** - Small, incremental commits
+- **Never leave uncommitted changes** - Push work at end of each day
+- **Draft PRs make work visible** - Others can see progress and provide early feedback
+- **Commits are your backup** - Protect your work by committing often
 
 **Include:**
 - How to handle merge conflicts
-- When to update from main
+- When to update from master
 - PR description best practices
 - How to link to Superthread cards
 - Review checklist items
+- Benefits of draft PRs and frequent commits
 
 ### Step 5: Explain Label Usage
 
@@ -208,7 +227,7 @@ Reference Plan 2's label taxonomy and document:
 Explain the merge approach:
 
 **Squash Merges:**
-- All PRs use squash merge to `main`
+- All PRs use squash merge to `master`
 - Creates single commit with clean message
 - Preserves linear history
 - Makes revert easier if needed
@@ -252,13 +271,13 @@ Define versioning and tagging strategy:
 - PATCH: Bug fixes
 
 **When to Tag:**
-- After merging to `main` when ready for production
+- After merging to `master` when ready for production
 - Typically after related PRs are merged
 - When releasing to users
 
 **How to Tag:**
 ```bash
-git checkout main
+git checkout master
 git pull
 git tag -a v1.2.0 -m "Release v1.2.0: Add link archival feature"
 git push origin v1.2.0
@@ -310,7 +329,7 @@ Use GitHub's review feature to review your own code before merging.
 
 ### Step 9: Write the Complete Guide
 
-**Time Estimate:** 90 minutes
+**Time Estimate:** 120 minutes
 
 **Guide Creation Checklist:**
 - [ ] Create directory `project/guides/github/workflow/`
@@ -343,11 +362,14 @@ How we use Git and GitHub for LinkRadar development.
 ### Branch Naming
 Conventions and examples for different types of work.
 
-### Main Branch Protection
-Main is protected and always deployable.
+### Master Branch Protection
+Master is protected and always deployable.
 
 ### Working with Branches
 Creating, pushing, updating, and deleting branches.
+
+### Draft PR Workflow
+Creating draft PRs immediately and converting to ready when complete.
 
 ## Commit Conventions
 
@@ -359,17 +381,56 @@ Type, scope, subject, body, footer explained with examples.
 - Clear, concise subjects
 - Detailed bodies when needed
 - References to issues/cards
+- **Commit frequently** - Multiple small commits per day
+- **Push regularly** - At minimum, push at end of each work session
+
+### Commit Frequency Best Practices
+- Make 3-5+ commits per day when actively working
+- Commit after each logical change or milestone
+- Never end the day with uncommitted changes
+- Small, incremental commits are better than large ones
+- Each commit should represent a complete thought/change
 
 ### Example Commits
 Good and bad examples with explanations.
 
 ## Pull Request Process
 
+### Creating a Draft PR Immediately
+Why and how to create draft PRs at the start of work.
+
+**Why Draft PRs First:**
+- Makes work visible to team (even if solo dev)
+- Enables early feedback and discussion
+- Creates backup of your work
+- Shows progress on Superthread cards
+- Prevents "surprise" large PRs
+- Allows CI checks to run early (Phase 2)
+
+**When to Create:**
+- Immediately after creating branch and first commit
+- When starting any Superthread card
+- Before significant work begins
+- Even for small changes (good habit)
+
+**Initial Commit Approach:**
+GitHub requires at least one commit to create a PR. Use an empty commit:
+```bash
+git commit --allow-empty -m "feat(backend): initialize user authentication"
+```
+
+**Why empty commits:**
+- Quick and consistent
+- No need to create placeholder code
+- Clear signal that work is just starting
+- Gets squashed away in final merge anyway
+- Enables immediate PR creation without artificial changes
+
 ### Creating a PR
 Step-by-step from branch creation to merge.
 
 ### PR Template Usage
-How to fill out the template completely.
+How to fill out the template completely (can be refined as work progresses).
 
 ### Labeling Requirements
 Type and area labels explained.
@@ -413,16 +474,36 @@ What to include in tag messages.
 ## Common Scenarios
 
 ### Feature Development
-Complete workflow example.
+Complete workflow example with draft PR and incremental commits.
+
+**Workflow:**
+1. Start Superthread card (move to "In Progress")
+2. Create branch: `feat/add-archival-endpoint`
+3. Make empty initial commit to enable PR creation:
+   ```bash
+   git checkout master
+   git pull
+   git checkout -b feat/add-archival-endpoint
+   git commit --allow-empty -m "feat(backend): initialize link archival feature"
+   git push -u origin feat/add-archival-endpoint
+   ```
+4. Create DRAFT PR on GitHub immediately
+5. Fill out PR template (link Superthread card)
+6. Add labels: `type: feat` + `area: backend`
+7. Work in small increments, committing 3-5+ times per day
+8. Push commits regularly (at minimum, at end of each day)
+9. Mark PR as "Ready for review" when complete
+10. Self-review, then merge
+11. Move Superthread card to "Done"
 
 ### Bug Fix
-Quick bug fix workflow.
+Quick bug fix workflow with immediate draft PR.
 
 ### Documentation Update
-Simple doc change workflow.
+Simple doc change workflow (can still use draft PR for visibility).
 
 ### Multi-Module Changes
-Working across backend and extension.
+Working across backend and extension with frequent commits.
 
 ## Troubleshooting
 
@@ -436,6 +517,17 @@ What to do when checks fail (Phase 2).
 Amending commits before merge.
 
 ## Quick Reference
+
+### Daily Workflow Checklist
+- [ ] Create branch from `master`
+- [ ] Make empty commit: `git commit --allow-empty -m "..."`
+- [ ] Push branch to GitHub
+- [ ] Create DRAFT PR immediately
+- [ ] Add labels and link Superthread card
+- [ ] Commit 3-5+ times during work session
+- [ ] Push commits at end of day (no uncommitted work!)
+- [ ] Mark PR ready when complete
+- [ ] Self-review and merge
 
 ### Commands Cheat Sheet
 Common Git commands for the workflow.
@@ -452,10 +544,17 @@ Quick reference for good commits.
 What new team members need to know.
 
 ### Getting Started
-First PR walkthrough.
+First PR walkthrough emphasizing draft PRs and frequent commits.
+
+### Critical Team Practices
+**Non-negotiable workflows:**
+- Always create draft PRs immediately when starting work
+- Commit multiple times per day (3-5+ commits minimum)
+- Never leave uncommitted work at end of day
+- All work must be visible in draft PRs
 
 ### Team Practices
-Conventions specific to LinkRadar.
+Other conventions specific to LinkRadar.
 ```
 
 ## Deliverables
@@ -472,6 +571,9 @@ Conventions specific to LinkRadar.
 - ✅ Conventional Commits explained with examples
 - ✅ Branching strategy clear and practical
 - ✅ PR process documented step-by-step
+- ✅ **Draft PR workflow emphasized and documented**
+- ✅ **Frequent commit practices clearly defined**
+- ✅ **"No uncommitted work" rule established**
 - ✅ Labels and tagging covered
 - ✅ Self-review guidelines included
 - ✅ Ready to use as daily reference
@@ -479,7 +581,7 @@ Conventions specific to LinkRadar.
 
 ## Time Estimate
 
-**Total:** ~5 hours
+**Total:** ~6 hours
 
 ## Next Steps
 
@@ -496,4 +598,5 @@ After completing this plan:
 - Make it practical, not theoretical
 - This document will evolve as your workflow does
 - The guide you create here can be directly lifted to your bigger team project
+- **The draft PR + frequent commit pattern is critical** - This prevents work from being lost, makes progress visible, enables early feedback, and creates good habits for team collaboration
 
