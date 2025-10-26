@@ -1,36 +1,93 @@
 # Git/GitHub Development Workflow
 
-This guide documents how we use Git and GitHub for LinkRadar development. It covers everything from creating branches to merging pull requests, with a focus on practices that keep work visible, prevent lost code, and enable smooth collaboration.
+This guide documents how we use Git and GitHub for LinkRadar development. It covers everything from creating branches to merging pull requests, with a focus on clear conventions and smooth collaboration.
 
 ## Why This Workflow Matters
 
-Good workflow practices aren't just bureaucracy—they're your safety net. When you commit frequently and create draft PRs immediately, you're protecting your work and making progress visible. When you follow consistent naming conventions, you make it easy to understand what's happening across the project. And when you integrate with Superthread properly, you get automatic status updates that save you from manual card shuffling.
+This guide documents our Git and GitHub practices—how we branch, commit, create PRs, and merge code. Following these patterns keeps our codebase organized, makes collaboration easier, and enables automated tooling like Superthread integration.
 
-This workflow has three core goals:
+The workflow focuses on:
 
-1. **Never lose work** - Commit often, push regularly, work is always backed up
-2. **Make progress visible** - Draft PRs show what's happening, even mid-development
-3. **Enable automation** - Consistent patterns let tools help you
+1. **Clear conventions** - Consistent branch names, commit messages, and labels
+2. **Work visibility** - PRs that show what's in progress
+3. **Automation** - Superthread integration that tracks card status automatically
 
-Now let's walk through how we do this.
+Let's walk through how we do this.
+
+## Table of Contents
+
+- [Git/GitHub Development Workflow](#gitgithub-development-workflow)
+  - [Why This Workflow Matters](#why-this-workflow-matters)
+  - [Table of Contents](#table-of-contents)
+  - [Branching Strategy](#branching-strategy)
+    - [Branch Naming Format](#branch-naming-format)
+    - [Branch Types](#branch-types)
+    - [Working with Superthread Cards](#working-with-superthread-cards)
+    - [Master Branch Protection](#master-branch-protection)
+  - [Commit Conventions](#commit-conventions)
+    - [Format](#format)
+    - [Scopes](#scopes)
+    - [Examples](#examples)
+    - [Writing Good Commit Messages](#writing-good-commit-messages)
+    - [Commit Frequency](#commit-frequency)
+  - [Pull Request Process](#pull-request-process)
+    - [The Complete Workflow](#the-complete-workflow)
+    - [Benefits of Early Draft PRs](#benefits-of-early-draft-prs)
+    - [PR Template](#pr-template)
+  - [Labeling](#labeling)
+    - [Label Requirements](#label-requirements)
+    - [Type Labels](#type-labels)
+    - [Area Labels](#area-labels)
+    - [Common Combinations](#common-combinations)
+  - [Code Review](#code-review)
+    - [Before Requesting Review](#before-requesting-review)
+    - [Self-Review Checklist](#self-review-checklist)
+    - [Addressing Your Own Feedback](#addressing-your-own-feedback)
+  - [Merging](#merging)
+    - [Why Squash Merge?](#why-squash-merge)
+    - [Squash Commit Message Format](#squash-commit-message-format)
+    - [Merge Checklist](#merge-checklist)
+    - [After Merging](#after-merging)
+  - [Release Tagging](#release-tagging)
+    - [Semantic Versioning](#semantic-versioning)
+    - [When to Tag](#when-to-tag)
+    - [Creating Tags](#creating-tags)
+    - [Tag Message Format](#tag-message-format)
+  - [Troubleshooting](#troubleshooting)
+    - [Merge Conflicts](#merge-conflicts)
+    - [Wrong Branch Name](#wrong-branch-name)
+    - [Creating PR After Work Begins](#creating-pr-after-work-begins)
+    - [Work in Progress Commits](#work-in-progress-commits)
+  - [Quick Reference](#quick-reference)
+    - [Daily Workflow Checklist](#daily-workflow-checklist)
+    - [Essential Commands](#essential-commands)
+    - [Branch Naming Examples](#branch-naming-examples)
+    - [Commit Message Examples](#commit-message-examples)
+  - [Conclusion](#conclusion)
 
 ## Branching Strategy
 
-Every piece of work starts with a new branch from `master`. Our branches follow a specific naming pattern that serves two purposes: it tells you what kind of work is happening, and it connects to Superthread for automatic tracking.
+Every piece of work starts with a new branch from `master`. Our branches follow a naming pattern that clearly identifies the type of work and provides context.
 
 ### Branch Naming Format
 
 ```
-{type}/ST-{card-number}-{brief-description}
+{type}/{brief-description}
+```
+
+Or, if working on a specific feature epic:
+```
+{type}/{feature-id}-{brief-description}
 ```
 
 **Examples:**
-- `feat/ST-128-add-user-authentication`
-- `fix/ST-145-resolve-link-validation`
-- `docs/ST-130-create-workflow-guide`
-- `chore/ST-156-update-ruby-version`
+- `feat/add-user-authentication`
+- `feat/LR002-workflow-automation`
+- `fix/resolve-link-validation`
+- `docs/create-workflow-guide`
+- `chore/update-ruby-version`
 
-The `ST-XXX` part is critical—it enables Superthread to automatically link your branch and PR to the card. When the PR merges, Superthread updates the card status automatically.
+**Optional Superthread integration:** You can include the Superthread card ID (`ST-XXX`) in your branch name or PR title to enable automatic card linking. This is helpful but not required—you can also link cards manually in the PR description.
 
 ### Branch Types
 
@@ -42,17 +99,22 @@ The `ST-XXX` part is critical—it enables Superthread to automatically link you
 - **test/** - Adding or modifying tests
 - **chore/** - Build tools, dependencies, configurations
 
-### Working with Superthread Branch Names
+### Working with Superthread Cards
 
-Superthread provides a "Copy git branch name" button on each card that gives you a suggested name like `st-130_lr002_p3_document_development_workflow`. This works for auto-linking, but we prefer our own format for consistency.
+Superthread provides a "Copy git branch name" button that suggests names like `st-130_lr002_p3_document_development_workflow`. You can use this if you want automatic card linking, but we prefer cleaner branch names:
 
-**When you get Superthread's name:**
-1. Note the card number (e.g., `130`)
-2. Determine the work type (e.g., `docs`)
-3. Create a brief description (e.g., `workflow-guide`)
-4. Use our format: `docs/ST-130-workflow-guide`
+**Our preferred approach:**
+1. Create a clear branch name: `docs/workflow-guide` or `feat/LR002-workflow-automation`
+2. Reference the Superthread card in your PR title or description
+3. Link the card manually in the PR if needed
 
-You get both our consistent naming AND Superthread's automatic linking.
+This keeps branch names readable while still connecting work to cards.
+
+**Finding the card ID:**
+
+The card ID is shown in the card header. You can also use the "Copy git branch name" button which includes the ID.
+
+![Superthread card ID location](superthread-card-id.png)
 
 ### Master Branch Protection
 
@@ -62,7 +124,7 @@ The `master` branch is always deployable. It's protected, meaning you can't push
 ```bash
 git checkout master
 git pull origin master
-git checkout -b feat/ST-128-add-user-auth
+git checkout -b feat/add-user-auth
 ```
 
 ## Commit Conventions
@@ -104,8 +166,6 @@ feat(backend): add link archival endpoint
 Implement POST /api/v1/links/:id/archive endpoint to allow
 marking links as archived without deletion. Includes validation
 and database migration.
-
-Closes #42
 ```
 
 **Fixing a bug:**
@@ -136,43 +196,23 @@ docs(project): fix typo in workflow guide
 **No period at the end** - Save the character  
 **Use the body to explain why** - Not how (code shows how)
 
-### Commit Frequency: The Most Important Practice
+### Commit Frequency
 
-Here's the rule that matters most: **commit multiple times per day when actively working**.
+Commit after completing logical chunks of work. Small, focused commits are easier to review and understand than large ones. They also make it easier to revert specific changes if needed.
 
-Aim for 3-5+ commits during a work session. Commit after each logical change or milestone. Never end the day with uncommitted work. Small, incremental commits are better than large ones.
-
-**Why this matters:**
-- **Backup** - Every commit is saved. Computer dies? Your work is on GitHub.
-- **History** - Small commits are easier to review and understand
-- **Revert** - Easy to undo specific changes without losing everything
-- **Visibility** - Others can see progress in the draft PR
-
-Think of commits like save points in a game—you want plenty of them.
-
-**Good commit patterns:**
+**Example progression:**
 ```bash
-# Morning: Start work
 git commit -m "feat(backend): add archival endpoint skeleton"
-
-# Mid-morning: Add validation
 git commit -m "feat(backend): add archival validation logic"
-
-# Before lunch: Add tests
 git commit -m "test(backend): add archival endpoint tests"
-
-# Afternoon: Handle edge cases
-git commit -m "feat(backend): handle already-archived links"
-
-# End of day: Update docs
 git commit -m "docs(backend): document archival API endpoint"
 ```
 
-That's 5 commits in one day—all saved, all visible in your draft PR, all recoverable if needed.
+Each commit represents a coherent piece of work that can stand on its own.
 
 ## Pull Request Process
 
-This is where our workflow differs from traditional approaches. Instead of waiting until work is "done" to create a PR, we create a **draft PR immediately** when starting work. This makes your work visible, enables early feedback, and ensures nothing gets lost.
+We create draft PRs early in the development process rather than waiting until work is complete. This approach makes work visible to the team and enables feedback throughout development.
 
 ### The Complete Workflow
 
@@ -183,28 +223,20 @@ Move it to "In Progress" so the team knows you're working on it.
 ```bash
 git checkout master
 git pull origin master
-git checkout -b feat/ST-128-add-user-auth
+git checkout -b feat/add-user-auth
 ```
 
-**3. Make an empty commit**  
-GitHub requires at least one commit to create a PR. We use an empty commit to enable immediate PR creation:
+**3. Create a draft PR**  
+When creating your PR early, make an empty commit if you don't have changes ready yet:
 ```bash
 git commit --allow-empty -m "feat(backend): initialize user authentication"
+git push -u origin feat/add-user-auth
+gh pr create --draft --title "feat(backend): Add user authentication ST-128"
 ```
 
-**4. Push the branch**
-```bash
-git push -u origin feat/ST-128-add-user-auth
-```
+If you've already started working and have commits, skip the empty commit and create the PR directly.
 
-**5. Create a draft PR immediately**
-```bash
-gh pr create --draft
-```
-
-GitHub will prompt you to fill out the PR template. Do your best—you can refine it later.
-
-**6. Add labels**  
+**4. Add labels**  
 Every PR needs two types of labels:
 - **Type label:** `type: feat`, `type: fix`, `type: docs`, etc.
 - **Area label:** `area: backend`, `area: extension`, etc.
@@ -214,45 +246,45 @@ Apply them in the GitHub UI or with:
 gh pr edit --add-label "type: feat" --add-label "area: backend"
 ```
 
-**7. Link to Superthread**  
-Because you included `ST-128` in your branch name, Superthread automatically links the PR to the card. You'll see the PR appear on the card, and the card will update when you merge.
+**5. Link Superthread card (optional)**  
+If you include the Superthread card ID (`ST-128`) in your PR title, Superthread will automatically link it. Alternatively, reference the card in your PR description. This enables automatic status updates when the PR merges.
 
-**8. Now do the actual work**  
-Code, test, and commit frequently. Push your commits regularly (at minimum, end of each day).
+**6. Development work**  
+Code, test, commit, and push your changes as you work through the feature.
 
-**9. Mark ready for review**  
+**7. Mark ready for review**  
 When the work is complete, mark the PR as "Ready for review" in GitHub.
 
-**10. Self-review**  
+**8. Self-review**  
 Use GitHub's review feature to review your own code. Look at the diff as if someone else wrote it.
 
-**11. Merge when ready**  
+**9. Merge**  
 Use squash merge to combine all commits into one clean commit in master.
 
-**12. Delete the branch**  
-GitHub offers to delete it after merging. Click that button.
+**10. Clean up**  
+Delete the branch after merging (GitHub offers a button for this).
 
-### Why Draft PRs From Day One?
+### Benefits of Early Draft PRs
 
-**Makes work visible** - Your team (or future you) can see what's happening  
-**Enables early feedback** - Catch issues before you've invested too much time  
-**Acts as backup** - All your commits are on GitHub, not just your laptop  
-**Shows progress** - Superthread card displays PR status and activity  
-**Prevents surprises** - No large, unexpected PRs dropped at the last minute  
-**Allows CI to run** - Automated checks can run as you work (when you add them)
+Creating draft PRs early in the development process offers several advantages:
+
+- Work is visible to the team throughout development
+- Enables early feedback and course correction
+- Superthread card shows PR status and activity
+- Continuous integration can run as work progresses
 
 ### PR Template
 
 Our PR template (`.github/PULL_REQUEST_TEMPLATE.md`) loads automatically. It includes:
 
 - **Description** - What this PR does and why
-- **Related Work** - Link to Superthread card (required)
+- **Related Work** - Link to Superthread card or feature epic
 - **Type of Change** - Check the box matching your commit type
 - **Required Labels** - Reminder to add type + area labels
 - **Testing** - Checklist before marking ready for review
 - **Additional Notes** - Screenshots, breaking changes, migration notes
 
-Fill it out as completely as you can when creating the draft. You can always edit it later as the work evolves.
+Fill it out as completely as you can when creating the draft. You can always edit it later as the work evolves. If you include a Superthread card link in the PR description, it will be linked to the card.
 
 > **Tip:** See `project/guides/github/pr-template/guide.md` for detailed guidance on filling out the template.
 
@@ -489,147 +521,6 @@ Bug Fixes:
 git push origin v1.2.0
 ```
 
-## Common Scenarios
-
-Here are complete workflows for typical situations.
-
-### Scenario: Building a New Feature
-
-You're adding a link archival feature. Superthread card ST-142 is ready to go.
-
-**Step by step:**
-
-```bash
-# 1. Make sure you're starting fresh
-git checkout master
-git pull origin master
-
-# 2. Create branch with Superthread card ID
-git checkout -b feat/ST-142-add-link-archival
-
-# 3. Create empty commit for PR creation
-git commit --allow-empty -m "feat(backend): initialize link archival feature"
-
-# 4. Push and create draft PR
-git push -u origin feat/ST-142-add-link-archival
-gh pr create --draft
-
-# 5. Add labels
-gh pr edit --add-label "type: feat" --add-label "area: backend"
-
-# 6. Start working - commit frequently!
-# Morning: skeleton
-git commit -m "feat(backend): add archival endpoint skeleton"
-git push
-
-# Mid-morning: validation
-git commit -m "feat(backend): add archival validation logic"
-git push
-
-# Before lunch: tests
-git commit -m "test(backend): add archival endpoint tests"
-git push
-
-# Afternoon: edge cases
-git commit -m "feat(backend): handle already-archived links"
-git push
-
-# End of day: docs
-git commit -m "docs(backend): document archival API endpoint"
-git push
-
-# 7. When complete, mark ready
-gh pr ready
-
-# 8. Self-review the diff on GitHub
-
-# 9. Merge when satisfied
-gh pr merge --squash
-
-# 10. Clean up
-git checkout master
-git pull
-git branch -d feat/ST-142-add-link-archival
-```
-
-Superthread card ST-142 automatically updates to "Done" when you merge.
-
-### Scenario: Quick Bug Fix
-
-The extension popup won't open on Firefox. Card ST-156.
-
-```bash
-# Create branch
-git checkout master && git pull
-git checkout -b fix/ST-156-firefox-popup
-
-# Empty commit for PR
-git commit --allow-empty -m "fix(extension): initialize Firefox popup fix"
-git push -u origin fix/ST-156-firefox-popup
-
-# Create draft PR with labels
-gh pr create --draft
-gh pr edit --add-label "type: fix" --add-label "area: extension"
-
-# Fix the issue
-# (edit manifest.json)
-git commit -m "fix(extension): update CSP for Firefox compatibility"
-git push
-
-# Test and verify
-git commit -m "test(extension): verify popup opens on Firefox"
-git push
-
-# Mark ready, review, merge
-gh pr ready
-gh pr merge --squash
-```
-
-Even for "quick" fixes, we follow the workflow. The draft PR takes 30 seconds and ensures your fix is documented and tracked.
-
-### Scenario: Documentation Update
-
-Updating the workflow guide itself. Card ST-130.
-
-```bash
-# Standard workflow applies to docs too
-git checkout master && git pull
-git checkout -b docs/ST-130-update-workflow-guide
-
-git commit --allow-empty -m "docs(project): initialize workflow guide updates"
-git push -u origin docs/ST-130-update-workflow-guide
-
-gh pr create --draft
-gh pr edit --add-label "type: docs" --add-label "area: project"
-
-# Make changes - commit as you go
-git commit -m "docs(project): add Superthread integration section"
-git push
-
-git commit -m "docs(project): update branching examples"
-git push
-
-git commit -m "docs(project): clarify commit frequency practices"
-git push
-
-gh pr ready
-gh pr merge --squash
-```
-
-### Scenario: Changes Spanning Multiple Areas
-
-Refactoring authentication logic that touches both backend and extension.
-
-Create the branch and PR as usual, but add multiple area labels:
-
-```bash
-gh pr edit --add-label "type: refactor" \
-           --add-label "area: backend" \
-           --add-label "area: extension"
-```
-
-The labels accurately reflect that this change impacts multiple parts of the codebase.
-
 ## Troubleshooting
 
 ### Merge Conflicts
@@ -659,6 +550,17 @@ git commit -m "fix: resolve merge conflicts with master"
 git push
 ```
 
+**Tools to help with conflicts:**
+
+**VS Code Merge Editor:** VS Code's built-in merge editor provides a 3-way view (incoming, current, result) that makes it much easier to visualize and resolve conflicts. When you open a conflicted file, VS Code will show options to accept incoming, current, or both changes.
+
+**Cursor AI Resolve Conflicts:** Cursor Agent can help resolve merge conflicts by understanding both sides and proposing a resolution:
+
+1. When a merge conflict occurs, you'll see the conflict markers in your file
+2. Click the "Resolve in Chat" button that appears in the merge conflict UI
+3. Agent will analyze both versions and suggest a resolution
+4. Review the proposed changes and apply them
+
 If you're not sure how to resolve a conflict, ask! Better to pause than to lose someone's work.
 
 ### Wrong Branch Name
@@ -676,57 +578,32 @@ git push origin --delete old-name
 git push -u origin new-name
 ```
 
-### Forgot to Create Draft PR
+### Creating PR After Work Begins
 
-You've been working for hours and forgot to create the PR. No problem:
+If you started working before creating a PR:
 
 ```bash
 # Push your branch
 git push -u origin feat/ST-142-whatever
 
-# Create the PR (no longer draft since work is done)
+# Create the PR
 gh pr create
 
 # Add labels
 gh pr edit --add-label "type: feat" --add-label "area: backend"
 ```
 
-It's not ideal (should have been draft from the start), but you didn't lose anything.
+### Work in Progress Commits
 
-### Uncommitted Work at End of Day
-
-It's 5pm and you have uncommitted changes. Don't leave them uncommitted!
+If you need to stop mid-task with uncommitted changes, you can commit work in progress:
 
 ```bash
-# Commit whatever state you're in
 git add .
 git commit -m "feat(backend): work in progress on validation logic"
 git push
-
-# Add a note in the PR that this is incomplete
 ```
 
-It's fine to commit work-in-progress. That's what draft PRs are for. The important thing is getting it off your laptop.
-
-### Accidentally Committed to Master
-
-You committed directly to master instead of a branch:
-
-```bash
-# DON'T PUSH!
-
-# Create a new branch from master
-git branch feat/ST-142-whatever
-
-# Reset master to match remote
-git checkout master
-git reset --hard origin/master
-
-# Switch to your new branch with your commits
-git checkout feat/ST-142-whatever
-```
-
-Your commits are now on a proper branch and master is clean.
+Draft PRs accommodate work-in-progress commits.
 
 ## Quick Reference
 
@@ -734,16 +611,13 @@ Your commits are now on a proper branch and master is clean.
 
 Starting new work:
 - [ ] Pull latest master
-- [ ] Create branch: `{type}/ST-{number}-{description}`
-- [ ] Empty commit: `git commit --allow-empty -m "..."`
-- [ ] Push branch
-- [ ] Create draft PR: `gh pr create --draft`
+- [ ] Create branch: `{type}/{description}` or `{type}/{feature-id}-{description}`
+- [ ] Create draft PR (include card ID in title if using Superthread)
 - [ ] Add labels (type + area)
 
 During work:
-- [ ] Commit 3-5+ times per day
-- [ ] Push at end of each work session
-- [ ] Never leave uncommitted work overnight
+- [ ] Commit logical chunks of work
+- [ ] Push changes regularly
 
 Finishing work:
 - [ ] Mark PR ready: `gh pr ready`
@@ -756,10 +630,10 @@ Finishing work:
 ```bash
 # Starting work
 git checkout master && git pull
-git checkout -b feat/ST-XXX-description
+git checkout -b feat/add-feature
 git commit --allow-empty -m "feat(scope): initialize feature"
-git push -u origin feat/ST-XXX-description
-gh pr create --draft
+git push -u origin feat/add-feature
+gh pr create --draft --title "feat(scope): Add feature ST-XXX"
 gh pr edit --add-label "type: feat" --add-label "area: backend"
 
 # During work
@@ -771,7 +645,7 @@ git push
 gh pr ready
 gh pr merge --squash
 git checkout master && git pull
-git branch -d feat/ST-XXX-description
+git branch -d feat/add-feature
 
 # Creating a release
 git checkout master && git pull
@@ -783,12 +657,13 @@ git push origin v1.2.0
 
 | Scenario | Branch Name |
 |----------|-------------|
-| Add user authentication | `feat/ST-128-add-user-auth` |
-| Fix extension popup | `fix/ST-156-firefox-popup` |
-| Update documentation | `docs/ST-130-workflow-guide` |
-| Refactor API client | `refactor/ST-167-api-client` |
-| Update dependencies | `chore/ST-189-update-deps` |
-| Add missing tests | `test/ST-145-link-validation` |
+| Add user authentication | `feat/add-user-auth` |
+| Feature epic work | `feat/LR002-workflow-automation` |
+| Fix extension popup | `fix/firefox-popup` |
+| Update documentation | `docs/workflow-guide` |
+| Refactor API client | `refactor/api-client` |
+| Update dependencies | `chore/update-deps` |
+| Add missing tests | `test/link-validation` |
 
 ### Commit Message Examples
 
@@ -801,65 +676,15 @@ git push origin v1.2.0
 | Update deps | `chore(infrastructure): update Ruby to 3.4.2` |
 | Add tests | `test(backend): add archival endpoint tests` |
 
-## For Future Team Members
-
-When LinkRadar grows beyond solo development, new team members will use this guide to understand our workflow. Here's what they need to know.
-
-### Onboarding Checklist
-
-New team members should:
-- [ ] Read this entire workflow guide
-- [ ] Review the PR template guide (`project/guides/github/pr-template/guide.md`)
-- [ ] Review the labels guide (`project/guides/github/labels/guide.md`)
-- [ ] Install and authenticate with GitHub CLI: `gh auth login`
-- [ ] Connect their Superthread account to GitHub (Settings > Integrations)
-- [ ] Practice the workflow with a small documentation PR
-
-### Critical Practices
-
-These are non-negotiable—everyone follows them:
-
-**Create draft PRs immediately** - When you start work, not when you finish  
-**Commit multiple times per day** - 3-5+ commits minimum when actively working  
-**Never leave uncommitted work** - Push at end of each day  
-**Include card IDs in branches** - `{type}/ST-{number}-{description}` format  
-**All work visible in draft PRs** - No surprise PRs at the end
-
-These practices protect everyone's work and keep the team aligned.
-
-### Getting Help
-
-**Merge conflicts?** Ask before force-pushing or making destructive changes  
-**Not sure about branch name?** Ask before creating the PR  
-**Commit message unclear?** Ask before pushing  
-**PR review feedback?** Discuss before implementing major changes
-
-It's better to ask than to create problems for yourself or others.
-
-### Team Practices
-
-As the team grows, we'll develop additional practices:
-- Code review rotation
-- PR size guidelines
-- Pair programming sessions
-- Architecture decision records
-- Team sync meetings
-
-This guide will evolve with the team. When you see ways to improve it, open a PR.
-
 ## Conclusion
 
-This workflow might feel like a lot of process at first. But each practice serves a purpose:
+This workflow establishes consistent patterns for our Git and GitHub usage:
 
-- **Frequent commits** protect your work
-- **Draft PRs** make progress visible
 - **Conventional commits** make history readable
-- **Superthread integration** automates status tracking
-- **Consistent naming** makes everything findable
-- **Self-review** catches problems early
-- **Squash merges** keep master clean
+- **Consistent branch naming** enables Superthread integration
+- **Draft PRs** provide visibility into ongoing work
+- **Squash merges** keep master history clean
+- **Labels** organize and filter pull requests
 
-Follow these practices and you'll build a habit of working that serves you well—whether you're solo or on a team of fifty.
-
-Now go create that draft PR and start committing!
+These conventions make the codebase easier to navigate and enable automated tooling.
 

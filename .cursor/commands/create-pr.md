@@ -28,9 +28,10 @@ You are a Git/GitHub workflow automation specialist responsible for creating pul
 
 Ask the user for the following (provide examples for each):
 
-**Superthread Card:**
-- Card ID (`ST-130`), number (`130`), or URL (`https://clevertakes.superthread.com/card/130`)
-- Fetch card details from Superthread MCP server to auto-populate title/description
+**Superthread Card (optional):**
+- Card ID (`ST-130`), number (`130`), or URL
+- Fetch card details from Superthread MCP server to auto-populate context
+- Card ID will be included in PR title for automatic linking
 
 **Change Type:**
 - `feat` - New features
@@ -51,9 +52,9 @@ Ask the user for the following (provide examples for each):
 - (Can select multiple if change spans areas)
 
 **Branch Name:**
-- Format: `{type}/ST-{number}-{brief-description}` (lowercase, hyphenated)
-- Example: `feat/ST-130-workflow-guide`, `docs/ST-128-pr-template`
-- If user provides Superthread's format (underscores), offer to convert to ours (hyphens)
+- Format: `{type}/{brief-description}` (lowercase, hyphenated)
+- Example: `feat/workflow-guide`, `docs/pr-template`, `feat/LR002-automation`
+- If user provides Superthread's format (with underscores/card IDs), suggest cleaner alternative
 
 **PR Description:**
 - Brief description of what the PR will accomplish (1-3 sentences)
@@ -62,9 +63,9 @@ Ask the user for the following (provide examples for each):
 
 Before executing:
 - Confirm user is on `master` branch or offer to switch
-- Verify branch name follows format: `type/ST-XXX-description` (lowercase, hyphenated)
+- Verify branch name follows format: `type/description` (lowercase, hyphenated)
 - Ensure at least one type and one area are selected
-- Convert card number to `ST-XXX` format if needed
+- If card provided, convert card number to `ST-XXX` format for PR title
 
 ### 3. Execute PR Creation Workflow
 
@@ -84,10 +85,10 @@ git commit --allow-empty -m "{type}({area}): initialize {description}"
 # 4. Push branch to GitHub
 git push -u origin {branch-name}
 
-# 5. Create draft PR with gh CLI
+# 5. Create draft PR with gh CLI (include card ID in title if provided)
 gh pr create \
   --draft \
-  --title "{type}({area}): {description} {card-id}" \
+  --title "{type}({area}): {description} {card-id-if-provided}" \
   --body "{pr_template_filled}"
 
 # 6. Add labels to the PR
@@ -114,7 +115,7 @@ Show the user:
 - ✅ Branch pushed to GitHub
 - ✅ Draft PR created: {PR URL}
 - ✅ Labels applied: `type: {type}`, `area: {area}`
-- ✅ Superthread card linked
+- ✅ Superthread card linked (if provided in title)
 - 📋 Next steps: Start working, push regularly
 
 ## Error Handling
