@@ -103,21 +103,21 @@ The two-axis approach (type + area) provides powerful filtering: "Show me all fe
 - [ ] Navigate to GitHub repository Settings → Labels
 
 **Type Labels Creation:**
-- [ ] Create `type: feat` with description and color
-- [ ] Create `type: fix` with description and color
-- [ ] Create `type: docs` with description and color
-- [ ] Create `type: style` with description and color
-- [ ] Create `type: refactor` with description and color
-- [ ] Create `type: test` with description and color
-- [ ] Create `type: chore` with description and color
+- [ ] Create `type: feat` - Description: `New features` - Color: `0052CC`
+- [ ] Create `type: fix` - Description: `Bug fixes` - Color: `FF5630`
+- [ ] Create `type: docs` - Description: `Documentation changes` - Color: `6B778C`
+- [ ] Create `type: style` - Description: `Code style/formatting` - Color: `00B8D9`
+- [ ] Create `type: refactor` - Description: `Code restructuring` - Color: `6554C0`
+- [ ] Create `type: test` - Description: `Test additions/changes` - Color: `36B37E`
+- [ ] Create `type: chore` - Description: `Build, tools, dependencies` - Color: `FFAB00`
 
 **Area Labels Creation:**
-- [ ] Create `area: backend` with description and color
-- [ ] Create `area: extension` with description and color
-- [ ] Create `area: frontend` with description and color
-- [ ] Create `area: cli` with description and color
-- [ ] Create `area: infrastructure` with description and color
-- [ ] Create `area: project` with description and color
+- [ ] Create `area: backend` - Description: `Rails API backend` - Color: `FF8B00`
+- [ ] Create `area: extension` - Description: `Browser extension` - Color: `00C7B7`
+- [ ] Create `area: frontend` - Description: `Frontend SPA` - Color: `36B37E`
+- [ ] Create `area: cli` - Description: `CLI tool` - Color: `0065FF`
+- [ ] Create `area: infrastructure` - Description: `Docker, deployment, CI/CD` - Color: `6B778C`
+- [ ] Create `area: project` - Description: `Project docs and planning` - Color: `8777D9`
 
 **Documentation:**
 - [ ] Screenshot the labels page (optional)
