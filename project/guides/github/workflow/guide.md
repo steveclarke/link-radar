@@ -250,6 +250,8 @@ Code, test, commit, and push your changes as you work through the feature.
 **7. Mark ready for review**  
 When the work is complete, mark the PR as "Ready for review" in GitHub.
 
+![Ready for review button](github-ready-for-review.png)
+
 **8. Self-review**  
 Use GitHub's review feature to review your own code. Look at the diff as if someone else wrote it.
 
@@ -399,6 +401,8 @@ We use squash merges for all PRs. This means all your individual commits get com
 
 Your branch keeps all the individual commits for reference. Master gets a clean, linear history.
 
+![Squash and merge button](github-squash-merge-button.png)
+
 ### Squash Commit Message Format
 
 When you squash merge, GitHub asks for a commit message. Use this format:
@@ -425,6 +429,8 @@ feat(backend): add link archival endpoint (#42)
 Superthread Card: https://app.superthread.com...
 ```
 
+![Squash commit message editor](github-squash-commit-editor.png)
+
 ### Merge Checklist
 
 Before clicking that merge button:
@@ -440,6 +446,9 @@ Before clicking that merge button:
 ### After Merging
 
 1. **Delete the branch** - GitHub offers a button after merge. Click it.
+
+![Delete branch button](github-delete-branch.png)
+
 2. **Check Superthread** - The card should update automatically
 3. **Pull master locally** - Get the merged changes: `git checkout master && git pull`
 
