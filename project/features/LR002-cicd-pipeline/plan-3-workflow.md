@@ -46,27 +46,34 @@ This is especially valuable as a pattern to lift to your bigger team project.
 - [ ] Document branch naming conventions (feat/, fix/, etc.)
 - [ ] Define when to create a branch
 - [ ] Define how to name branches (lowercase, hyphenated, descriptive)
+- [ ] **Document Superthread card ID integration in branch names**
 - [ ] Decide merge vs rebase strategy
 - [ ] Define when to delete branches
 - [ ] Document that master branch is always deployable
-- [ ] Write clear examples for each branch type
+- [ ] Write clear examples for each branch type with Superthread card IDs
 
 **Recommended Strategy:**
 ```
 master (protected)
-  ├── feat/lr002-p1-pr-template
-  ├── fix/backend-link-validation
-  ├── chore/update-dependencies
-  └── docs/improve-readme
+  ├── feat/ST-128-pr-template
+  ├── fix/ST-145-backend-link-validation
+  ├── chore/ST-156-update-dependencies
+  └── docs/ST-130-workflow-guide
 ```
 
 **Branch Naming Conventions:**
-- `feat/` - New features
-- `fix/` - Bug fixes
-- `chore/` - Maintenance, dependencies, tooling
-- `docs/` - Documentation updates
-- `refactor/` - Code restructuring
-- `test/` - Test additions/changes
+- `feat/ST-XXX-description` - New features
+- `fix/ST-XXX-description` - Bug fixes
+- `chore/ST-XXX-description` - Maintenance, dependencies, tooling
+- `docs/ST-XXX-description` - Documentation updates
+- `refactor/ST-XXX-description` - Code restructuring
+- `test/ST-XXX-description` - Test additions/changes
+
+**Superthread Integration:**
+- Always include Superthread card ID (`ST-XXX`) in branch name
+- Format: `{type}/ST-{number}-{brief-description}`
+- Enables automatic card linking and status updates
+- Can use Superthread's "Copy git branch name" but convert to our format (replace underscores with hyphens, ensure type prefix)
 
 ### Step 3: Document Commit Conventions
 
@@ -146,6 +153,7 @@ Bump base image for security patches and performance improvements.
 - [ ] Document complete PR workflow (11 steps)
 - [ ] Document draft PR creation immediately upon starting work
 - [ ] Document frequent commit practices
+- [ ] **Document Superthread card ID in branch names and PR titles**
 - [ ] Define how to handle merge conflicts
 - [ ] Define when to update from master
 - [ ] Document PR description best practices
@@ -362,6 +370,11 @@ How we use Git and GitHub for LinkRadar development.
 ### Branch Naming
 Conventions and examples for different types of work.
 
+**Include Superthread card IDs:**
+- Format: `{type}/ST-{number}-{description}`
+- Enables automatic card linking
+- Examples: `feat/ST-128-add-auth`, `docs/ST-130-workflow-guide`
+
 ### Master Branch Protection
 Master is protected and always deployable.
 
@@ -438,6 +451,12 @@ Type and area labels explained.
 ### Linking to Superthread
 How to reference Superthread cards in PRs.
 
+**Automatic Linking:**
+- Include card ID (`ST-XXX`) in branch name: `feat/ST-128-description`
+- Include card ID in PR title: `feat(backend): Add feature ST-128`
+- Enables automatic card linking and status updates
+- Card status updates automatically when PR is merged
+
 ## Code Review
 
 ### Self-Review
@@ -478,23 +497,23 @@ Complete workflow example with draft PR and incremental commits.
 
 **Workflow:**
 1. Start Superthread card (move to "In Progress")
-2. Create branch: `feat/add-archival-endpoint`
+2. Create branch: `feat/ST-XXX-add-archival-endpoint` (include card ID)
 3. Make empty initial commit to enable PR creation:
    ```bash
    git checkout master
    git pull
-   git checkout -b feat/add-archival-endpoint
+   git checkout -b feat/ST-XXX-add-archival-endpoint
    git commit --allow-empty -m "feat(backend): initialize link archival feature"
-   git push -u origin feat/add-archival-endpoint
+   git push -u origin feat/ST-XXX-add-archival-endpoint
    ```
-4. Create DRAFT PR on GitHub immediately
+4. Create DRAFT PR on GitHub immediately (card ID in branch name enables auto-linking)
 5. Fill out PR template (link Superthread card)
 6. Add labels: `type: feat` + `area: backend`
 7. Work in small increments, committing 3-5+ times per day
 8. Push commits regularly (at minimum, at end of each day)
 9. Mark PR as "Ready for review" when complete
 10. Self-review, then merge
-11. Move Superthread card to "Done"
+11. Move Superthread card to "Done" (or it auto-updates on merge)
 
 ### Bug Fix
 Quick bug fix workflow with immediate draft PR.
