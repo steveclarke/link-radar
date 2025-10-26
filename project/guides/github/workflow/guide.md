@@ -20,10 +20,10 @@ Let's walk through how we do this.
   - [Why This Workflow Matters](#why-this-workflow-matters)
   - [Table of Contents](#table-of-contents)
   - [Branching Strategy](#branching-strategy)
+    - [Master Branch Protection](#master-branch-protection)
     - [Branch Naming Format](#branch-naming-format)
     - [Branch Types](#branch-types)
     - [Working with Superthread Cards](#working-with-superthread-cards)
-    - [Master Branch Protection](#master-branch-protection)
   - [Commit Conventions](#commit-conventions)
     - [Format](#format)
     - [Scopes](#scopes)
@@ -48,11 +48,6 @@ Let's walk through how we do this.
     - [Squash Commit Message Format](#squash-commit-message-format)
     - [Merge Checklist](#merge-checklist)
     - [After Merging](#after-merging)
-  - [Release Tagging](#release-tagging)
-    - [Semantic Versioning](#semantic-versioning)
-    - [When to Tag](#when-to-tag)
-    - [Creating Tags](#creating-tags)
-    - [Tag Message Format](#tag-message-format)
   - [Troubleshooting](#troubleshooting)
     - [Merge Conflicts](#merge-conflicts)
     - [Wrong Branch Name](#wrong-branch-name)
@@ -67,7 +62,18 @@ Let's walk through how we do this.
 
 ## Branching Strategy
 
-Every piece of work starts with a new branch from `master`. Our branches follow a naming pattern that clearly identifies the type of work and provides context.
+Every piece of work starts with a new branch from `master`. This section explains why we use branches, how to name them, and how they integrate with our workflow.
+
+### Master Branch Protection
+
+The `master` branch is always deployable. It's protected, meaning you can't push directly to it—all changes come through pull requests. This keeps master stable and gives you a known-good state to build from.
+
+**Creating a new branch:**
+```bash
+git checkout master
+git pull origin master
+git checkout -b feat/add-user-auth
+```
 
 ### Branch Naming Format
 
@@ -115,17 +121,6 @@ This keeps branch names readable while still connecting work to cards.
 The card ID is shown in the card header. You can also use the "Copy git branch name" button which includes the ID.
 
 ![Superthread card ID location](superthread-card-id.png)
-
-### Master Branch Protection
-
-The `master` branch is always deployable. It's protected, meaning you can't push directly to it—all changes come through pull requests. This keeps master stable and gives you a known-good state to build from.
-
-**Creating a new branch:**
-```bash
-git checkout master
-git pull origin master
-git checkout -b feat/add-user-auth
-```
 
 ## Commit Conventions
 
@@ -229,7 +224,7 @@ git checkout -b feat/add-user-auth
 **3. Create a draft PR**  
 When creating your PR early, make an empty commit if you don't have changes ready yet:
 ```bash
-git commit --allow-empty -m "feat(backend): initialize user authentication"
+git commit --allow-empty -m "feat(backend): start user authentication work"
 git push -u origin feat/add-user-auth
 gh pr create --draft --title "feat(backend): Add user authentication ST-128"
 ```
@@ -350,6 +345,8 @@ Even when working solo, treat code review as an essential step. Future you needs
 
 Use GitHub's review feature to review your own code before merging. Go through the diff file by file and ask:
 
+> **Tip:** Install the [GitHub Pull Requests extension](https://marketplace.visualstudio.com/items?itemName=GitHub.vscode-pull-request-github) to review PR changes directly in VS Code with in-editor commenting and easy navigation between files.
+
 **Code Quality:**
 - Is the code doing what it should?
 - Are there any obvious bugs or edge cases missed?
@@ -378,6 +375,7 @@ Use GitHub's review feature to review your own code before merging. Go through t
 
 **Architecture:**
 - Does this fit with the overall system design?
+- Are you using already established patterns or tooling?
 - Are we creating tech debt?
 - Would this make sense to someone new?
 
@@ -424,7 +422,7 @@ feat(backend): add link archival endpoint (#42)
 * Include validation and comprehensive tests
 * Update API documentation
 
-Superthread Card: https://clevertakes.superthread.com/card/128
+Superthread Card: https://app.superthread.com...
 ```
 
 ### Merge Checklist
@@ -444,82 +442,6 @@ Before clicking that merge button:
 1. **Delete the branch** - GitHub offers a button after merge. Click it.
 2. **Check Superthread** - The card should update automatically
 3. **Pull master locally** - Get the merged changes: `git checkout master && git pull`
-
-## Release Tagging
-
-When you're ready to release a version to production (or the Chrome Web Store, or Docker Hub), create a Git tag. Tags mark specific points in history as releases.
-
-### Semantic Versioning
-
-We use semantic versioning: `vMAJOR.MINOR.PATCH`
-
-**MAJOR** - Breaking changes (v2.0.0)  
-**MINOR** - New features, backward compatible (v1.3.0)  
-**PATCH** - Bug fixes (v1.2.1)
-
-Examples:
-- `v1.0.0` - Initial release
-- `v1.1.0` - Added user authentication (new feature)
-- `v1.1.1` - Fixed login bug (bug fix)
-- `v2.0.0` - Changed API format (breaking change)
-
-### When to Tag
-
-- After merging feature PRs when ready for production
-- When releasing to users
-- When deploying to an environment that needs version tracking
-- After significant milestones
-
-You don't tag every PR—only when you're actually releasing something.
-
-### Creating Tags
-
-```bash
-# Make sure you're on master with latest
-git checkout master
-git pull origin master
-
-# Create an annotated tag with a message
-git tag -a v1.2.0 -m "Release v1.2.0: Add link archival feature"
-
-# Push the tag to GitHub
-git push origin v1.2.0
-```
-
-### Tag Message Format
-
-Include a summary of what's in this release:
-
-```
-Release v1.2.0: Brief description
-
-New Features:
-- Feature 1
-- Feature 2
-
-Bug Fixes:
-- Fix 1
-- Fix 2
-
-Breaking Changes:
-- Breaking change 1 (if any)
-```
-
-**Example:**
-```bash
-git tag -a v1.2.0 -m "Release v1.2.0: Add archival and export features
-
-New Features:
-- Link archival endpoint
-- Bulk export to CSV
-- Browser extension dark mode
-
-Bug Fixes:
-- Fixed link validation regex
-- Resolved extension popup sizing"
-
-git push origin v1.2.0
-```
 
 ## Troubleshooting
 
@@ -618,6 +540,7 @@ Starting new work:
 During work:
 - [ ] Commit logical chunks of work
 - [ ] Push changes regularly
+- [ ] Strive to commit your work by end of day
 
 Finishing work:
 - [ ] Mark PR ready: `gh pr ready`
@@ -631,7 +554,7 @@ Finishing work:
 # Starting work
 git checkout master && git pull
 git checkout -b feat/add-feature
-git commit --allow-empty -m "feat(scope): initialize feature"
+git commit --allow-empty -m "feat(scope): start feature work"
 git push -u origin feat/add-feature
 gh pr create --draft --title "feat(scope): Add feature ST-XXX"
 gh pr edit --add-label "type: feat" --add-label "area: backend"
@@ -646,11 +569,6 @@ gh pr ready
 gh pr merge --squash
 git checkout master && git pull
 git branch -d feat/add-feature
-
-# Creating a release
-git checkout master && git pull
-git tag -a v1.2.0 -m "Release v1.2.0: Description"
-git push origin v1.2.0
 ```
 
 ### Branch Naming Examples

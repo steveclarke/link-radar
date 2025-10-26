@@ -80,7 +80,7 @@ git pull origin master
 git checkout -b {branch-name}
 
 # 3. Create empty initial commit
-git commit --allow-empty -m "{type}({area}): initialize {description}"
+git commit --allow-empty -m "{type}({area}): start {description} work"
 
 # 4. Push branch to GitHub
 git push -u origin {branch-name}
