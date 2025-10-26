@@ -53,7 +53,14 @@ class Link < ApplicationRecord
 
   private
 
-  # Process tag names after save, wrapped in a transaction
+  # Callback orchestrator for processing tag names after save
+  #
+  # This method is triggered by the after_save callback when @tag_names is set.
+  # It wraps the core tag assignment logic in a transaction and handles cleanup.
+  #
+  # @note This is a private callback method. For direct tag assignment, use {#assign_tags}.
+  # @see #assign_tags for the core tag assignment logic
+  # @return [void]
   def process_tag_names
     transaction do
       assign_tags(@tag_names)
@@ -63,9 +70,15 @@ class Link < ApplicationRecord
     @tag_names = nil
   end
 
-  # Assign tags by name, creating new tags as needed
+  # Core logic for assigning tags to a link
+  #
+  # Normalizes tag names, finds or creates Tag records, and replaces the link's
+  # current tags with the new set. This method contains the business logic for
+  # tag assignment and can be called directly or via the callback orchestrator.
+  #
   # @param tag_names [Array<String>] array of tag names (empty array clears all tags)
   # @return [Array<Tag>] the assigned tags
+  # @see #process_tag_names for the callback wrapper that invokes this method
   def assign_tags(tag_names)
     # Normalize tag names
     normalized_names = Array(tag_names).map(&:strip).compact_blank.uniq
