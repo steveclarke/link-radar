@@ -6,17 +6,20 @@
 
 ## Goal
 
-Configure GitHub branch protections for the `master` branch to enforce the workflow documented in Plan 3. Learn what each protection setting does by configuring manually, then capture the configuration as a `gh` CLI script for future repos.
+Configure GitHub branch rulesets for the `master` branch to enforce the workflow documented in Plan 3. Learn what each ruleset setting does by configuring manually, then capture the configuration as a `gh` CLI script for future repos.
+
+**Note:** This plan uses GitHub's modern **Branch Rulesets** system (not classic branch protection) as it's more flexible and future-proof.
 
 ## Why This Matters
 
-Branch protection:
+Branch rulesets:
 - **Enforces PR workflow** - No direct pushes to master
 - **Requires reviews** - Quality gate before merging
 - **Enables CI checks** - Status checks must pass (Phase 2)
 - **Maintains clean history** - Squash merges only
 - **Prevents mistakes** - Can't accidentally push to master
-- **Team-ready** - Protection works for 1 person or 50
+- **Team-ready** - Rules work for 1 person or 50
+- **Future-proof** - Uses GitHub's modern ruleset system
 
 This is crucial infrastructure that enables safe, controlled deployments.
 
@@ -55,39 +58,44 @@ This is crucial infrastructure that enables safe, controlled deployments.
 
 ## Implementation Steps
 
-### Step 1: Understand Branch Protection
+### Step 1: Understand Branch Rulesets
 
 **Time Estimate:** 30 minutes
 
 **Research Checklist:**
-- [ ] Read GitHub branch protection documentation
-- [ ] Understand what each setting does technically
+- [ ] Read GitHub branch rulesets documentation
+- [ ] Understand the difference between rulesets and classic protection
+- [ ] Understand what each ruleset setting does technically
 - [ ] Document how settings interact with each other
 - [ ] Research best practices for solo development
-- [ ] Research how to scale protections for teams
-- [ ] Answer: What's the minimum viable protection set?
+- [ ] Research how to scale rulesets for teams
+- [ ] Answer: What's the minimum viable ruleset configuration?
 - [ ] Answer: Which settings block you vs which help you?
 - [ ] Answer: What happens when CI checks fail?
-- [ ] Answer: Can you bypass protections when needed?
+- [ ] Answer: Can you bypass rulesets when needed?
+- [ ] Answer: What's the difference between "Active" and "Evaluate" enforcement?
 
-### Step 2: Configure Protections Manually
+### Step 2: Configure Ruleset Manually
 
 **Time Estimate:** 30 minutes
 
 **Configuration Checklist:**
 - [ ] Navigate to GitHub repository Settings → Branches
-- [ ] Click "Add rule" for `master` branch
+- [ ] Click "Add branch ruleset" (NOT "Add classic branch protection rule")
+- [ ] Set ruleset name: "Master Branch Protection"
+- [ ] Set enforcement status: "Active"
+- [ ] Add target: Include by pattern → `master`
 - [ ] Enable "Require a pull request before merging"
-- [ ] Set "Require approvals" to 1
-- [ ] Enable "Dismiss stale pull request approvals when new commits pushed"
-- [ ] Enable "Require status checks to pass before merging"
+- [ ] Set "Required approvals" to 1
+- [ ] Enable "Dismiss stale pull request approvals when new commits are pushed"
+- [ ] Enable "Require status checks to pass"
 - [ ] Enable "Require branches to be up to date before merging"
 - [ ] Enable "Require conversation resolution before merging"
 - [ ] Enable "Require linear history"
-- [ ] Configure "Include administrators" (start disabled for flexibility)
-- [ ] Set "Allow force pushes" to Nobody
-- [ ] Disable "Allow deletions"
-- [ ] Save branch protection rule
+- [ ] Configure bypass permissions (start with allowing admins to bypass)
+- [ ] Block force pushes
+- [ ] Restrict deletions
+- [ ] Save ruleset
 
 **Documentation While Configuring:**
 - [ ] Take screenshots or notes of each section
@@ -97,37 +105,45 @@ This is crucial infrastructure that enables safe, controlled deployments.
 
 Navigate to GitHub repository settings:
 1. Go to `Settings` → `Branches`
-2. Click `Add rule` for `master` branch
+2. Click `Add branch ruleset` (the button on the left)
 3. Configure each setting:
 
-**Recommended Settings:**
+**Recommended Ruleset Configuration:**
 
 ```
-Branch name pattern: master
+Ruleset Name: Master Branch Protection
+Enforcement status: Active
+
+Target Branches:
+  ☑ Include by pattern
+    Pattern: master
+
+Bypass list:
+  ☑ Repository admin (for emergencies)
+  Note: You can remove this later once comfortable with workflow
+
+Rules:
+
+☑ Restrict deletions
+☑ Require linear history
 
 ☑ Require a pull request before merging
-  ☑ Require approvals: 1
+  ☑ Required approvals: 1
   ☑ Dismiss stale pull request approvals when new commits are pushed
   ☐ Require review from Code Owners (not needed for solo)
+  ☑ Require approval of the most recent reviewable push
+  ☐ Require conversation resolution before merging
 
-☑ Require status checks to pass before merging
+☑ Require status checks to pass
   ☑ Require branches to be up to date before merging
-  Status checks (will add in Phase 2):
+  Status checks to require (will add in Phase 2):
     - conventional-commits
     - required-labels
     - yaml-lint
 
-☑ Require conversation resolution before merging
-
-☑ Require linear history
+☑ Block force pushes
 
 ☐ Require signed commits (optional, can add later)
-
-☐ Include administrators (for now, allow yourself to bypass)
-  Note: Enable this once you're comfortable with the workflow
-
-☑ Allow force pushes: Nobody
-☑ Allow deletions: Disabled
 ```
 
 **As you configure:**
@@ -187,28 +203,33 @@ Approve your own PR. Expected: **Allowed** to merge
 - What protection messages you saw
 - How the experience felt
 
-### Step 4: Understand the API Structure
+### Step 4: Understand the Rulesets API Structure
 
 **Time Estimate:** 30 minutes
 
 **API Research Checklist:**
 - [ ] Read `gh api` documentation
-- [ ] Review branch protection API endpoint documentation
-- [ ] View current protection rules with: `gh api repos/{owner}/{repo}/branches/master/protection`
-- [ ] Understand the JSON payload structure
+- [ ] Review branch rulesets API endpoint documentation
+- [ ] View current rulesets with: `gh api repos/{owner}/{repo}/rulesets`
+- [ ] View specific ruleset details
+- [ ] Understand the JSON payload structure for creating rulesets
 - [ ] Note required vs optional fields
 - [ ] Document API endpoint structure
 - [ ] Document authentication requirements
+- [ ] Understand rule types and their parameters
 
 Research how to replicate your configuration via GitHub API:
 
 **Useful commands to explore:**
 ```bash
-# View current protection rules
-gh api repos/{owner}/{repo}/branches/master/protection
+# List all rulesets for the repository
+gh api repos/{owner}/{repo}/rulesets
 
-# View just the payload structure
-gh api repos/{owner}/{repo}/branches/master/protection --jq '.'
+# View a specific ruleset (get ID from list above)
+gh api repos/{owner}/{repo}/rulesets/{ruleset_id}
+
+# View the full ruleset structure with pretty printing
+gh api repos/{owner}/{repo}/rulesets/{ruleset_id} --jq '.'
 ```
 
 ### Step 5: Create Automation Script
@@ -246,8 +267,8 @@ Create `project/guides/github/branch-protection/setup.sh`:
 
 ```bash
 #!/bin/bash
-# GitHub Branch Protection Setup Script
-# Configures master branch protection for LinkRadar workflow
+# GitHub Branch Ruleset Setup Script
+# Configures master branch ruleset for LinkRadar workflow
 #
 # Prerequisites:
 # - GitHub CLI (gh) installed and authenticated
@@ -263,44 +284,69 @@ set -e
 
 REPO="${1:-username/link-radar}"  # Default or from argument
 
-echo "Setting up branch protection for master branch in $REPO..."
+echo "Setting up branch ruleset for master branch in $REPO..."
 
-# Configure branch protection for master
-gh api repos/"$REPO"/branches/master/protection \
-  --method PUT \
-  --field required_pull_request_reviews='{
-    "required_approving_review_count": 1,
-    "dismiss_stale_reviews": true,
-    "require_code_owner_reviews": false
-  }' \
-  --field required_status_checks='{
-    "strict": true,
-    "contexts": []
-  }' \
-  --field required_conversation_resolution='{"required": true}' \
-  --field required_linear_history='{"required": true}' \
-  --field enforce_admins=false \
-  --field restrictions=null \
-  --field allow_force_pushes=false \
-  --field allow_deletions=false
+# Get the repository admin actor ID for bypass permissions
+REPO_ID=$(gh api repos/"$REPO" --jq '.id')
+
+# Create the branch ruleset
+gh api repos/"$REPO"/rulesets \
+  --method POST \
+  -f name="Master Branch Protection" \
+  -f enforcement="active" \
+  -f target="branch" \
+  -f bypass_actors='[{"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always"}]' \
+  -f conditions='{"ref_name": {"include": ["refs/heads/master"], "exclude": []}}' \
+  -f rules='[
+    {
+      "type": "deletion"
+    },
+    {
+      "type": "required_linear_history"
+    },
+    {
+      "type": "pull_request",
+      "parameters": {
+        "required_approving_review_count": 1,
+        "dismiss_stale_reviews_on_push": true,
+        "require_code_owner_review": false,
+        "require_last_push_approval": true,
+        "required_review_thread_resolution": false
+      }
+    },
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": true,
+        "required_status_checks": []
+      }
+    },
+    {
+      "type": "non_fast_forward"
+    }
+  ]'
 
 echo ""
-echo "✅ Branch protection configured for master!"
+echo "✅ Branch ruleset configured for master!"
 echo ""
 echo "Settings applied:"
+echo "  ✓ Ruleset name: Master Branch Protection"
+echo "  ✓ Enforcement: Active"
+echo "  ✓ Target branch: master"
 echo "  ✓ Require pull requests with 1 approval"
 echo "  ✓ Dismiss stale reviews on new commits"
+echo "  ✓ Require last push approval"
 echo "  ✓ Require status checks (contexts empty, add in Phase 2)"
 echo "  ✓ Require branches to be up to date"
-echo "  ✓ Require conversation resolution"
 echo "  ✓ Require linear history"
-echo "  ✓ Admins can bypass (for emergencies)"
-echo "  ✓ No force pushes allowed"
-echo "  ✓ Branch deletion disabled"
+echo "  ✓ Repository admins can bypass (for emergencies)"
+echo "  ✓ Block force pushes"
+echo "  ✓ Restrict deletions"
 echo ""
-echo "View settings: https://github.com/$REPO/settings/branches"
+echo "View settings: https://github.com/$REPO/settings/rules"
 echo ""
 echo "Note: Status checks will be added in Phase 2 when CI workflows are created."
+echo "Note: Actor ID 5 = Repository Admin role. This allows you to bypass in emergencies."
 ```
 
 **Make executable:**
@@ -337,33 +383,37 @@ Create `project/guides/github/branch-protection/guide.md`:
 **Guide Structure:**
 
 ```markdown
-# Branch Protection Setup Guide
+# Branch Ruleset Setup Guide
 
 ## Overview
 
-Why branch protection matters and what it enforces.
+Why branch rulesets matter and what they enforce. Explains the difference between classic branch protection and modern rulesets.
 
-## Protection Settings Explained
+## Rulesets vs Classic Protection
+
+Brief comparison and why we chose rulesets.
+
+## Ruleset Settings Explained
 
 ### Require Pull Requests
 **What it does:** [Technical explanation]
 **Why we use it:** [Practical benefit]
 **How it works:** [User experience]
 
-[Repeat for each setting]
+[Repeat for each rule type]
 
 ### Settings Summary
 
-| Setting | Enabled | Why |
-|---------|---------|-----|
+| Rule | Enabled | Why |
+|------|---------|-----|
 | Require PR | ✅ | Enforces review workflow |
-| Require approvals | ✅ (1) | Quality gate |
+| Required approvals | ✅ (1) | Quality gate |
 | Status checks | ✅ | CI must pass (Phase 2) |
-| Conversation resolution | ✅ | Address all feedback |
+| Last push approval | ✅ | Re-review after changes |
 | Linear history | ✅ | Clean Git history |
-| Enforce admins | ❌ | Allow emergency bypass |
-| Force pushes | ❌ | Prevent history rewrites |
-| Deletions | ❌ | Prevent accidental deletion |
+| Bypass: Admins | ✅ | Allow emergency bypass |
+| Block force pushes | ✅ | Prevent history rewrites |
+| Restrict deletions | ✅ | Prevent accidental deletion |
 
 ## Manual Setup (Learning Path)
 
@@ -371,8 +421,10 @@ Why branch protection matters and what it enforces.
 
 1. Navigate to GitHub Settings
 2. Click Branches
-3. Add rule for 'master'
-4. Configure each setting...
+3. Click "Add branch ruleset" (NOT classic protection)
+4. Configure ruleset name and enforcement
+5. Set target branches
+6. Configure each rule...
 
 [Detailed walkthrough with screenshots or descriptions]
 
@@ -392,22 +444,24 @@ cd project/guides/github/branch-protection
 ### Script Breakdown
 
 Explanation of what the script does:
-- API endpoint used
-- JSON payload structure
-- Each protection setting
+- Rulesets API endpoint
+- JSON payload structure for rulesets
+- Each rule configuration
+- Bypass actors configuration
 
 ### Customizing the Script
 
 How to modify for different needs:
 - Different approval counts
 - Additional status checks
-- Stricter admin enforcement
+- Different bypass permissions
+- Multiple branch patterns
 
-## Testing Protection
+## Testing Ruleset
 
 ### Verify It Works
 
-Test scenarios to confirm protection:
+Test scenarios to confirm ruleset:
 1. Try direct push (should fail)
 2. Create PR (should succeed)
 3. Try merge without approval (should fail)
@@ -417,11 +471,11 @@ Test scenarios to confirm protection:
 
 What you should see in each scenario.
 
-## Working With Protected Branches
+## Working With Rulesets
 
 ### Daily Workflow
 
-How protection affects your normal workflow:
+How rulesets affect your normal workflow:
 1. Always create feature branch
 2. Push and create PR
 3. Approve your own PR
@@ -432,18 +486,18 @@ How protection affects your normal workflow:
 When and how to bypass (admin only):
 - Critical production fixes
 - How to bypass responsibly
-- Re-enable protections after
+- Understand enforcement modes (Active vs Evaluate)
 
 ### Status Checks (Phase 2)
 
 What happens when CI checks are added:
 - PR blocked until checks pass
 - How to fix failing checks
-- Override when needed
+- Adding checks to the ruleset
 
 ## Common Issues
 
-### Can't Push to Main
+### Can't Push to Master
 
 Error message and solution.
 
@@ -455,6 +509,10 @@ Common reasons and fixes.
 
 Troubleshooting (for Phase 2).
 
+### Ruleset vs Classic Conflicts
+
+What happens if you have both configured.
+
 ## For Future Projects
 
 ### Lifting to New Repos
@@ -464,13 +522,20 @@ How to use this script for other projects:
 2. Adjust settings as needed
 3. Test with dummy PR
 
+### Organization-Wide Rulesets
+
+How to scale to organization level:
+- Creating org-level rulesets
+- Repository-level overrides
+- Managing multiple repos
+
 ### Team Scaling
 
 Additional settings for larger teams:
 - Require code owner reviews
 - More approvals required
-- Stricter admin enforcement
-- Branch restrictions
+- Stricter bypass permissions
+- Status check requirements
 
 ## Next Steps
 
@@ -481,27 +546,29 @@ After setup:
 
 ## References
 
-- GitHub Branch Protection docs
-- GitHub API docs
+- GitHub Branch Rulesets docs
+- GitHub Rulesets API docs
 - gh CLI documentation
+- Migration guide from classic to rulesets
 ```
 
 ## Deliverables
 
-- [ ] Branch protections configured on master branch
-- [ ] Protection settings tested with PRs
-- [ ] `project/guides/github/branch-protection/setup.sh` - Working automation script
-- [ ] `project/guides/github/branch-protection/guide.md` - Complete documentation
+- [ ] Branch ruleset configured for master branch
+- [ ] Ruleset settings tested with PRs
+- [ ] `project/guides/github/branch-protection/setup.sh` - Working automation script using rulesets API
+- [ ] `project/guides/github/branch-protection/guide.md` - Complete documentation covering rulesets
 - [ ] Script tested and verified
 - [ ] Superthread card #131 moved to "Done"
 
 ## Success Criteria
 
-- ✅ Master branch protected from direct pushes
+- ✅ Master branch protected from direct pushes via ruleset
 - ✅ PRs require approval before merge
 - ✅ Linear history enforced
-- ✅ Automation script recreates settings correctly
-- ✅ Guide documents all settings with explanations
+- ✅ Modern rulesets system used (not classic protection)
+- ✅ Automation script recreates ruleset correctly
+- ✅ Guide documents all ruleset settings with explanations
 - ✅ Test PR successfully created and merged
 - ✅ Ready for Phase 2 status checks
 
@@ -518,9 +585,12 @@ After completing this plan:
 
 ## Notes
 
-- Start with protections disabled for admins so you can bypass if needed
-- Enable admin enforcement once comfortable
-- Status check contexts array is empty now, Phase 2 will populate it
-- The script makes it trivial to set up protection in new repos
+- **Using modern rulesets** - Future-proof approach that GitHub is investing in
+- Start with admin bypass enabled so you can override if needed
+- Status check array is empty now, Phase 2 will populate it
+- The script makes it trivial to set up rulesets in new repos
+- Rulesets are more flexible than classic protection (can target multiple branches)
+- Actor ID 5 = Repository Admin role (used for bypass permissions)
 - This protects against mistakes while learning the workflow
+- Can migrate classic protection to rulesets later if you started with classic
 
