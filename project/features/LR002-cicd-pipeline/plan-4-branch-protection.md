@@ -84,17 +84,16 @@ This is crucial infrastructure that enables safe, controlled deployments.
 - [ ] Click "Add branch ruleset" (NOT "Add classic branch protection rule")
 - [ ] Set ruleset name: "Master Branch Protection"
 - [ ] Set enforcement status: "Active"
-- [ ] Add target: Include by pattern → `master`
+- [ ] Click "Add target" → Select "Include default branch"
+- [ ] Click "Add bypass" → Select "Repository admin"
+- [ ] Enable "Restrict deletions"
+- [ ] Enable "Require linear history"
 - [ ] Enable "Require a pull request before merging"
 - [ ] Set "Required approvals" to 1
 - [ ] Enable "Dismiss stale pull request approvals when new commits are pushed"
-- [ ] Enable "Require status checks to pass"
-- [ ] Enable "Require branches to be up to date before merging"
-- [ ] Enable "Require conversation resolution before merging"
-- [ ] Enable "Require linear history"
-- [ ] Configure bypass permissions (start with allowing admins to bypass)
-- [ ] Block force pushes
-- [ ] Restrict deletions
+- [ ] Enable "Require approval of the most recent reviewable push"
+- [ ] Leave "Require status checks to pass" UNCHECKED (will add in Phase 2)
+- [ ] Enable "Block force pushes"
 - [ ] Save ruleset
 
 **Documentation While Configuring:**
@@ -115,8 +114,8 @@ Ruleset Name: Master Branch Protection
 Enforcement status: Active
 
 Target Branches:
-  ☑ Include by pattern
-    Pattern: master
+  ☑ Include default branch
+  (Automatically targets master - simpler and more future-proof than pattern matching)
 
 Bypass list:
   ☑ Repository admin (for emergencies)
@@ -132,11 +131,11 @@ Rules:
   ☑ Dismiss stale pull request approvals when new commits are pushed
   ☐ Require review from Code Owners (not needed for solo)
   ☑ Require approval of the most recent reviewable push
-  ☐ Require conversation resolution before merging
+  ☐ Require conversation resolution before merging (optional)
 
-☑ Require status checks to pass
-  ☑ Require branches to be up to date before merging
-  Status checks to require (will add in Phase 2):
+☐ Require status checks to pass
+  NOTE: Leave UNCHECKED for now - no CI workflows exist yet
+  Will enable in Phase 2 with these checks:
     - conventional-commits
     - required-labels
     - yaml-lint
@@ -268,7 +267,7 @@ Create `project/guides/github/branch-protection/setup.sh`:
 ```bash
 #!/bin/bash
 # GitHub Branch Ruleset Setup Script
-# Configures master branch ruleset for LinkRadar workflow
+# Configures default branch ruleset for LinkRadar workflow
 #
 # Prerequisites:
 # - GitHub CLI (gh) installed and authenticated
@@ -284,9 +283,9 @@ set -e
 
 REPO="${1:-username/link-radar}"  # Default or from argument
 
-echo "Setting up branch ruleset for master branch in $REPO..."
+echo "Setting up branch ruleset for default branch in $REPO..."
 
-# Get the repository admin actor ID for bypass permissions
+# Note: Not used currently, but kept for reference if needed for other bypass actors
 REPO_ID=$(gh api repos/"$REPO" --jq '.id')
 
 # Create the branch ruleset
@@ -296,7 +295,7 @@ gh api repos/"$REPO"/rulesets \
   -f enforcement="active" \
   -f target="branch" \
   -f bypass_actors='[{"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always"}]' \
-  -f conditions='{"ref_name": {"include": ["refs/heads/master"], "exclude": []}}' \
+  -f conditions='{"ref_name": {"include": ["~DEFAULT_BRANCH"], "exclude": []}}' \
   -f rules='[
     {
       "type": "deletion"
@@ -315,38 +314,36 @@ gh api repos/"$REPO"/rulesets \
       }
     },
     {
-      "type": "required_status_checks",
-      "parameters": {
-        "strict_required_status_checks_policy": true,
-        "required_status_checks": []
-      }
-    },
-    {
       "type": "non_fast_forward"
     }
   ]'
 
+# Note: "required_status_checks" rule is NOT included in initial setup
+# It will be added in Phase 2 when CI workflows are created
+# To add it later, edit the ruleset in GitHub UI or use the update API
+
 echo ""
-echo "✅ Branch ruleset configured for master!"
+echo "✅ Branch ruleset configured for default branch!"
 echo ""
 echo "Settings applied:"
 echo "  ✓ Ruleset name: Master Branch Protection"
 echo "  ✓ Enforcement: Active"
-echo "  ✓ Target branch: master"
+echo "  ✓ Target: Default branch (currently master)"
 echo "  ✓ Require pull requests with 1 approval"
 echo "  ✓ Dismiss stale reviews on new commits"
 echo "  ✓ Require last push approval"
-echo "  ✓ Require status checks (contexts empty, add in Phase 2)"
-echo "  ✓ Require branches to be up to date"
 echo "  ✓ Require linear history"
 echo "  ✓ Repository admins can bypass (for emergencies)"
 echo "  ✓ Block force pushes"
 echo "  ✓ Restrict deletions"
 echo ""
+echo "⚠️  Status checks NOT configured yet (no CI workflows exist)"
+echo "    Will be added in Phase 2: conventional-commits, required-labels, yaml-lint"
+echo ""
 echo "View settings: https://github.com/$REPO/settings/rules"
 echo ""
-echo "Note: Status checks will be added in Phase 2 when CI workflows are created."
 echo "Note: Actor ID 5 = Repository Admin role. This allows you to bypass in emergencies."
+echo "Note: Using ~DEFAULT_BRANCH targets whatever branch is set as default (currently master)."
 ```
 
 **Make executable:**
@@ -408,12 +405,12 @@ Brief comparison and why we chose rulesets.
 |------|---------|-----|
 | Require PR | ✅ | Enforces review workflow |
 | Required approvals | ✅ (1) | Quality gate |
-| Status checks | ✅ | CI must pass (Phase 2) |
 | Last push approval | ✅ | Re-review after changes |
 | Linear history | ✅ | Clean Git history |
 | Bypass: Admins | ✅ | Allow emergency bypass |
 | Block force pushes | ✅ | Prevent history rewrites |
 | Restrict deletions | ✅ | Prevent accidental deletion |
+| Status checks | ⚠️ Phase 2 | Will add when CI workflows exist |
 
 ## Manual Setup (Learning Path)
 
@@ -586,11 +583,14 @@ After completing this plan:
 ## Notes
 
 - **Using modern rulesets** - Future-proof approach that GitHub is investing in
+- **Using "Include default branch"** - Simpler and more maintainable than pattern matching. Automatically follows if you rename master → main
+- **Status checks NOT configured initially** - Since no CI workflows exist yet, the "Require status checks to pass" rule is left unchecked. Will be added in Phase 2.
 - Start with admin bypass enabled so you can override if needed
-- Status check array is empty now, Phase 2 will populate it
 - The script makes it trivial to set up rulesets in new repos
-- Rulesets are more flexible than classic protection (can target multiple branches)
+- Rulesets are more flexible than classic protection (can target multiple branches with patterns)
 - Actor ID 5 = Repository Admin role (used for bypass permissions)
+- `~DEFAULT_BRANCH` in API = special token that targets the repository's default branch
 - This protects against mistakes while learning the workflow
 - Can migrate classic protection to rulesets later if you started with classic
+- In Phase 2, you'll edit this ruleset to add status checks for: conventional-commits, required-labels, yaml-lint
 
