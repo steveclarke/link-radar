@@ -6,16 +6,16 @@
 
 ## Goal
 
-Configure GitHub branch protections for the `main` branch to enforce the workflow documented in Plan 3. Learn what each protection setting does by configuring manually, then capture the configuration as a `gh` CLI script for future repos.
+Configure GitHub branch protections for the `master` branch to enforce the workflow documented in Plan 3. Learn what each protection setting does by configuring manually, then capture the configuration as a `gh` CLI script for future repos.
 
 ## Why This Matters
 
 Branch protection:
-- **Enforces PR workflow** - No direct pushes to main
+- **Enforces PR workflow** - No direct pushes to master
 - **Requires reviews** - Quality gate before merging
 - **Enables CI checks** - Status checks must pass (Phase 2)
 - **Maintains clean history** - Squash merges only
-- **Prevents mistakes** - Can't accidentally push to main
+- **Prevents mistakes** - Can't accidentally push to master
 - **Team-ready** - Protection works for 1 person or 50
 
 This is crucial infrastructure that enables safe, controlled deployments.
@@ -23,7 +23,7 @@ This is crucial infrastructure that enables safe, controlled deployments.
 ## Protection Settings to Configure
 
 ### 1. Require Pull Requests
-**What it does:** Prevents direct commits to main; all changes via PR  
+**What it does:** Prevents direct commits to master; all changes via PR  
 **Why you want it:** Enforces review process and CI checks
 
 ### 2. Require Approvals
@@ -76,7 +76,7 @@ This is crucial infrastructure that enables safe, controlled deployments.
 
 **Configuration Checklist:**
 - [ ] Navigate to GitHub repository Settings → Branches
-- [ ] Click "Add rule" for `main` branch
+- [ ] Click "Add rule" for `master` branch
 - [ ] Enable "Require a pull request before merging"
 - [ ] Set "Require approvals" to 1
 - [ ] Enable "Dismiss stale pull request approvals when new commits pushed"
@@ -97,13 +97,13 @@ This is crucial infrastructure that enables safe, controlled deployments.
 
 Navigate to GitHub repository settings:
 1. Go to `Settings` → `Branches`
-2. Click `Add rule` for `main` branch
+2. Click `Add rule` for `master` branch
 3. Configure each setting:
 
 **Recommended Settings:**
 
 ```
-Branch name pattern: main
+Branch name pattern: master
 
 ☑ Require a pull request before merging
   ☑ Require approvals: 1
@@ -141,7 +141,7 @@ Branch name pattern: main
 **Time Estimate:** 30 minutes
 
 **Testing Checklist:**
-- [ ] Test 1: Try direct push to main (should be rejected)
+- [ ] Test 1: Try direct push to master (should be rejected)
 - [ ] Test 2: Create feature branch and push (should succeed)
 - [ ] Test 3: Create PR from feature branch (should succeed)
 - [ ] Test 4: Try to merge PR without approval (should be blocked)
@@ -157,7 +157,7 @@ Verify protections work:
 
 **Test 1: Try Direct Push**
 ```bash
-git checkout main
+git checkout master
 echo "test" >> test.txt
 git add test.txt
 git commit -m "test: direct push attempt"
@@ -194,7 +194,7 @@ Approve your own PR. Expected: **Allowed** to merge
 **API Research Checklist:**
 - [ ] Read `gh api` documentation
 - [ ] Review branch protection API endpoint documentation
-- [ ] View current protection rules with: `gh api repos/{owner}/{repo}/branches/main/protection`
+- [ ] View current protection rules with: `gh api repos/{owner}/{repo}/branches/master/protection`
 - [ ] Understand the JSON payload structure
 - [ ] Note required vs optional fields
 - [ ] Document API endpoint structure
@@ -205,10 +205,10 @@ Research how to replicate your configuration via GitHub API:
 **Useful commands to explore:**
 ```bash
 # View current protection rules
-gh api repos/{owner}/{repo}/branches/main/protection
+gh api repos/{owner}/{repo}/branches/master/protection
 
 # View just the payload structure
-gh api repos/{owner}/{repo}/branches/main/protection --jq '.'
+gh api repos/{owner}/{repo}/branches/master/protection --jq '.'
 ```
 
 ### Step 5: Create Automation Script
@@ -247,7 +247,7 @@ Create `project/guides/github/branch-protection/setup.sh`:
 ```bash
 #!/bin/bash
 # GitHub Branch Protection Setup Script
-# Configures main branch protection for LinkRadar workflow
+# Configures master branch protection for LinkRadar workflow
 #
 # Prerequisites:
 # - GitHub CLI (gh) installed and authenticated
@@ -263,10 +263,10 @@ set -e
 
 REPO="${1:-username/link-radar}"  # Default or from argument
 
-echo "Setting up branch protection for main branch in $REPO..."
+echo "Setting up branch protection for master branch in $REPO..."
 
-# Configure branch protection for main
-gh api repos/"$REPO"/branches/main/protection \
+# Configure branch protection for master
+gh api repos/"$REPO"/branches/master/protection \
   --method PUT \
   --field required_pull_request_reviews='{
     "required_approving_review_count": 1,
@@ -285,7 +285,7 @@ gh api repos/"$REPO"/branches/main/protection \
   --field allow_deletions=false
 
 echo ""
-echo "✅ Branch protection configured for main!"
+echo "✅ Branch protection configured for master!"
 echo ""
 echo "Settings applied:"
 echo "  ✓ Require pull requests with 1 approval"
@@ -371,7 +371,7 @@ Why branch protection matters and what it enforces.
 
 1. Navigate to GitHub Settings
 2. Click Branches
-3. Add rule for 'main'
+3. Add rule for 'master'
 4. Configure each setting...
 
 [Detailed walkthrough with screenshots or descriptions]
@@ -488,7 +488,7 @@ After setup:
 
 ## Deliverables
 
-- [ ] Branch protections configured on main branch
+- [ ] Branch protections configured on master branch
 - [ ] Protection settings tested with PRs
 - [ ] `project/guides/github/branch-protection/setup.sh` - Working automation script
 - [ ] `project/guides/github/branch-protection/guide.md` - Complete documentation
@@ -497,7 +497,7 @@ After setup:
 
 ## Success Criteria
 
-- ✅ Main branch protected from direct pushes
+- ✅ Master branch protected from direct pushes
 - ✅ PRs require approval before merge
 - ✅ Linear history enforced
 - ✅ Automation script recreates settings correctly
