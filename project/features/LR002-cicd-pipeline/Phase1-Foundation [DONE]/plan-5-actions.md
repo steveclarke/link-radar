@@ -42,10 +42,10 @@ Setting this up now means Phase 2/3 workflows will "just work" when you create t
 **Location:** GitHub repository settings (Actions section)
 
 ### 2. Documentation (Script Optional)
-**Location:** `project/guides/github/actions/guide.md`
+**Location:** `project/guides/github/setup/actions/guide.md`
 
 ### 3. Automation Script (If Scriptable)
-**Location:** `project/guides/github/actions/setup.sh`
+**Location:** `project/guides/github/setup/actions/setup.sh`
 
 Note: Some Actions settings may only be configurable via UI. Document both approaches.
 
@@ -258,7 +258,7 @@ Document how GitHub Actions permissions work for LinkRadar:
 - [ ] Document API limitations
 
 **Script Creation (If Scriptable):**
-- [ ] Create directory `project/guides/github/actions/`
+- [ ] Create directory `project/guides/github/setup/actions/`
 - [ ] Create file `setup.sh` in the directory
 - [ ] Add script header and prerequisites
 - [ ] Add repository variable configuration
@@ -274,7 +274,7 @@ Document how GitHub Actions permissions work for LinkRadar:
 
 Some Actions settings are configurable via API, others are UI-only.
 
-Research and create `project/guides/github/actions/setup.sh` if scriptable:
+Research and create `project/guides/github/setup/actions/setup.sh` if scriptable:
 
 ```bash
 #!/bin/bash
@@ -327,7 +327,7 @@ echo "See guide.md for detailed instructions."
 **Time Estimate:** 90 minutes
 
 **Guide Creation Checklist:**
-- [ ] Create directory `project/guides/github/actions/` (if not exists)
+- [ ] Create directory `project/guides/github/setup/actions/` (if not exists)
 - [ ] Create file `guide.md` in the directory
 - [ ] Write Overview section
 - [ ] Write GitHub Actions Architecture section
@@ -344,7 +344,7 @@ echo "See guide.md for detailed instructions."
 - [ ] Add References section
 - [ ] Proofread and refine guide
 
-Create `project/guides/github/actions/guide.md`:
+Create `project/guides/github/setup/actions/guide.md`:
 
 **Guide Structure:**
 
@@ -563,8 +563,8 @@ After this setup:
 - [ ] GitHub Actions enabled in repository
 - [ ] Workflow permissions set to read/write
 - [ ] PR creation allowed for workflows
-- [ ] `project/guides/github/actions/guide.md` - Complete documentation
-- [ ] `project/guides/github/actions/setup.sh` - Script (if fully scriptable)
+- [ ] `project/guides/github/setup/actions/guide.md` - Complete documentation
+- [ ] `project/guides/github/setup/actions/setup.sh` - Script (if fully scriptable)
 - [ ] Test workflow created, run, and verified
 - [ ] Superthread card #132 moved to "Done"
 

@@ -45,10 +45,10 @@ The two-axis approach (type + area) provides powerful filtering: "Show me all fe
 **Location:** GitHub repository settings
 
 ### 2. Automation Script
-**Location:** `project/guides/github/labels/setup.sh`
+**Location:** `project/guides/github/setup/labels/setup.sh`
 
 ### 3. Guide Documentation
-**Location:** `project/guides/github/labels/guide.md`
+**Location:** `project/guides/github/setup/labels/guide.md`
 
 ## Implementation Steps
 
@@ -142,7 +142,7 @@ The two-axis approach (type + area) provides powerful filtering: "Show me all fe
 **Time Estimate:** 45 minutes
 
 **Script Creation Checklist:**
-- [ ] Create directory `project/guides/github/labels/`
+- [ ] Create directory `project/guides/github/setup/labels/`
 - [ ] Create file `setup.sh` in the directory
 - [ ] Add script header and documentation
 - [ ] Add repository variable configuration
@@ -160,7 +160,7 @@ The two-axis approach (type + area) provides powerful filtering: "Show me all fe
 - [ ] Document any issues encountered
 - [ ] Fix any script errors
 
-Create `project/guides/github/labels/setup.sh`:
+Create `project/guides/github/setup/labels/setup.sh`:
 
 ```bash
 #!/bin/bash
@@ -221,7 +221,7 @@ echo "View labels: https://github.com/$REPO/labels"
 **Time Estimate:** 60 minutes
 
 **Guide Creation Checklist:**
-- [ ] Create directory `project/guides/github/labels/` (if not exists)
+- [ ] Create directory `project/guides/github/setup/labels/` (if not exists)
 - [ ] Create file `guide.md` in the directory
 - [ ] Write Overview section
 - [ ] Write Label Taxonomy section with all type labels
@@ -234,7 +234,7 @@ echo "View labels: https://github.com/$REPO/labels"
 - [ ] Add Examples section with screenshots/links
 - [ ] Proofread and refine guide
 
-Create `project/guides/github/labels/guide.md`:
+Create `project/guides/github/setup/labels/guide.md`:
 
 **Guide Structure:**
 
@@ -307,8 +307,8 @@ Screenshots or links showing:
 ## Deliverables
 
 - [ ] All 13 labels created in GitHub
-- [ ] `project/guides/github/labels/setup.sh` - Executable automation script
-- [ ] `project/guides/github/labels/guide.md` - Complete documentation
+- [ ] `project/guides/github/setup/labels/setup.sh` - Executable automation script
+- [ ] `project/guides/github/setup/labels/guide.md` - Complete documentation
 - [ ] Script tested and verified
 - [ ] Superthread card #129 moved to "Done"
 

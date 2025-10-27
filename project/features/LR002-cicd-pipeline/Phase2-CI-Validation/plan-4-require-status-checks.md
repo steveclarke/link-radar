@@ -59,10 +59,10 @@ All three workflows must be tested and working correctly.
 **Location:** GitHub repository settings
 
 ### Scripted Update (via API)
-**Location:** Update `project/guides/github/branch-protection/setup.sh`
+**Location:** Update `project/guides/github/setup/branch-protection/setup.sh`
 
 ### JSON Update
-**Location:** Update `project/guides/github/branch-protection/ruleset.json`
+**Location:** Update `project/guides/github/setup/branch-protection/ruleset.json`
 
 ## Implementation Steps
 
@@ -144,7 +144,7 @@ All three workflows must be tested and working correctly.
 2. **Clean up and replace `ruleset.json`:**
    - Remove `id`, `source`, `source_type` fields
    - Keep everything else
-   - Save to `project/guides/github/branch-protection/ruleset.json`
+   - Save to `project/guides/github/setup/branch-protection/ruleset.json`
 
 The JSON should now include:
 
@@ -167,7 +167,7 @@ The JSON should now include:
 
 **Time Estimate:** 20 minutes
 
-Update `project/guides/github/branch-protection/setup.sh`:
+Update `project/guides/github/setup/branch-protection/setup.sh`:
 
 **Add the status checks rule to the rules array:**
 
@@ -213,7 +213,7 @@ Update `project/guides/github/branch-protection/setup.sh`:
 
 **Time Estimate:** 30 minutes
 
-**Update `project/guides/github/branch-protection/guide.md`:**
+**Update `project/guides/github/setup/branch-protection/guide.md`:**
 
 Update the settings summary table:
 

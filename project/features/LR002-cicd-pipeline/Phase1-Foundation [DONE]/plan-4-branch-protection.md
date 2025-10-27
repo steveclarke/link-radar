@@ -51,10 +51,10 @@ This is crucial infrastructure that enables safe, controlled deployments.
 **Location:** GitHub repository settings (via UI, then CLI)
 
 ### 2. Automation Script
-**Location:** `project/guides/github/branch-protection/setup.sh`
+**Location:** `project/guides/github/setup/branch-protection/setup.sh`
 
 ### 3. Guide Documentation
-**Location:** `project/guides/github/branch-protection/guide.md`
+**Location:** `project/guides/github/setup/branch-protection/guide.md`
 
 ## Implementation Steps
 
@@ -236,7 +236,7 @@ gh api repos/{owner}/{repo}/rulesets/{ruleset_id} --jq '.'
 **Time Estimate:** 60 minutes
 
 **Script Creation Checklist:**
-- [ ] Create directory `project/guides/github/branch-protection/`
+- [ ] Create directory `project/guides/github/setup/branch-protection/`
 - [ ] Create file `setup.sh` in the directory
 - [ ] Add script header and prerequisites documentation
 - [ ] Add repository variable configuration
@@ -262,7 +262,7 @@ gh api repos/{owner}/{repo}/rulesets/{ruleset_id} --jq '.'
 - [ ] Document any issues encountered
 - [ ] Fix any script errors
 
-Create `project/guides/github/branch-protection/setup.sh`:
+Create `project/guides/github/setup/branch-protection/setup.sh`:
 
 ```bash
 #!/bin/bash
@@ -348,7 +348,7 @@ echo "Note: Using ~DEFAULT_BRANCH targets whatever branch is set as default (cur
 
 **Make executable:**
 ```bash
-chmod +x project/guides/github/branch-protection/setup.sh
+chmod +x project/guides/github/setup/branch-protection/setup.sh
 ```
 
 **Test the script:**
@@ -362,7 +362,7 @@ chmod +x project/guides/github/branch-protection/setup.sh
 **Time Estimate:** 90 minutes
 
 **Guide Creation Checklist:**
-- [ ] Create directory `project/guides/github/branch-protection/` (if not exists)
+- [ ] Create directory `project/guides/github/setup/branch-protection/` (if not exists)
 - [ ] Create file `guide.md` in the directory
 - [ ] Write Overview section
 - [ ] Write Protection Settings Explained section for each setting
@@ -375,7 +375,7 @@ chmod +x project/guides/github/branch-protection/setup.sh
 - [ ] Write For Future Projects section
 - [ ] Proofread and refine guide
 
-Create `project/guides/github/branch-protection/guide.md`:
+Create `project/guides/github/setup/branch-protection/guide.md`:
 
 **Guide Structure:**
 
@@ -553,8 +553,8 @@ After setup:
 
 - [ ] Branch ruleset configured for master branch
 - [ ] Ruleset settings tested with PRs
-- [ ] `project/guides/github/branch-protection/setup.sh` - Working automation script using rulesets API
-- [ ] `project/guides/github/branch-protection/guide.md` - Complete documentation covering rulesets
+- [ ] `project/guides/github/setup/branch-protection/setup.sh` - Working automation script using rulesets API
+- [ ] `project/guides/github/setup/branch-protection/guide.md` - Complete documentation covering rulesets
 - [ ] Script tested and verified
 - [ ] Superthread card #131 moved to "Done"
 

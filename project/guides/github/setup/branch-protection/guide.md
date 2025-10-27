@@ -230,7 +230,7 @@ The simplest way to replicate this ruleset in other repos is to import the JSON 
 - ✅ GitHub validates the JSON
 - ✅ Can edit in UI after import
 
-**The JSON file:** `project/guides/github/branch-protection/ruleset.json`
+**The JSON file:** `project/guides/github/setup/branch-protection/ruleset.json`
 
 This file contains your exact configuration:
 - ~DEFAULT_BRANCH targeting

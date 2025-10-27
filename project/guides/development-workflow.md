@@ -120,7 +120,7 @@ This keeps branch names readable while still connecting work to cards.
 
 The card ID is shown in the card header. You can also use the "Copy git branch name" button which includes the ID.
 
-![Superthread card ID location](superthread-card-id.png)
+![Superthread card ID location](.assets/development-workflow/superthread-card-id.png)
 
 ## Commit Conventions
 
@@ -250,7 +250,7 @@ Code, test, commit, and push your changes as you work through the feature.
 **7. Mark ready for review**  
 When the work is complete, mark the PR as "Ready for review" in GitHub.
 
-![Ready for review button](github-ready-for-review.png)
+![Ready for review button](.assets/development-workflow/github-ready-for-review.png)
 
 **8. Self-review**  
 Use GitHub's review feature to review your own code. Look at the diff as if someone else wrote it.
@@ -283,7 +283,7 @@ Our PR template (`.github/PULL_REQUEST_TEMPLATE.md`) loads automatically. It inc
 
 Fill it out as completely as you can when creating the draft. You can always edit it later as the work evolves. If you include a Superthread card link in the PR description, it will be linked to the card.
 
-> **Tip:** See `project/guides/github/pr-template/guide.md` for detailed guidance on filling out the template.
+> **Tip:** See `project/guides/github/setup/pr-template/guide.md` for detailed guidance on filling out the template.
 
 ## Labeling
 
@@ -328,7 +328,7 @@ Multiple area labels are fine if your change spans modules. For example, a refac
 - `type: chore` + `area: infrastructure` - Docker configuration change
 - `type: refactor` + `area: backend` + `area: extension` - Cross-cutting refactor
 
-> **Reference:** See `project/guides/github/labels/guide.md` for the complete label taxonomy.
+> **Reference:** See `project/guides/github/setup/labels/guide.md` for the complete label taxonomy.
 
 ## Code Review
 
@@ -401,7 +401,7 @@ We use squash merges for all PRs. This means all your individual commits get com
 
 Your branch keeps all the individual commits for reference. Master gets a clean, linear history.
 
-![Squash and merge button](github-squash-merge-button.png)
+![Squash and merge button](.assets/development-workflow/github-squash-merge-button.png)
 
 ### Squash Commit Message Format
 
@@ -429,7 +429,7 @@ feat(backend): add link archival endpoint (#42)
 Superthread Card: https://app.superthread.com...
 ```
 
-![Squash commit message editor](github-squash-commit-editor.png)
+![Squash commit message editor](.assets/development-workflow/github-squash-commit-editor.png)
 
 ### Merge Checklist
 
@@ -447,7 +447,7 @@ Before clicking that merge button:
 
 1. **Delete the branch** - GitHub offers a button after merge. Click it.
 
-![Delete branch button](github-delete-branch.png)
+![Delete branch button](.assets/development-workflow/github-delete-branch.png)
 
 2. **Check Superthread** - The card should update automatically
 3. **Pull master locally** - Get the merged changes: `git checkout master && git pull`

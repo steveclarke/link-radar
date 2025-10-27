@@ -57,7 +57,7 @@ This builds on the label taxonomy created in Phase 1 Plan 2.
 - Set status check (pass/fail)
 
 ### 2. Documentation
-**Location:** Update `project/guides/github/workflow/guide.md`
+**Location:** Update `project/guides/development-workflow.md`
 
 **Add:**
 - Section on PR labeling requirements
@@ -270,7 +270,7 @@ jobs:
 
 **Time Estimate:** 30 minutes
 
-**Update `project/guides/github/workflow/guide.md`:**
+**Update `project/guides/development-workflow.md`:**
 
 Add a section:
 

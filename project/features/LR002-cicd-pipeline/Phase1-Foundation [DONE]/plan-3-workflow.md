@@ -22,7 +22,7 @@ This is especially valuable as a pattern to lift to your bigger team project.
 ## What You'll Create
 
 ### 1. Comprehensive Workflow Guide
-**Location:** `project/guides/github/workflow/guide.md`
+**Location:** `project/guides/development-workflow.md`
 
 ## Implementation Steps
 
@@ -340,7 +340,7 @@ Use GitHub's review feature to review your own code before merging.
 **Time Estimate:** 120 minutes
 
 **Guide Creation Checklist:**
-- [ ] Create directory `project/guides/github/workflow/`
+- [ ] Create file `project/guides/development-workflow.md`
 - [ ] Create file `guide.md` in the directory
 - [ ] Write Overview section
 - [ ] Write Branching Strategy section
@@ -355,7 +355,7 @@ Use GitHub's review feature to review your own code before merging.
 - [ ] Write For Future Team Members section
 - [ ] Proofread and refine entire guide
 
-Create `project/guides/github/workflow/guide.md`:
+Create `project/guides/development-workflow.md`:
 
 **Guide Structure:**
 
@@ -578,7 +578,7 @@ Other conventions specific to LinkRadar.
 
 ## Deliverables
 
-- [x] `project/guides/github/workflow/guide.md` - Complete comprehensive guide
+- [x] `project/guides/development-workflow.md` - Complete comprehensive guide
 - [x] All sections filled with LinkRadar-specific examples
 - [x] Quick reference sections for common tasks
 - [x] Ready to follow immediately and share with future team
@@ -622,7 +622,7 @@ After completing this plan:
 ## Completion Summary
 
 **What Was Delivered:**
-- Comprehensive workflow guide at `project/guides/github/workflow/guide.md` (608 lines)
+- Comprehensive workflow guide at `project/guides/development-workflow.md` (608 lines)
 - Table of contents for easy navigation
 - Branching strategy with flexible Superthread integration (optional card IDs)
 - Commit conventions with Conventional Commits format

@@ -72,7 +72,7 @@ added new stuff          # Missing type, wrong tense
 - Set status check (pass/fail)
 
 ### 2. Documentation
-**Location:** Update `project/guides/github/workflow/guide.md`
+**Location:** Update `project/guides/development-workflow.md`
 
 **Add:**
 - Conventional Commits section with examples
@@ -175,7 +175,7 @@ Add a step that creates helpful comments:
               3. Use \`git rebase -i\` to fix older commits
               4. Force push to update the PR
               
-              See our [workflow guide](../../project/guides/github/workflow/guide.md) for details.`
+              See our [workflow guide](../../project/guides/development-workflow.md) for details.`
             })
 ```
 
@@ -183,7 +183,7 @@ Add a step that creates helpful comments:
 
 **Time Estimate:** 45 minutes
 
-**Update `project/guides/github/workflow/guide.md`:**
+**Update `project/guides/development-workflow.md`:**
 
 Add a new section:
 

@@ -24,7 +24,7 @@ For LinkRadar, this prepares you to test the complete CI/CD workflow while devel
 **Location:** `.github/PULL_REQUEST_TEMPLATE.md`
 
 ### 2. Guide Documentation
-**Location:** `project/guides/github/pr-template/guide.md`
+**Location:** `project/guides/github/setup/pr-template/guide.md`
 
 ## Implementation Steps
 
@@ -137,7 +137,7 @@ Any additional context, screenshots, or notes for reviewers
 **Time Estimate:** 45 minutes
 
 **Guide Creation Checklist:**
-- [ ] Create directory `project/guides/github/pr-template/`
+- [ ] Create directory `project/guides/github/setup/pr-template/`
 - [ ] Create file `guide.md` in the directory
 - [ ] Write Overview section
 - [ ] Document Our PR Template section
@@ -147,7 +147,7 @@ Any additional context, screenshots, or notes for reviewers
 - [ ] Add Tips section
 - [ ] Proofread and refine guide
 
-Create `project/guides/github/pr-template/guide.md` documenting:
+Create `project/guides/github/setup/pr-template/guide.md` documenting:
 
 **Guide Structure:**
 ```markdown
@@ -184,7 +184,7 @@ Good PR examples showing template usage
 
 - [x] `.github/PULL_REQUEST_TEMPLATE.md` - Working PR template
 - [ ] Test PR created and closed
-- [x] `project/guides/github/pr-template/guide.md` - Complete documentation
+- [x] `project/guides/github/setup/pr-template/guide.md` - Complete documentation
 - [ ] Superthread card #128 moved to "Done"
 
 ## Success Criteria
