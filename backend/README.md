@@ -25,6 +25,7 @@ Rails 8.1 API backend for LinkRadar - a personal knowledge radar for capturing a
     - [Rails Console](#rails-console)
     - [Database Operations](#database-operations)
     - [Code Quality](#code-quality)
+    - [API Testing with Bruno](#api-testing-with-bruno)
   - [Project Status](#project-status)
   - [Documentation](#documentation)
     - [Backend Guides](#backend-guides)
@@ -269,7 +270,7 @@ The `bin/setup` script automatically creates `bruno/.env` from `bruno/.env.examp
 
 ```bash
 # Rails server port (should match RAILS_PORT in backend .env)
-RAILS_PORT=3001
+RAILS_PORT=3000
 
 # API Key for development
 API_KEY=dev_api_key_change_in_production

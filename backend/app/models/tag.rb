@@ -4,14 +4,14 @@
 #
 # Table name: tags
 #
-#  id            :uuid             not null, primary key
-#  description   :text
-#  last_used_at  :datetime
-#  name          :string           not null
-#  slug          :string           not null
-#  usage_count   :integer          default(0), not null
-#  created_at    :datetime         not null
-#  updated_at    :datetime         not null
+#  id           :uuid             not null, primary key
+#  description  :text
+#  last_used_at :datetime
+#  name         :string(100)      not null
+#  slug         :string(100)      not null
+#  usage_count  :integer          default(0), not null
+#  created_at   :datetime         not null
+#  updated_at   :datetime         not null
 #
 # Indexes
 #

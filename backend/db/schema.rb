@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_10_25_190833) do
+ActiveRecord::Schema[8.1].define(version: 2025_10_27_190441) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -51,8 +51,8 @@ ActiveRecord::Schema[8.1].define(version: 2025_10_25_190833) do
     t.datetime "created_at", null: false
     t.text "description"
     t.datetime "last_used_at"
-    t.string "name", null: false
-    t.string "slug", null: false
+    t.string "name", limit: 100, null: false
+    t.string "slug", limit: 100, null: false
     t.datetime "updated_at", null: false
     t.integer "usage_count", default: 0, null: false
     t.index ["name"], name: "index_tags_on_name"

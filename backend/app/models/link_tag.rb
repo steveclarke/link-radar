@@ -11,9 +11,9 @@
 #
 # Indexes
 #
-#  index_link_tags_on_link_id              (link_id)
+#  index_link_tags_on_link_id             (link_id)
 #  index_link_tags_on_link_id_and_tag_id  (link_id,tag_id) UNIQUE
-#  index_link_tags_on_tag_id               (tag_id)
+#  index_link_tags_on_tag_id              (tag_id)
 #
 # Foreign Keys
 #
