@@ -9,11 +9,11 @@ jobs:
     permissions:
       contents: read
       issues: write
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Test issue creation
         run: |
           gh issue create \
