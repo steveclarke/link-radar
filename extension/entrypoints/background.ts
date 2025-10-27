@@ -4,7 +4,6 @@ export default defineBackground(() => {
   // Listen for messages from content scripts or popup
   browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === "SAVE_LINK") {
-      // Handle saving link to backend
       saveLinkToBackend(message.data)
         .then(() => sendResponse({ success: true }))
         .catch(error => sendResponse({ success: false, error: error.message }))
@@ -38,7 +37,6 @@ export default defineBackground(() => {
     }
 
     if (message.type === "DELETE_LINK") {
-      // Delete an existing link
       deleteLinkFromBackend(message.linkId)
         .then(() => sendResponse({ success: true }))
         .catch(error => sendResponse({ success: false, error: error.message }))
@@ -91,10 +89,8 @@ async function saveLinkToBackend(linkData: any) {
 }
 
 async function checkLinkExists(url: string): Promise<{ exists: boolean, linkId?: string }> {
-  // Get API key from storage
   const apiKey = await getApiKey()
 
-  // Query the backend for links with this URL
   const queryUrl = `${BACKEND_URL}/links?url=${encodeURIComponent(url)}`
 
   const response = await fetch(queryUrl, {
@@ -108,10 +104,13 @@ async function checkLinkExists(url: string): Promise<{ exists: boolean, linkId?:
     throw new Error(`Failed to check link existence: ${response.status} ${response.statusText}`)
   }
 
-  const links = await response.json()
+  const json = await response.json()
+
+  // Backend returns { data: { links: [...] } }
+  const links = json?.data?.links ?? []
 
   // If we found a link with this URL, return its ID
-  if (links && links.length > 0) {
+  if (Array.isArray(links) && links.length > 0) {
     return { exists: true, linkId: links[0].id }
   }
 

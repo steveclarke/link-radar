@@ -62,7 +62,6 @@ async function loadCurrentPageInfo() {
 
 async function checkIfBookmarked(url: string) {
   if (!apiKeyConfigured.value) {
-    // Don't check if API key is not configured
     return
   }
 
@@ -251,9 +250,9 @@ function showMessage(text: string, type: "success" | "error") {
   }, timeout)
 }
 
-onMounted(() => {
-  checkApiKey()
-  loadCurrentPageInfo()
+onMounted(async () => {
+  await checkApiKey()
+  await loadCurrentPageInfo()
 })
 </script>
 
@@ -290,24 +289,14 @@ onMounted(() => {
     </div>
 
     <LinkActions
-      :api-key-configured="apiKeyConfigured"
-      :is-bookmarked="isBookmarked"
-      :is-checking-bookmark="isCheckingBookmark"
-      :is-deleting="isDeleting"
-      :is-updating="isUpdating"
-      @copy="copyToClipboard"
-      @delete="deleteBookmark"
-      @save="saveLink"
-      @update="updateLink"
+      :api-key-configured="apiKeyConfigured" :is-bookmarked="isBookmarked"
+      :is-checking-bookmark="isCheckingBookmark" :is-deleting="isDeleting" :is-updating="isUpdating"
+      @copy="copyToClipboard" @delete="deleteBookmark" @save="saveLink" @update="updateLink"
     />
 
     <div class="notes-section">
       <label for="notes">Add a note (optional):</label>
-      <textarea
-        id="notes"
-        v-model="notes"
-        placeholder="Add your thoughts about this link..."
-      />
+      <textarea id="notes" v-model="notes" placeholder="Add your thoughts about this link..." />
     </div>
     <TagInput v-model="tags" />
 
@@ -318,7 +307,8 @@ onMounted(() => {
 </template>
 
 <style>
-html, body {
+html,
+body {
   width: 400px;
   min-height: 300px;
   margin: 0;
