@@ -213,9 +213,43 @@ As you click through the UI, you'll notice:
 
 ## Automated Setup (Production Path)
 
-### Using the Script
+### Method 1: Import JSON Ruleset (Recommended)
 
-The automation script replicates the manual setup using GitHub's API:
+The simplest way to replicate this ruleset in other repos is to import the JSON file:
+
+**Steps:**
+1. Go to your new repository's Settings → Branches
+2. Click "New ruleset" dropdown
+3. Select **"Import a ruleset"**
+4. Choose the `ruleset.json` file from this directory
+5. Review and save
+
+**Why this is better:**
+- ✅ No API scripting needed
+- ✅ Visual confirmation before importing
+- ✅ GitHub validates the JSON
+- ✅ Can edit in UI after import
+
+**The JSON file:** `project/guides/github/branch-protection/ruleset.json`
+
+This file contains your exact configuration:
+- ~DEFAULT_BRANCH targeting
+- "pull_request" bypass mode
+- All rules and parameters
+
+### Exporting Your Ruleset
+
+To export your ruleset as JSON (for documentation or sharing):
+
+1. Go to Settings → Branches
+2. Click the **"..."** menu next to your ruleset
+3. Select **"Export"**
+4. Save the JSON file
+5. Clean up repo-specific fields (`id`, `source`, `source_type`) before committing
+
+### Method 2: Using the API Script
+
+If you prefer automation via CLI, the script replicates the setup using GitHub's API:
 
 ```bash
 cd project/guides/github/branch-protection
@@ -576,20 +610,25 @@ git push origin feat/my-feature
 
 To apply this ruleset to another repository:
 
-1. **Run the script:**
+**Method 1: Import JSON (Easiest)**
+1. Go to new repo's Settings → Branches
+2. Click "New ruleset" → "Import a ruleset"
+3. Select `ruleset.json` from this directory
+4. Review and save
+5. Test with a dummy PR
+
+**Method 2: Use API Script**
+1. Run the script:
    ```bash
    cd project/guides/github/branch-protection
    ./setup.sh your-username/new-repo
    ```
+2. Test with dummy PR
 
-2. **Adjust if needed:**
-   - Different approval counts
-   - Different bypass permissions
-   - Additional branches to protect
-
-3. **Test with dummy PR:**
-   - Verify protections work
-   - Adjust ruleset if needed
+**Adjust if needed:**
+- Different approval counts
+- Different bypass permissions
+- Additional branches to protect
 
 ### Organization-Wide Rulesets
 
