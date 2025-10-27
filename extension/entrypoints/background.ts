@@ -21,6 +21,22 @@ export default defineBackground(() => {
       return true // Keep the message channel open for async response
     }
 
+    if (message.type === "GET_LINK_DETAILS") {
+      getLinkDetails(message.linkId)
+        .then(link => sendResponse({ success: true, link }))
+        .catch(error => sendResponse({ success: false, error: error.message }))
+
+      return true
+    }
+
+    if (message.type === "UPDATE_LINK") {
+      updateLinkOnBackend(message.linkId, message.data)
+        .then(link => sendResponse({ success: true, link }))
+        .catch(error => sendResponse({ success: false, error: error.message }))
+
+      return true
+    }
+
     if (message.type === "DELETE_LINK") {
       // Delete an existing link
       deleteLinkFromBackend(message.linkId)
@@ -53,6 +69,7 @@ async function saveLinkToBackend(linkData: any) {
       submitted_url: linkData.url,
       title: linkData.title,
       note: linkData.note,
+      tag_names: linkData.tags || [],
     },
   }
 
@@ -118,4 +135,69 @@ async function deleteLinkFromBackend(linkId: string) {
   }
 
   // DELETE returns 204 No Content, so no need to parse response
+}
+
+async function getLinkDetails(linkId: string) {
+  const apiKey = await getApiKey()
+
+  const response = await fetch(`${BACKEND_URL}/links/${linkId}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+    },
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`Failed to load link details: ${response.status} ${response.statusText} - ${errorText}`)
+  }
+
+  const data = await response.json()
+  return normalizeLinkResponse(data)
+}
+
+async function updateLinkOnBackend(linkId: string, linkData: { note?: string, tags?: string[] }) {
+  const apiKey = await getApiKey()
+
+  const payload = {
+    link: {
+      note: linkData?.note,
+      tag_names: linkData?.tags || [],
+    },
+  }
+
+  const response = await fetch(`${BACKEND_URL}/links/${linkId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`Failed to update link: ${response.status} ${response.statusText} - ${errorText}`)
+  }
+
+  const data = await response.json()
+  return normalizeLinkResponse(data)
+}
+
+function normalizeLinkResponse(rawData: any) {
+  const link = rawData?.link ?? rawData?.data?.link ?? rawData
+
+  if (!link) {
+    throw new Error("Invalid link response from backend")
+  }
+
+  const tags = Array.isArray(link.tags) ? link.tags.map((tag: any) => tag?.name).filter(Boolean) : []
+
+  return {
+    id: link.id,
+    url: link.url ?? link.submitted_url,
+    title: link.title,
+    note: link.note ?? "",
+    tags,
+  }
 }

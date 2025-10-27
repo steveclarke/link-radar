@@ -2,6 +2,8 @@
 import { useClipboard } from "@vueuse/core"
 import { onMounted, ref } from "vue"
 import { STORAGE_KEYS } from "../../lib/config"
+import LinkActions from "./components/LinkActions.vue"
+import TagInput from "./components/TagInput.vue"
 
 interface TabInfo {
   title: string
@@ -11,12 +13,14 @@ interface TabInfo {
 
 const pageInfo = ref<TabInfo | null>(null)
 const notes = ref("")
+const tags = ref<string[]>([])
 const message = ref<{ text: string, type: "success" | "error" } | null>(null)
 const apiKeyConfigured = ref(false)
 const isBookmarked = ref(false)
 const bookmarkId = ref<string | null>(null)
 const isCheckingBookmark = ref(false)
 const isDeleting = ref(false)
+const isUpdating = ref(false)
 
 // Use VueUse clipboard composable
 const { copy, isSupported } = useClipboard()
@@ -72,6 +76,14 @@ async function checkIfBookmarked(url: string) {
     if (response.success) {
       isBookmarked.value = response.exists
       bookmarkId.value = response.linkId || null
+
+      if (response.exists && response.linkId) {
+        await loadLinkDetails(response.linkId)
+      }
+      else {
+        tags.value = []
+        notes.value = ""
+      }
     }
     else {
       console.error("Failed to check bookmark status:", response.error)
@@ -89,6 +101,26 @@ function openSettings() {
   chrome.runtime.openOptionsPage()
 }
 
+async function loadLinkDetails(linkId: string) {
+  try {
+    const response = await chrome.runtime.sendMessage({
+      type: "GET_LINK_DETAILS",
+      linkId,
+    })
+
+    if (response.success) {
+      tags.value = response.link.tags ?? []
+      notes.value = response.link.note ?? ""
+    }
+    else {
+      console.error("Failed to load link details:", response.error)
+    }
+  }
+  catch (error) {
+    console.error("Error loading link details:", error)
+  }
+}
+
 async function saveLink() {
   if (!pageInfo.value)
     return
@@ -97,6 +129,7 @@ async function saveLink() {
     title: pageInfo.value.title,
     url: pageInfo.value.url,
     note: notes.value,
+    tags: tags.value,
     saved_at: new Date().toISOString(),
   }
 
@@ -109,6 +142,7 @@ async function saveLink() {
     if (response.success) {
       showSuccess("Link saved successfully!")
       notes.value = ""
+      tags.value = []
       // Update bookmark status
       isBookmarked.value = true
       await checkIfBookmarked(pageInfo.value.url)
@@ -139,6 +173,7 @@ async function deleteBookmark() {
       isBookmarked.value = false
       bookmarkId.value = null
       notes.value = ""
+      tags.value = []
     }
     else {
       showError(`Failed to delete bookmark: ${response.error || "Unknown error"}`)
@@ -150,6 +185,38 @@ async function deleteBookmark() {
   }
   finally {
     isDeleting.value = false
+  }
+}
+
+async function updateLink() {
+  if (!bookmarkId.value)
+    return
+
+  isUpdating.value = true
+  try {
+    const response = await chrome.runtime.sendMessage({
+      type: "UPDATE_LINK",
+      linkId: bookmarkId.value,
+      data: {
+        note: notes.value,
+        tags: tags.value,
+      },
+    })
+
+    if (response.success) {
+      showSuccess("Bookmark updated successfully!")
+      await loadLinkDetails(bookmarkId.value)
+    }
+    else {
+      showError(`Failed to update bookmark: ${response.error || "Unknown error"}`)
+    }
+  }
+  catch (error) {
+    console.error("Error updating bookmark:", error)
+    showError("Error updating bookmark")
+  }
+  finally {
+    isUpdating.value = false
   }
 }
 
@@ -222,27 +289,17 @@ onMounted(() => {
       </div>
     </div>
 
-    <div class="actions">
-      <button
-        v-if="!isBookmarked"
-        class="save-button"
-        :disabled="!apiKeyConfigured || isCheckingBookmark"
-        @click="saveLink"
-      >
-        {{ isCheckingBookmark ? 'Checking...' : 'Save This Link' }}
-      </button>
-      <button
-        v-else
-        class="delete-button"
-        :disabled="isDeleting"
-        @click="deleteBookmark"
-      >
-        {{ isDeleting ? 'Deleting...' : 'Delete Bookmark' }}
-      </button>
-      <button class="copy-button" @click="copyToClipboard">
-        Copy URL
-      </button>
-    </div>
+    <LinkActions
+      :api-key-configured="apiKeyConfigured"
+      :is-bookmarked="isBookmarked"
+      :is-checking-bookmark="isCheckingBookmark"
+      :is-deleting="isDeleting"
+      :is-updating="isUpdating"
+      @copy="copyToClipboard"
+      @delete="deleteBookmark"
+      @save="saveLink"
+      @update="updateLink"
+    />
 
     <div class="notes-section">
       <label for="notes">Add a note (optional):</label>
@@ -252,6 +309,7 @@ onMounted(() => {
         placeholder="Add your thoughts about this link..."
       />
     </div>
+    <TagInput v-model="tags" />
 
     <div v-if="message" class="message" :class="[`message-${message.type}`]">
       {{ message.text }}
@@ -259,22 +317,26 @@ onMounted(() => {
   </div>
 </template>
 
-<style scoped>
-body {
+<style>
+html, body {
   width: 400px;
   min-height: 300px;
   margin: 0;
-  padding: 16px;
+  box-sizing: border-box;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   background: #f8f9fa;
 }
+</style>
 
+<style scoped>
 .page-info {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  padding: 16px;
+  box-sizing: border-box;
 }
 
 .header {
@@ -367,11 +429,6 @@ h2 {
   line-height: 1.2;
 }
 
-.actions {
-  display: flex;
-  gap: 8px;
-}
-
 .warning-banner {
   background: #fff3cd;
   color: #856404;
@@ -391,54 +448,6 @@ h2 {
 
 .warning-link:hover {
   color: #533f03;
-}
-
-.save-button, .delete-button, .copy-button {
-  flex: 1;
-  padding: 8px 12px;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.2s, opacity 0.2s;
-}
-
-.save-button {
-  background: #007bff;
-  color: white;
-}
-
-.save-button:hover:not(:disabled) {
-  background: #0056b3;
-}
-
-.save-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.delete-button {
-  background: #dc3545;
-  color: white;
-}
-
-.delete-button:hover:not(:disabled) {
-  background: #c82333;
-}
-
-.delete-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.copy-button {
-  background: #6c757d;
-  color: white;
-}
-
-.copy-button:hover {
-  background: #545b62;
 }
 
 .notes-section {
