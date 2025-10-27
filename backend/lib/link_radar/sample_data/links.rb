@@ -26,113 +26,130 @@ module LinkRadar
       ].freeze
 
       def call(success: 70, pending: 20, failed: 10)
-        $stdout.puts "Creating sample links..."
-        create_successful_links(success)
-        create_pending_links(pending)
-        create_failed_links(failed)
+        total = success + pending + failed
+        distribution = build_state_distribution(success: success, pending: pending, failed: failed)
+
+        $stdout.puts "Creating #{total} sample links..."
+        total.times do
+          state = weighted_random_state(distribution)
+          Link.create!(build_link_attributes(state))
+        end
+
         summarize!
       end
 
-      def create_successful_links(count)
-        return if count.to_i <= 0
+      # Private helper methods
 
-        $stdout.puts "Creating #{count} successful links..."
-        count.to_i.times do
-          url = Faker::Internet.url(host: Faker::Internet.domain_name, path: "/#{Faker::Internet.slug}")
-          title = Faker::Hacker.say_something_smart
-          note = Faker::Lorem.paragraph(sentence_count: 2)
-          image_url = Faker::LoremFlickr.image(size: "1200x630", search_terms: ["technology"])
+      def build_state_distribution(success:, pending:, failed:)
+        states = []
+        states.concat([:success] * success)
+        states.concat([:pending] * pending)
+        states.concat([:failed] * failed)
+        states.shuffle
+      end
 
-          paragraphs = Array.new(rand(3..5)) { Faker::Lorem.paragraph(sentence_count: rand(3..7)) }
-          content_text = paragraphs.join("\n\n")
-          raw_html = generate_html_content(paragraphs)
+      def weighted_random_state(distribution)
+        distribution.shift || :success
+      end
 
-          submitted_url = if rand < 0.3
-            "#{url}?utm_source=twitter&utm_medium=social&utm_campaign=share"
-          else
-            url
-          end
+      def build_link_attributes(state)
+        url = generate_url
+        base_attrs = {
+          url: url,
+          submitted_url: maybe_add_utm_params(url),
+          tag_names: random_tags,
+          fetch_state: state.to_s
+        }
 
-          created_at = Faker::Time.between(from: 90.days.ago, to: Time.zone.now)
-          fetched_at = created_at + rand(1..300).seconds
-
-          tag_names = TAG_POOL.sample(rand(0..3))
-
-          Link.create!(
-            url: url,
-            submitted_url: submitted_url,
-            title: title,
-            note: note,
-            image_url: image_url,
-            content_text: content_text,
-            raw_html: raw_html,
-            fetch_state: "success",
-            fetched_at: fetched_at,
-            metadata: generate_metadata(title, note, image_url),
-            tag_names: tag_names,
-            created_at: created_at,
-            updated_at: fetched_at
-          )
+        case state
+        when :success
+          build_successful_attributes(base_attrs)
+        when :failed
+          build_failed_attributes(base_attrs)
+        else # :pending
+          build_pending_attributes(base_attrs)
         end
       end
 
-      def create_pending_links(count)
-        return if count.to_i <= 0
+      def build_successful_attributes(base_attrs)
+        title = Faker::Hacker.say_something_smart
+        note = Faker::Lorem.paragraph(sentence_count: 2)
+        image_url = Faker::LoremFlickr.image(size: "1200x630", search_terms: ["technology"])
+        content = generate_content
+        timestamps = generate_timestamps(from: 90.days.ago, fetch_delay: 1..300)
 
-        $stdout.puts "Creating #{count} pending links..."
-        count.to_i.times do
-          url = Faker::Internet.url(host: Faker::Internet.domain_name, path: "/#{Faker::Internet.slug}")
-
-          submitted_url = if rand < 0.3
-            "#{url}?utm_source=facebook&utm_medium=social"
-          else
-            url
-          end
-
-          created_at = Faker::Time.between(from: 7.days.ago, to: Time.zone.now)
-
-          tag_names = TAG_POOL.sample(rand(0..3))
-
-          Link.create!(
-            url: url,
-            submitted_url: submitted_url,
-            fetch_state: "pending",
-            tag_names: tag_names,
-            created_at: created_at,
-            updated_at: created_at
-          )
-        end
+        base_attrs.merge(
+          title: title,
+          note: note,
+          image_url: image_url,
+          content_text: content[:text],
+          raw_html: content[:html],
+          fetched_at: timestamps[:fetched_at],
+          metadata: generate_metadata(title, note, image_url),
+          created_at: timestamps[:created_at],
+          updated_at: timestamps[:fetched_at]
+        )
       end
 
-      def create_failed_links(count)
-        return if count.to_i <= 0
+      def build_failed_attributes(base_attrs)
+        timestamps = generate_timestamps(from: 30.days.ago, fetch_delay: 5..30)
 
-        $stdout.puts "Creating #{count} failed links..."
-        count.to_i.times do |i|
-          url = Faker::Internet.url(host: Faker::Internet.domain_name, path: "/#{Faker::Internet.slug}")
+        base_attrs.merge(
+          fetch_error: ERROR_MESSAGES.sample,
+          fetched_at: timestamps[:fetched_at],
+          created_at: timestamps[:created_at],
+          updated_at: timestamps[:fetched_at]
+        )
+      end
 
-          submitted_url = if rand < 0.3
-            "#{url}?utm_source=reddit&utm_medium=social"
-          else
-            url
-          end
+      def build_pending_attributes(base_attrs)
+        timestamps = generate_timestamps(from: 7.days.ago)
 
-          created_at = Faker::Time.between(from: 30.days.ago, to: Time.zone.now)
-          fetched_at = created_at + rand(5..30).seconds
+        base_attrs.merge(
+          created_at: timestamps[:created_at],
+          updated_at: timestamps[:created_at]
+        )
+      end
 
-          tag_names = TAG_POOL.sample(rand(0..3))
+      def generate_url
+        Faker::Internet.url(
+          host: Faker::Internet.domain_name,
+          path: "/#{Faker::Internet.slug}"
+        )
+      end
 
-          Link.create!(
-            url: url,
-            submitted_url: submitted_url,
-            fetch_state: "failed",
-            fetch_error: ERROR_MESSAGES[i % ERROR_MESSAGES.length],
-            fetched_at: fetched_at,
-            tag_names: tag_names,
-            created_at: created_at,
-            updated_at: fetched_at
-          )
+      def maybe_add_utm_params(url)
+        return url unless rand < 0.3
+
+        sources = %w[twitter facebook reddit linkedin]
+        source = sources.sample
+        params = "utm_source=#{source}&utm_medium=social"
+        params += "&utm_campaign=share" if rand < 0.5
+        "#{url}?#{params}"
+      end
+
+      def random_tags
+        TAG_POOL.sample(rand(0..3))
+      end
+
+      def generate_timestamps(from:, fetch_delay: nil)
+        created_at = Faker::Time.between(from: from, to: Time.zone.now)
+        timestamps = {created_at: created_at, updated_at: created_at}
+
+        if fetch_delay
+          timestamps[:fetched_at] = created_at + rand(fetch_delay).seconds
+          timestamps[:updated_at] = timestamps[:fetched_at]
         end
+
+        timestamps
+      end
+
+      def generate_content
+        paragraphs = Array.new(rand(3..5)) { Faker::Lorem.paragraph(sentence_count: rand(3..7)) }
+        {
+          text: paragraphs.join("\n\n"),
+          html: generate_html_content(paragraphs)
+        }
       end
 
       def generate_metadata(title, note, image_url)
