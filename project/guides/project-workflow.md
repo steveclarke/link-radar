@@ -125,6 +125,7 @@ This creates rollup progress tracking:
 - Module stays there as more work enhances it over time
 - Each module links directly to the LinkRadar Project
 - Feature cards and dev cards are children of modules
+- Each module has a vision document at `/project/modules/{module-name}/vision.md`
 
 ### 2. Features Board
 
@@ -136,6 +137,7 @@ This creates rollup progress tracking:
 - **Requirements** - Writing requirements document
 - **Spec** - Writing technical specification
 - **Plan** - Writing implementation plan
+- **Distributed** - Planning complete, development cards created and in progress
 
 **Card Numbering**: Use **LR###** format (e.g., LR001, LR002, LR003)
 
@@ -144,8 +146,9 @@ This creates rollup progress tracking:
 2. Link to appropriate Module card as its child
 3. Move through planning stages as you write documentation
 4. At "Plan" stage: Create child cards for development work
-5. Feature docs live in monorepo at `/project/features/LR###-feature-name/`
-6. Project inheritance flows from Module → Feature → Development cards
+5. Move feature card to "Distributed" once dev cards are created
+6. Feature docs live in monorepo at `/project/features/LR###-feature-name/`
+7. Project inheritance flows from Module → Feature → Development cards
 
 **When to Use Feature Cards**:
 - **Early stage**: Skip feature cards entirely - create dev cards directly linked to modules
@@ -163,15 +166,18 @@ This creates rollup progress tracking:
 **Purpose**: Main work area for solo development
 
 **Lists**:
+- **Backlog** - Ideas and upcoming work you might tackle
 - **To Do** - Work ready to be picked up
 - **Doing** - Actively working on
-- **Blocked** - Blocked or waiting on something
-- **Done** - Completed work
+- **Blocked** - Stuck or waiting on dependencies (e.g., extension feature blocked by backend work)
+- **In Review** - Code review, testing, or validation before marking done
+- **Done** - Completed work (archive periodically)
 
 **Workflow**:
 - Continuous flow without formal sprints
-- Cards move through To Do → Doing → Blocked (if needed) → Done
-- Use "Blocked" for work that's stuck or waiting on dependencies
+- Cards move through Backlog → To Do → Doing → In Review → Done
+- Use "Blocked" when stuck or waiting on dependencies
+- Use "In Review" for code review and testing before marking done
 
 **Card Linking**:
 - Link to a feature card (if working on a planned feature)
@@ -236,14 +242,15 @@ The LR### numbering creates a clear 1:1 relationship between Superthread feature
 
 1. **Identify the module** you're working on (Backend, Frontend, CLI, Browser Extension, Infrastructure)
 
-2. **Create dev card** directly on Development board "To Do"
+2. **Create dev card** directly on Development board "Backlog" or "To Do"
    - Link as child of the module (no feature card needed)
    - Add brief description of what you're roughing in
    - Add relevant tags
 
-3. **Move through workflow**: To Do → Doing → Done
+3. **Move through workflow**: Backlog → To Do → Doing → In Review → Done
    - Work on the task
    - Test as appropriate
+   - Use "In Review" for code review before marking done
    - Complete and move to Done
 
 4. **Update module status** if needed
@@ -261,13 +268,14 @@ The LR### numbering creates a clear 1:1 relationship between Superthread feature
 
 2. **Write feature documents** in monorepo (optional)
    - Create `/project/features/LR###-feature-name/` directory
-   - Move card through: Backlog → Vision → Requirements → Spec → Plan
+   - Move card through: Backlog → Vision → Requirements → Spec → Plan → Distributed
    - Write docs as needed (vision when helpful, requirements/spec for complexity)
 
 3. **At Plan stage**: Create child cards for development work
    - Break feature into implementable tasks
-   - Child cards go to Development board "To Do" list
+   - Child cards go to Development board "Backlog" or "To Do" list
    - Each dev card is a child of the feature card
+   - Move feature card to "Distributed" once dev cards are created
 
 ### Development (Development Board)
 
@@ -330,12 +338,12 @@ The LR### numbering creates a clear 1:1 relationship between Superthread feature
 
 **Use case**: Bootstrapping the system, roughing in subsystems, quick spikes
 
-1. Create dev card directly on Development board "To Do"
+1. Create dev card directly on Development board "Backlog" or "To Do"
 2. Link as child of relevant module (Backend, Frontend, CLI, etc.)
 3. Add descriptive title: "Set up basic Rails API structure" or "Spike browser extension popup"
 4. Add relevant tags (infrastructure, spike, etc.)
 5. Skip feature cards and documentation entirely
-6. Move through To Do → Doing → Done
+6. Move through Backlog → To Do → Doing → In Review → Done
 7. Update module status when appropriate
 
 ### Later Stage: Planned Feature
@@ -346,13 +354,14 @@ The LR### numbering creates a clear 1:1 relationship between Superthread feature
 2. Link to appropriate Module as its child
 3. Add tags (mvp, feature, phase-1)
 4. Write vision document in monorepo (if helpful)
-5. Move through planning stages as needed
+5. Move through planning stages as needed (Vision → Requirements → Spec → Plan)
 6. Create development tasks as children of feature card
-7. Project inheritance flows automatically from Module
+7. Move feature to "Distributed" once dev cards are created
+8. Project inheritance flows automatically from Module
 
 ### Quick Bug Fix
 
-1. Create card directly on Development board "To Do"
+1. Create card directly on Development board "Backlog" or "To Do"
 2. Link to relevant module OR feature card (if it's part of a feature)
 3. Add `bug` tag
 4. Skip feature cards and docs entirely
@@ -376,7 +385,7 @@ The LR### numbering creates a clear 1:1 relationship between Superthread feature
 
 ### Testing & Validation
 
-1. While card is still in "Doing"
+1. Move card to "In Review" when work is complete
 2. Test the implementation thoroughly
 3. Check against requirements/spec
 4. Review code quality
