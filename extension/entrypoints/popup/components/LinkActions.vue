@@ -73,7 +73,7 @@ function handleCopy() {
         :disabled="isDeleteDisabled"
         @click="handleDelete"
       >
-        {{ isDeleting ? "Deleting..." : "Delete Bookmark" }}
+        {{ isDeleting ? "Deleting..." : "Delete" }}
       </button>
       <button class="copy-button" type="button" @click="handleCopy">
         Copy URL

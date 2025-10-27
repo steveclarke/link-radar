@@ -156,7 +156,7 @@ async function saveLink() {
   }
 }
 
-async function deleteBookmark() {
+async function deleteLink() {
   if (!bookmarkId.value || !pageInfo.value)
     return
 
@@ -168,19 +168,19 @@ async function deleteBookmark() {
     })
 
     if (response.success) {
-      showSuccess("Bookmark deleted successfully!")
+      showSuccess("Link deleted successfully!")
       isBookmarked.value = false
       bookmarkId.value = null
       notes.value = ""
       tags.value = []
     }
     else {
-      showError(`Failed to delete bookmark: ${response.error || "Unknown error"}`)
+      showError(`Failed to delete link: ${response.error || "Unknown error"}`)
     }
   }
   catch (error) {
     console.error("Error deleting bookmark:", error)
-    showError("Error deleting bookmark")
+    showError("Error deleting link")
   }
   finally {
     isDeleting.value = false
@@ -259,10 +259,7 @@ onMounted(async () => {
 <template>
   <div class="page-info">
     <div class="header">
-      <div class="header-left">
-        <h1>Link Radar</h1>
-        <span class="vue-badge">⚡ Vue 3</span>
-      </div>
+      <h1>Link Radar</h1>
       <button class="settings-button" title="Settings" @click="openSettings">
         ⚙️
       </button>
@@ -288,17 +285,23 @@ onMounted(async () => {
       </div>
     </div>
 
-    <LinkActions
-      :api-key-configured="apiKeyConfigured" :is-bookmarked="isBookmarked"
-      :is-checking-bookmark="isCheckingBookmark" :is-deleting="isDeleting" :is-updating="isUpdating"
-      @copy="copyToClipboard" @delete="deleteBookmark" @save="saveLink" @update="updateLink"
-    />
-
     <div class="notes-section">
       <label for="notes">Add a note (optional):</label>
       <textarea id="notes" v-model="notes" placeholder="Add your thoughts about this link..." />
     </div>
     <TagInput v-model="tags" />
+
+    <LinkActions
+      :api-key-configured="apiKeyConfigured"
+      :is-bookmarked="isBookmarked"
+      :is-checking-bookmark="isCheckingBookmark"
+      :is-deleting="isDeleting"
+      :is-updating="isUpdating"
+      @copy="copyToClipboard"
+      @delete="deleteLink"
+      @save="saveLink"
+      @update="updateLink"
+    />
 
     <div v-if="message" class="message" :class="[`message-${message.type}`]">
       {{ message.text }}
