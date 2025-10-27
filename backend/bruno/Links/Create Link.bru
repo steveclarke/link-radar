@@ -38,6 +38,12 @@ docs {
   The link will be created with fetch_state: "pending".
   Tags will be created if they don't exist and linked to the new link.
 
-  Returns 201 Created on success with the created link (includes tags).
+  Returns 201 Created on success:
+  {
+    "data": {
+      "link": {created link object including tags}
+    }
+  }
+
   Returns 422 Unprocessable Entity on validation errors.
 }

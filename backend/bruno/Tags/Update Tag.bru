@@ -33,7 +33,13 @@ docs {
   Note: Updating the name will regenerate the slug.
   usage_count and last_used_at cannot be manually updated.
 
-  Returns 200 OK on success with the updated tag.
+  Returns 200 OK on success:
+  {
+    "data": {
+      "tag": {updated tag object}
+    }
+  }
+
   Returns 404 Not Found if tag doesn't exist.
   Returns 422 Unprocessable Entity on validation errors (duplicate name, etc).
 }

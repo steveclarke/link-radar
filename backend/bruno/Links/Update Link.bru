@@ -42,7 +42,13 @@ docs {
   Tag assignment replaces all existing tags with the new set.
   Missing tags are created automatically.
 
-  Returns 200 OK on success with the updated link (includes tags).
+  Returns 200 OK on success:
+  {
+    "data": {
+      "link": {updated link object including tags}
+    }
+  }
+
   Returns 404 Not Found if link doesn't exist.
   Returns 422 Unprocessable Entity on validation errors or duplicate URL.
 }

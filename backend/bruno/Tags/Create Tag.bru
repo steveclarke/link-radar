@@ -31,7 +31,13 @@ docs {
   The slug will be automatically generated from the name.
   usage_count starts at 0 and increments when assigned to links.
 
-  Returns 201 Created on success with the created tag.
+  Returns 201 Created on success:
+  {
+    "data": {
+      "tag": {created tag object}
+    }
+  }
+
   Returns 422 Unprocessable Entity on validation errors (duplicate name, etc).
 }
 

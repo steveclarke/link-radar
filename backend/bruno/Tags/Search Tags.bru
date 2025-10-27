@@ -16,13 +16,19 @@ params:query {
 
 docs {
   Search tags by name for autocomplete functionality.
-  
+
   Query parameters:
   - search: Search term (case-insensitive partial match)
-  
-  Returns up to 20 matching tags ordered by usage count.
+
+  Returns:
+  {
+    "data": {
+      "tags": [array of up to 20 matching tags ordered by usage count]
+    }
+  }
+
   This endpoint is designed for LLM integration and autocomplete UI.
-  
+
   Example searches:
   - "java" → finds "JavaScript", "Java"
   - "rail" → finds "Rails", "Railway"

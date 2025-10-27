@@ -16,11 +16,15 @@ params:path {
 
 docs {
   Get a single tag by ID with recent links.
-  
-  Returns a tag object with:
-  - All tag fields (id, name, slug, description, usage_count, etc.)
-  - recent_links: Array of up to 10 most recent links using this tag
-  
+
+  Returns:
+  {
+    "data": {
+      "tag": {all tag fields: id, name, slug, description, usage_count, etc.},
+      "recent_links": [array of up to 10 most recent links using this tag]
+    }
+  }
+
   Returns 404 if tag not found.
 }
 
