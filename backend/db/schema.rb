@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_10_27_190441) do
+ActiveRecord::Schema[8.1].define(version: 2025_10_27_191417) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -22,6 +22,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_10_27_190441) do
     t.datetime "created_at", null: false
     t.uuid "link_id", null: false
     t.uuid "tag_id", null: false
+    t.datetime "updated_at", default: -> { "CURRENT_TIMESTAMP" }, null: false
     t.index ["link_id", "tag_id"], name: "index_link_tags_on_link_id_and_tag_id", unique: true
     t.index ["link_id"], name: "index_link_tags_on_link_id"
     t.index ["tag_id"], name: "index_link_tags_on_tag_id"
