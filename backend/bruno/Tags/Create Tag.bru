@@ -1,0 +1,44 @@
+meta {
+  name: Create Tag
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/v1/tags
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "tag": {
+      "name": "Ruby",
+      "description": "Ruby programming language"
+    }
+  }
+}
+
+docs {
+  Create a new tag.
+
+  Required fields:
+  - name: Tag name (max 100 characters)
+
+  Optional fields:
+  - description: Tag description for AI context (max 500 characters)
+
+  The slug will be automatically generated from the name.
+  usage_count starts at 0 and increments when assigned to links.
+
+  Returns 201 Created on success:
+  {
+    "data": {
+      "tag": {created tag object}
+    }
+  }
+
+  Returns 422 Unprocessable Entity on validation errors (duplicate name, etc).
+}
+
+

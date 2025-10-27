@@ -12,3 +12,9 @@ json.extract! link,
   :metadata,
   :created_at,
   :updated_at
+
+json.tags do
+  json.array! link.tags do |tag|
+    json.extract! tag, :id, :name, :slug
+  end
+end

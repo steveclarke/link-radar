@@ -14,6 +14,7 @@ module LinkRadar
     # Orchestrates the complete development environment setup process including:
     # - Installing Ruby dependencies
     # - Creating .env file from sample
+    # - Creating bruno/.env file from example (for API testing)
     # - Fetching Rails master.key from 1Password
     # - Installing system packages (vips, ffmpeg)
     # - Preparing database (creating, migrating, seeding)
@@ -111,6 +112,7 @@ module LinkRadar
       def create_env_file
         puts "\n== Copying sample files =="
         RunnerSupport.create_env_file(app_root)
+        RunnerSupport.create_bruno_env_file(app_root)
       end
 
       def check_master_key

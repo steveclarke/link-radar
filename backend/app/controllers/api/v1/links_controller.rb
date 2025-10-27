@@ -90,11 +90,11 @@ module Api
       end
 
       def link_params
-        params.require(:link).permit(:submitted_url, :title, :note, :image_url)
+        params.require(:link).permit(:submitted_url, :title, :note, :image_url, tag_names: [])
       end
 
       def link_update_params
-        params.require(:link).permit(:submitted_url, :title, :note, :image_url)
+        params.require(:link).permit(:submitted_url, :title, :note, :image_url, tag_names: [])
       end
 
       def normalize_url(url)

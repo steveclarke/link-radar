@@ -16,7 +16,13 @@ params:path {
 
 docs {
   Get a single link by ID.
-  
-  Returns a link object with all fields except raw_html.
+
+  Returns:
+  {
+    "data": {
+      "link": {link object with all fields except raw_html}
+    }
+  }
+
   Returns 404 if link not found.
 }

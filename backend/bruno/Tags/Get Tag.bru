@@ -1,0 +1,31 @@
+meta {
+  name: Get Tag
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/tags/:id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: {{tagId}}
+}
+
+docs {
+  Get a single tag by ID with recent links.
+
+  Returns:
+  {
+    "data": {
+      "tag": {all tag fields: id, name, slug, description, usage_count, etc.},
+      "recent_links": [array of up to 10 most recent links using this tag]
+    }
+  }
+
+  Returns 404 if tag not found.
+}
+
+

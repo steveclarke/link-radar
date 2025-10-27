@@ -1,0 +1,33 @@
+meta {
+  name: List Tags
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/tags
+  body: none
+  auth: inherit
+}
+
+script:post-response {
+  if (res.status === 200 && res.body?.data?.tags?.length > 0) {
+    bru.setVar("tagId", res.body.data.tags[0].id);
+  }
+}
+
+docs {
+  Get all tags ordered by usage count (most used first).
+
+  Returns:
+  {
+    "data": {
+      "tags": [array of tag objects with id, name, slug, description, usage_count, last_used_at, created_at, updated_at]
+    }
+  }
+
+  This script automatically sets the tagId variable to the first tag's ID
+  for use in other requests (Get Tag, Update Tag, Delete Tag).
+}
+
+
