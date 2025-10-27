@@ -34,10 +34,9 @@ GitHub offers two branch protection systems:
 
 ### Enforcement Status
 
-**What it does:** Controls whether the ruleset actually blocks actions or just evaluates them.
+**What it does:** Controls whether the ruleset is enforced or not.
 
 - **Active** - Enforces all rules (blocks violations)
-- **Evaluate** - Logs violations but allows them (testing mode)
 - **Disabled** - Ruleset exists but doesn't run
 
 **Why we use it:** Set to **Active** to actually enforce the workflow.
@@ -82,11 +81,14 @@ Bypass modes:
 
 #### Require Linear History
 
-**What it does:** Prevents merge commits from being pushed to the branch.
+**What it does:** Prevents merge commits (commits with two parent commits) from being added to the branch.
 
-**Why we use it:** Keeps Git history clean and easy to understand. Enforces squash merging.
+**Why we use it:** Keeps Git history as a straight line - easy to read and understand. No branching/merging spaghetti in the commit graph.
 
-**How it works:** Only allows fast-forward merges and squash merges, not regular merge commits.
+**How it works:** 
+- ✅ **Allows:** Squash merges, rebase merges, and fast-forward merges
+- ❌ **Blocks:** Regular merge commits (the kind with "Merge branch 'feature' into master")
+- **Result:** `git log --oneline` shows a clean, linear progression of commits
 
 #### Require Pull Request Before Merging
 
