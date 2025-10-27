@@ -1,6 +1,6 @@
 #!/bin/bash
 # GitHub Actions Setup Script
-# 
+#
 # Note: GitHub Actions settings must be configured manually via GitHub UI.
 # This script documents the required settings and provides verification steps.
 #
