@@ -259,6 +259,37 @@ bin/brakeman
 bin/ci
 ```
 
+### API Testing with Bruno
+
+The project uses [Bruno](https://www.usebruno.com/) for API testing. API request collections are located in the `bruno/` directory.
+
+**Environment Setup:**
+
+The `bin/setup` script automatically creates `bruno/.env` from `bruno/.env.example` if it doesn't exist. To customize your local port, edit `bruno/.env`:
+
+```bash
+# Rails server port (should match RAILS_PORT in backend .env)
+RAILS_PORT=3001
+
+# API Key for development
+API_KEY=dev_api_key_change_in_production
+```
+
+Bruno automatically reads variables from the `.env` file and makes them available via `process.env`. The environment files reference these variables:
+
+```2:3:backend/bruno/environments/Local.bru
+  baseUrl: http://localhost:{{process.env.RAILS_PORT}}
+  apiKey: {{process.env.API_KEY}}
+```
+
+**Note:** The `.env` file is gitignored so each developer can configure their own local port. This is especially useful when using `bin/services --auto-ports` which may assign different ports on different machines.
+
+**Available Collections:**
+- `bruno/Links/` - Link management endpoints
+- `bruno/Tags/` - Tag management endpoints
+
+**Learn more:** [Bruno DotEnv Documentation](https://docs.usebruno.com/secrets-management/dotenv-file)
+
 ## Project Status
 
 🚧 **Currently in development** - Core infrastructure setup (LR001)

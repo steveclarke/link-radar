@@ -1,4 +1,4 @@
 vars {
-  baseUrl: http://localhost:3001
-  apiKey: dev_api_key_change_in_production
+  baseUrl: http://localhost:{{process.env.RAILS_PORT}}
+  apiKey: {{process.env.API_KEY}}
 }

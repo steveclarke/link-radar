@@ -39,6 +39,31 @@ module LinkRadar
         end
       end
 
+      # Create Bruno .env file from .env.example if it doesn't exist
+      #
+      # Copies bruno/.env.example to bruno/.env if bruno/.env doesn't exist.
+      # Bruno uses this file to configure API testing environment variables.
+      #
+      # @param app_root [String] Path to application root directory
+      # @return [void]
+      #
+      # @example
+      #   RunnerSupport.create_bruno_env_file("/path/to/app")
+      def self.create_bruno_env_file(app_root)
+        bruno_dir = File.join(app_root, "bruno")
+        return unless File.directory?(bruno_dir)
+
+        env_file = File.join(bruno_dir, ".env")
+        example_file = File.join(bruno_dir, ".env.example")
+
+        if !File.exist?(env_file) && File.exist?(example_file)
+          puts "Creating bruno/.env from bruno/.env.example..."
+          FileUtils.cp example_file, env_file
+        elsif !File.exist?(env_file)
+          puts "Warning: No bruno/.env.example file found."
+        end
+      end
+
       # Load environment variables from .env file using dotenv gem
       #
       # Parses the .env file and makes environment variables available in the
