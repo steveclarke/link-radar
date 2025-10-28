@@ -4,8 +4,8 @@ import { onMounted, ref } from "vue"
 import LinkActions from "./components/LinkActions.vue"
 import TagInput from "./components/TagInput.vue"
 import { useApiKey } from "./composables/useApiKey"
-import { useBookmark } from "./composables/useBookmark"
 import { useCurrentTab } from "./composables/useCurrentTab"
+import { useLink } from "./composables/useLink"
 import { useLinkOperations } from "./composables/useLinkOperations"
 import { useNotification } from "./composables/useNotification"
 
@@ -13,7 +13,7 @@ import { useNotification } from "./composables/useNotification"
 const { message, showSuccess, showError } = useNotification()
 const { apiKeyConfigured, checkApiKey, openSettings } = useApiKey()
 const { pageInfo, loadCurrentPageInfo } = useCurrentTab()
-const { isBookmarked, bookmarkId, isChecking: isCheckingBookmark, checkIfBookmarked, resetBookmarkState } = useBookmark()
+const { isLinked, linkId, isChecking: isCheckingLink, checkIfLinked, resetLinkState } = useLink()
 const { isUpdating, isDeleting, saveLink: saveLinkApi, updateLink: updateLinkApi, deleteLink: deleteLinkApi, loadLinkDetails } = useLinkOperations()
 const { copy, isSupported } = useClipboard()
 
@@ -27,12 +27,12 @@ onMounted(async () => {
   const tabInfo = await loadCurrentPageInfo()
 
   if (tabInfo && apiKeyConfigured.value) {
-    await checkBookmarkStatus(tabInfo.url)
+    await checkLinkStatus(tabInfo.url)
   }
 })
 
-async function checkBookmarkStatus(url: string) {
-  const result = await checkIfBookmarked(url)
+async function checkLinkStatus(url: string) {
+  const result = await checkIfLinked(url)
 
   if (result?.exists && result.linkId) {
     const details = await loadLinkDetails(result.linkId)
@@ -65,7 +65,7 @@ async function handleSaveLink() {
     showSuccess("Link saved successfully!")
     notes.value = ""
     tags.value = []
-    await checkBookmarkStatus(pageInfo.value.url)
+    await checkLinkStatus(pageInfo.value.url)
   }
   else {
     showError(`Failed to save link: ${result.error || "Unknown error"}`)
@@ -73,17 +73,17 @@ async function handleSaveLink() {
 }
 
 async function handleUpdateLink() {
-  if (!bookmarkId.value)
+  if (!linkId.value)
     return
 
-  const result = await updateLinkApi(bookmarkId.value, {
+  const result = await updateLinkApi(linkId.value, {
     note: notes.value,
     tags: tags.value,
   })
 
   if (result.success) {
     showSuccess("Link updated successfully!")
-    const details = await loadLinkDetails(bookmarkId.value)
+    const details = await loadLinkDetails(linkId.value)
     if (details) {
       tags.value = details.tags
       notes.value = details.note
@@ -95,14 +95,14 @@ async function handleUpdateLink() {
 }
 
 async function handleDeleteLink() {
-  if (!bookmarkId.value)
+  if (!linkId.value)
     return
 
-  const result = await deleteLinkApi(bookmarkId.value)
+  const result = await deleteLinkApi(linkId.value)
 
   if (result.success) {
     showSuccess("Link deleted successfully!")
-    resetBookmarkState()
+    resetLinkState()
     notes.value = ""
     tags.value = []
   }
@@ -163,8 +163,8 @@ async function copyToClipboard() {
 
     <LinkActions
       :api-key-configured="apiKeyConfigured"
-      :is-bookmarked="isBookmarked"
-      :is-checking-bookmark="isCheckingBookmark"
+      :is-linked="isLinked"
+      :is-checking-link="isCheckingLink"
       :is-deleting="isDeleting"
       :is-updating="isUpdating"
       @copy="copyToClipboard"

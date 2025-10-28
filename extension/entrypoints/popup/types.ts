@@ -9,9 +9,9 @@ export interface MessageState {
   type: "success" | "error"
 }
 
-export interface BookmarkState {
-  isBookmarked: boolean
-  bookmarkId: string | null
+export interface LinkState {
+  isLinked: boolean
+  linkId: string | null
   isChecking: boolean
 }
 

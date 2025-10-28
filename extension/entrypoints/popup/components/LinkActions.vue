@@ -2,8 +2,8 @@
 import { computed } from "vue"
 
 const props = defineProps<{
-  isBookmarked: boolean
-  isCheckingBookmark: boolean
+  isLinked: boolean
+  isCheckingLink: boolean
   isDeleting: boolean
   isUpdating: boolean
   apiKeyConfigured: boolean
@@ -16,7 +16,7 @@ const emit = defineEmits<{
   (event: "copy"): void
 }>()
 
-const isSaveDisabled = computed(() => !props.apiKeyConfigured || props.isCheckingBookmark)
+const isSaveDisabled = computed(() => !props.apiKeyConfigured || props.isCheckingLink)
 const isUpdateDisabled = computed(() => !props.apiKeyConfigured || props.isUpdating)
 const isDeleteDisabled = computed(() => !props.apiKeyConfigured || props.isDeleting)
 
@@ -45,14 +45,14 @@ function handleCopy() {
 
 <template>
   <div class="actions">
-    <template v-if="!isBookmarked">
+    <template v-if="!isLinked">
       <button
         class="save-button"
         type="button"
         :disabled="isSaveDisabled"
         @click="handleSave"
       >
-        {{ isCheckingBookmark ? "Checking..." : "Save This Link" }}
+        {{ isCheckingLink ? "Checking..." : "Save This Link" }}
       </button>
       <button class="copy-button" type="button" @click="handleCopy">
         Copy URL
