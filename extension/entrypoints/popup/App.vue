@@ -1,126 +1,53 @@
 <script lang="ts" setup>
 import { useClipboard } from "@vueuse/core"
 import { onMounted, ref } from "vue"
-import { STORAGE_KEYS } from "../../lib/config"
 import LinkActions from "./components/LinkActions.vue"
 import TagInput from "./components/TagInput.vue"
+import { useApiKey } from "./composables/useApiKey"
+import { useBookmark } from "./composables/useBookmark"
+import { useCurrentTab } from "./composables/useCurrentTab"
+import { useLinkOperations } from "./composables/useLinkOperations"
+import { useNotification } from "./composables/useNotification"
 
-interface TabInfo {
-  title: string
-  url: string
-  favicon?: string
-}
-
-const pageInfo = ref<TabInfo | null>(null)
-const notes = ref("")
-const tags = ref<string[]>([])
-const message = ref<{ text: string, type: "success" | "error" } | null>(null)
-const apiKeyConfigured = ref(false)
-const isBookmarked = ref(false)
-const bookmarkId = ref<string | null>(null)
-const isCheckingBookmark = ref(false)
-const isDeleting = ref(false)
-const isUpdating = ref(false)
-
-// Use VueUse clipboard composable
+// Composables
+const { message, showSuccess, showError } = useNotification()
+const { apiKeyConfigured, checkApiKey, openSettings } = useApiKey()
+const { pageInfo, loadCurrentPageInfo } = useCurrentTab()
+const { isBookmarked, bookmarkId, isChecking: isCheckingBookmark, checkIfBookmarked, resetBookmarkState } = useBookmark()
+const { isUpdating, isDeleting, saveLink: saveLinkApi, updateLink: updateLinkApi, deleteLink: deleteLinkApi, loadLinkDetails } = useLinkOperations()
 const { copy, isSupported } = useClipboard()
 
-async function checkApiKey() {
-  try {
-    const result = await chrome.storage.sync.get(STORAGE_KEYS.API_KEY)
-    apiKeyConfigured.value = !!result[STORAGE_KEYS.API_KEY]
+// Local form state
+const notes = ref("")
+const tags = ref<string[]>([])
+
+// Initialize on mount
+onMounted(async () => {
+  await checkApiKey()
+  const tabInfo = await loadCurrentPageInfo()
+
+  if (tabInfo && apiKeyConfigured.value) {
+    await checkBookmarkStatus(tabInfo.url)
   }
-  catch (error) {
-    console.error("Error checking API key:", error)
-    apiKeyConfigured.value = false
+})
+
+async function checkBookmarkStatus(url: string) {
+  const result = await checkIfBookmarked(url)
+
+  if (result?.exists && result.linkId) {
+    const details = await loadLinkDetails(result.linkId)
+    if (details) {
+      tags.value = details.tags
+      notes.value = details.note
+    }
+  }
+  else {
+    tags.value = []
+    notes.value = ""
   }
 }
 
-async function loadCurrentPageInfo() {
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-
-    if (!tab || !tab.url) {
-      showError("Unable to access current page")
-      return
-    }
-
-    pageInfo.value = {
-      title: tab.title || "Untitled",
-      url: tab.url,
-      favicon: tab.favIconUrl,
-    }
-
-    // Check if this page is already bookmarked
-    await checkIfBookmarked(tab.url)
-  }
-  catch (error) {
-    console.error("Error getting tab info:", error)
-    showError("Error loading page information")
-  }
-}
-
-async function checkIfBookmarked(url: string) {
-  if (!apiKeyConfigured.value) {
-    return
-  }
-
-  isCheckingBookmark.value = true
-  try {
-    const response = await chrome.runtime.sendMessage({
-      type: "CHECK_LINK_EXISTS",
-      url,
-    })
-
-    if (response.success) {
-      isBookmarked.value = response.exists
-      bookmarkId.value = response.linkId || null
-
-      if (response.exists && response.linkId) {
-        await loadLinkDetails(response.linkId)
-      }
-      else {
-        tags.value = []
-        notes.value = ""
-      }
-    }
-    else {
-      console.error("Failed to check bookmark status:", response.error)
-    }
-  }
-  catch (error) {
-    console.error("Error checking bookmark:", error)
-  }
-  finally {
-    isCheckingBookmark.value = false
-  }
-}
-
-function openSettings() {
-  chrome.runtime.openOptionsPage()
-}
-
-async function loadLinkDetails(linkId: string) {
-  try {
-    const response = await chrome.runtime.sendMessage({
-      type: "GET_LINK_DETAILS",
-      linkId,
-    })
-
-    if (response.success) {
-      tags.value = response.link.tags ?? []
-      notes.value = response.link.note ?? ""
-    }
-    else {
-      console.error("Failed to load link details:", response.error)
-    }
-  }
-  catch (error) {
-    console.error("Error loading link details:", error)
-  }
-}
-
-async function saveLink() {
+async function handleSaveLink() {
   if (!pageInfo.value)
     return
 
@@ -132,90 +59,55 @@ async function saveLink() {
     saved_at: new Date().toISOString(),
   }
 
-  try {
-    const response = await chrome.runtime.sendMessage({
-      type: "SAVE_LINK",
-      data: linkData,
-    })
+  const result = await saveLinkApi(linkData)
 
-    if (response.success) {
-      showSuccess("Link saved successfully!")
-      notes.value = ""
-      tags.value = []
-      // Update bookmark status
-      isBookmarked.value = true
-      await checkIfBookmarked(pageInfo.value.url)
-    }
-    else {
-      showError(`Failed to save link: ${response.error || "Unknown error"}`)
-    }
+  if (result.success) {
+    showSuccess("Link saved successfully!")
+    notes.value = ""
+    tags.value = []
+    await checkBookmarkStatus(pageInfo.value.url)
   }
-  catch (error) {
-    console.error("Error saving link:", error)
-    showError("Error saving link")
+  else {
+    showError(`Failed to save link: ${result.error || "Unknown error"}`)
   }
 }
 
-async function deleteLink() {
-  if (!bookmarkId.value || !pageInfo.value)
-    return
-
-  isDeleting.value = true
-  try {
-    const response = await chrome.runtime.sendMessage({
-      type: "DELETE_LINK",
-      linkId: bookmarkId.value,
-    })
-
-    if (response.success) {
-      showSuccess("Link deleted successfully!")
-      isBookmarked.value = false
-      bookmarkId.value = null
-      notes.value = ""
-      tags.value = []
-    }
-    else {
-      showError(`Failed to delete link: ${response.error || "Unknown error"}`)
-    }
-  }
-  catch (error) {
-    console.error("Error deleting bookmark:", error)
-    showError("Error deleting link")
-  }
-  finally {
-    isDeleting.value = false
-  }
-}
-
-async function updateLink() {
+async function handleUpdateLink() {
   if (!bookmarkId.value)
     return
 
-  isUpdating.value = true
-  try {
-    const response = await chrome.runtime.sendMessage({
-      type: "UPDATE_LINK",
-      linkId: bookmarkId.value,
-      data: {
-        note: notes.value,
-        tags: tags.value,
-      },
-    })
+  const result = await updateLinkApi(bookmarkId.value, {
+    note: notes.value,
+    tags: tags.value,
+  })
 
-    if (response.success) {
-      showSuccess("Bookmark updated successfully!")
-      await loadLinkDetails(bookmarkId.value)
-    }
-    else {
-      showError(`Failed to update bookmark: ${response.error || "Unknown error"}`)
+  if (result.success) {
+    showSuccess("Link updated successfully!")
+    const details = await loadLinkDetails(bookmarkId.value)
+    if (details) {
+      tags.value = details.tags
+      notes.value = details.note
     }
   }
-  catch (error) {
-    console.error("Error updating bookmark:", error)
-    showError("Error updating bookmark")
+  else {
+    showError(`Failed to update link: ${result.error || "Unknown error"}`)
   }
-  finally {
-    isUpdating.value = false
+}
+
+async function handleDeleteLink() {
+  if (!bookmarkId.value)
+    return
+
+  const result = await deleteLinkApi(bookmarkId.value)
+
+  if (result.success) {
+    showSuccess("Link deleted successfully!")
+    resetBookmarkState()
+    notes.value = ""
+    tags.value = []
+  }
+  else {
+    showError(`Failed to delete link: ${result.error || "Unknown error"}`)
   }
 }
 
@@ -232,28 +124,6 @@ async function copyToClipboard() {
     showError("Failed to copy URL")
   }
 }
-
-function showSuccess(text: string) {
-  showMessage(text, "success")
-}
-
-function showError(text: string) {
-  showMessage(text, "error")
-}
-
-function showMessage(text: string, type: "success" | "error") {
-  message.value = { text, type }
-  // Error messages stay for 15 seconds, success messages for 3 seconds
-  const timeout = type === "error" ? 15000 : 3000
-  setTimeout(() => {
-    message.value = null
-  }, timeout)
-}
-
-onMounted(async () => {
-  await checkApiKey()
-  await loadCurrentPageInfo()
-})
 </script>
 
 <template>
@@ -298,9 +168,9 @@ onMounted(async () => {
       :is-deleting="isDeleting"
       :is-updating="isUpdating"
       @copy="copyToClipboard"
-      @delete="deleteLink"
-      @save="saveLink"
-      @update="updateLink"
+      @delete="handleDeleteLink"
+      @save="handleSaveLink"
+      @update="handleUpdateLink"
     />
 
     <div v-if="message" class="message" :class="[`message-${message.type}`]">
