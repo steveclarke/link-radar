@@ -9,10 +9,7 @@ const isSaving = ref(false)
 
 async function loadSettings() {
   try {
-    const key = await getApiKey()
-    if (key) {
-      apiKey.value = key
-    }
+    apiKey.value = (await getApiKey()) || ""
   }
   catch (error) {
     console.error("Error loading settings:", error)
