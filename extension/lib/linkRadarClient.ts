@@ -1,0 +1,171 @@
+import { BACKEND_URL, STORAGE_KEYS } from "./config"
+
+/**
+ * Parameters for creating a new link
+ */
+export interface LinkParams {
+  url: string
+  title: string
+  note?: string
+  tags?: string[]
+}
+
+/**
+ * Parameters for updating an existing link
+ */
+export type UpdateLinkParams = Pick<LinkParams, "note" | "tags">
+
+/**
+ * Normalized link object returned from API
+ */
+export interface Link {
+  id: string
+  url: string
+  title: string
+  note: string
+  tags: string[]
+}
+
+/**
+ * Result from checking if a link exists
+ */
+export interface LinkExistsResult {
+  exists: boolean
+  linkId?: string
+}
+
+/**
+ * Retrieve API key from Chrome storage
+ */
+export async function getApiKey(): Promise<string> {
+  const result = await browser.storage.sync.get(STORAGE_KEYS.API_KEY)
+  const apiKey = result[STORAGE_KEYS.API_KEY]
+
+  if (!apiKey) {
+    throw new Error("API key not configured. Please set your API key in the extension settings.")
+  }
+
+  return apiKey
+}
+
+/**
+ * Internal authenticated fetch wrapper
+ * Automatically adds auth header and handles common errors
+ */
+async function authenticatedFetch(path: string, options: RequestInit = {}): Promise<any> {
+  const apiKey = await getApiKey()
+
+  const response = await fetch(`${BACKEND_URL}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+      ...options.headers,
+    },
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`API request failed: ${response.status} ${response.statusText} - ${errorText}`)
+  }
+
+  // For DELETE requests that return 204 No Content
+  if (response.status === 204) {
+    return
+  }
+
+  return response.json()
+}
+
+/**
+ * Normalize API response to consistent Link format
+ */
+function normalizeLinkResponse(rawData: any): Link {
+  const link = rawData?.link ?? rawData?.data?.link ?? rawData
+
+  if (!link) {
+    throw new Error("Invalid link response from API")
+  }
+
+  const tags = Array.isArray(link.tags) ? link.tags.map((tag: any) => tag?.name).filter(Boolean) : []
+
+  return {
+    id: link.id,
+    url: link.url ?? link.submitted_url,
+    title: link.title,
+    note: link.note ?? "",
+    tags,
+  }
+}
+
+/**
+ * Save a new link to the backend
+ */
+export async function saveLink(params: LinkParams): Promise<any> {
+  const payload = {
+    link: {
+      submitted_url: params.url,
+      title: params.title,
+      note: params.note,
+      tag_names: params.tags || [],
+    },
+  }
+
+  return authenticatedFetch("/links", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  })
+}
+
+/**
+ * Check if a link with the given URL already exists
+ */
+export async function checkLinkExists(url: string): Promise<LinkExistsResult> {
+  const json = await authenticatedFetch(`/links?url=${encodeURIComponent(url)}`)
+
+  // Backend returns { data: { links: [...] } }
+  const links = json?.data?.links ?? []
+
+  // If we found a link with this URL, return its ID
+  if (Array.isArray(links) && links.length > 0) {
+    return { exists: true, linkId: links[0].id }
+  }
+
+  return { exists: false }
+}
+
+/**
+ * Get details for a specific link by ID
+ */
+export async function getLink(linkId: string): Promise<Link> {
+  const data = await authenticatedFetch(`/links/${linkId}`)
+  return normalizeLinkResponse(data)
+}
+
+/**
+ * Update an existing link
+ */
+export async function updateLink(linkId: string, params: UpdateLinkParams): Promise<Link> {
+  const payload = {
+    link: {
+      note: params?.note,
+      tag_names: params?.tags || [],
+    },
+  }
+
+  const data = await authenticatedFetch(`/links/${linkId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  })
+
+  return normalizeLinkResponse(data)
+}
+
+/**
+ * Delete a link from the backend
+ */
+export async function deleteLink(linkId: string): Promise<void> {
+  await authenticatedFetch(`/links/${linkId}`, {
+    method: "DELETE",
+  })
+}
