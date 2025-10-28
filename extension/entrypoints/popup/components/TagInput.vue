@@ -4,6 +4,7 @@ import { onClickOutside, useDebounceFn } from "@vueuse/core"
 
 import { computed, ref, watch } from "vue"
 import { searchTags } from "../../../lib/linkRadarClient"
+import TagSuggestionsDropdown from "./TagSuggestionsDropdown.vue"
 
 const props = defineProps<{
   modelValue: string[]
@@ -13,11 +14,16 @@ const emit = defineEmits<{
   (event: "update:modelValue", value: string[]): void
 }>()
 
+// Configuration constants
+const DEBOUNCE_DELAY_MS = 300 // Delay before triggering tag search
+const BLUR_DELAY_MS = 200 // Delay to allow mousedown events to fire before blur processing
+
 const inputValue = ref("")
 const suggestions = ref<Tag[]>([])
 const showSuggestions = ref(false)
 const selectedIndex = ref(-1)
 const isLoadingTags = ref(false)
+const searchError = ref<string | null>(null)
 const dropdownRef = ref<HTMLElement | null>(null)
 
 const tags = computed(() => props.modelValue ?? [])
@@ -30,17 +36,17 @@ const filteredSuggestions = computed(() => {
 
 // Computed property to check if user's input matches any suggestion or already-added tag
 const hasExactMatch = computed(() => {
-  if (!inputValue.value.trim())
+  const trimmedInput = inputValue.value.trim()
+  if (!trimmedInput)
     return true
-  const normalizedInput = inputValue.value.trim().toLowerCase()
+  const normalizedInput = trimmedInput.toLowerCase()
   const matchesExistingTag = tags.value.some(tag => tag.toLowerCase() === normalizedInput)
   const matchesSuggestion = filteredSuggestions.value.some(tag => tag.name.toLowerCase() === normalizedInput)
   return matchesExistingTag || matchesSuggestion
 })
 
-// Close dropdown when clicking outside
+// Reset selection when clicking outside
 onClickOutside(dropdownRef, () => {
-  showSuggestions.value = false
   selectedIndex.value = -1
 })
 
@@ -50,10 +56,12 @@ function normalizeTags(rawTags: string[]): string[] {
 
   for (const rawTag of rawTags) {
     const tag = rawTag.trim()
-    if (!tag || seen.has(tag))
+    const lowerTag = tag.toLowerCase()
+
+    if (!tag || seen.has(lowerTag))
       continue
 
-    seen.add(tag)
+    seen.add(lowerTag)
     normalized.push(tag)
   }
 
@@ -86,29 +94,33 @@ function removeTag(tagToRemove: string) {
 // Debounced search function
 const debouncedSearch = useDebounceFn(async (query: string) => {
   isLoadingTags.value = true
+  searchError.value = null
   try {
     const results = await searchTags(query)
     suggestions.value = results
   }
   catch (error) {
     console.error("Error searching tags:", error)
+    searchError.value = "Failed to load tag suggestions"
     suggestions.value = []
   }
   finally {
     isLoadingTags.value = false
   }
-}, 300)
+}, DEBOUNCE_DELAY_MS)
 
 // Watch input value and trigger debounced search
 watch(inputValue, (newValue) => {
   const trimmed = newValue.trim()
   if (trimmed) {
     showSuggestions.value = true
+    searchError.value = null
     debouncedSearch(trimmed)
   }
   else {
     showSuggestions.value = false
     suggestions.value = []
+    searchError.value = null
   }
 })
 
@@ -183,12 +195,11 @@ function selectSuggestion(tag: Tag) {
 }
 
 function handleBlur() {
-  // Delay to allow click events on suggestions to fire
+  // Delay to allow mousedown events on suggestions to fire
   setTimeout(() => {
-    if (!showSuggestions.value) {
-      addTagsFromInput()
-    }
-  }, 200)
+    showSuggestions.value = false
+    addTagsFromInput()
+  }, BLUR_DELAY_MS)
 }
 </script>
 
@@ -197,14 +208,20 @@ function handleBlur() {
     <label class="tag-label" for="tag-input">
       Tags
     </label>
-    <div class="pill-container">
+    <div class="pill-container" role="list" aria-label="Selected tags">
       <span
         v-for="tag in tags"
         :key="tag"
         class="pill"
+        role="listitem"
       >
         {{ tag }}
-        <button class="remove-button" type="button" @click="removeTag(tag)">
+        <button
+          class="remove-button"
+          type="button"
+          :aria-label="`Remove ${tag} tag`"
+          @click="removeTag(tag)"
+        >
           ×
         </button>
       </span>
@@ -213,6 +230,13 @@ function handleBlur() {
         v-model="inputValue"
         class="tag-field"
         type="text"
+        role="combobox"
+        :aria-expanded="showSuggestions"
+        :aria-controls="showSuggestions ? 'tag-suggestions-listbox' : undefined"
+        :aria-activedescendant="selectedIndex >= 0 ? `tag-option-${selectedIndex}` : undefined"
+        aria-autocomplete="list"
+        :aria-busy="isLoadingTags"
+        aria-label="Add tags"
         placeholder="Add tags…"
         @keydown="handleKeyDown"
         @blur="handleBlur"
@@ -221,36 +245,18 @@ function handleBlur() {
     </div>
 
     <!-- Suggestions Dropdown -->
-    <div v-if="showSuggestions" class="suggestions-dropdown">
-      <div v-if="isLoadingTags" class="loading-spinner">
-        Loading...
-      </div>
-      <template v-else>
-        <div
-          v-for="(tag, index) in filteredSuggestions"
-          :key="tag.id"
-          class="suggestion-item"
-          :class="{ selected: index === selectedIndex }"
-          @click="selectSuggestion(tag)"
-          @mouseenter="selectedIndex = index"
-        >
-          <span class="tag-name">{{ tag.name }}</span>
-          <span class="usage-badge">{{ tag.usage_count }}</span>
-        </div>
-        <div
-          v-if="inputValue.trim() && !hasExactMatch"
-          class="suggestion-item create-new"
-          :class="{ selected: selectedIndex === filteredSuggestions.length }"
-          @click="addTagsFromInput"
-          @mouseenter="selectedIndex = filteredSuggestions.length"
-        >
-          <span class="tag-name">Create "{{ inputValue.trim() }}"</span>
-        </div>
-        <div v-if="!isLoadingTags && filteredSuggestions.length === 0 && inputValue.trim()" class="no-tags">
-          No matching tags
-        </div>
-      </template>
-    </div>
+    <TagSuggestionsDropdown
+      :suggestions="filteredSuggestions"
+      :selected-index="selectedIndex"
+      :is-loading="isLoadingTags"
+      :error="searchError"
+      :input-value="inputValue"
+      :has-exact-match="hasExactMatch"
+      :show="showSuggestions"
+      @select-tag="selectSuggestion"
+      @create-new="addTagsFromInput"
+      @update-selected-index="(idx) => selectedIndex = idx"
+    />
 
     <p class="helper-text">
       Separate tags with commas or Enter
@@ -323,83 +329,8 @@ function handleBlur() {
   color: #666;
 }
 
-/* Autocomplete Dropdown Styles */
+/* Position relative needed for dropdown positioning */
 .tag-input {
   position: relative;
-}
-
-.suggestions-dropdown {
-  position: absolute;
-  top: calc(100% - 32px);
-  left: 0;
-  right: 0;
-  max-height: 200px;
-  overflow-y: auto;
-  background: white;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  z-index: 1000;
-  margin-top: 4px;
-}
-
-.suggestion-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: background-color 0.15s;
-}
-
-.suggestion-item:hover,
-.suggestion-item.selected {
-  background-color: #f0f7ff;
-}
-
-.tag-name {
-  flex: 1;
-  color: #333;
-}
-
-.usage-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 24px;
-  height: 20px;
-  padding: 0 6px;
-  background: #e9ecef;
-  color: #6c757d;
-  border-radius: 10px;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.create-new {
-  font-style: italic;
-  color: #0d6efd;
-  border-top: 1px solid #eee;
-}
-
-.create-new:hover,
-.create-new.selected {
-  background-color: #e7f1ff;
-}
-
-.loading-spinner {
-  padding: 12px;
-  text-align: center;
-  color: #666;
-  font-size: 13px;
-}
-
-.no-tags {
-  padding: 12px;
-  text-align: center;
-  color: #999;
-  font-size: 13px;
-  font-style: italic;
 }
 </style>
