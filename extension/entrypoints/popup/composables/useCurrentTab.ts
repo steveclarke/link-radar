@@ -1,5 +1,10 @@
-import type { TabInfo } from "../types"
 import { ref } from "vue"
+
+export interface TabInfo {
+  title: string
+  url: string
+  favicon?: string
+}
 
 export function useCurrentTab() {
   const pageInfo = ref<TabInfo | null>(null)

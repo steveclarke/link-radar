@@ -1,4 +1,4 @@
-import type { LinkData } from "../types"
+import type { Link, LinkParams } from "../../../lib/linkRadarClient"
 import { ref } from "vue"
 
 export interface LinkOperationResult {
@@ -10,7 +10,7 @@ export function useLink() {
   // State
   const isLinked = ref(false)
   const linkId = ref<string | null>(null)
-  const link = ref<{ id: string, tags: string[], note: string } | null>(null)
+  const link = ref<Link | null>(null)
 
   // Loading states
   const isFetching = ref(false)
@@ -55,7 +55,7 @@ export function useLink() {
   }
 
   // Create
-  async function createLink(data: LinkData): Promise<LinkOperationResult> {
+  async function createLink(data: LinkParams): Promise<LinkOperationResult> {
     isCreating.value = true
     try {
       const response = await browser.runtime.sendMessage({

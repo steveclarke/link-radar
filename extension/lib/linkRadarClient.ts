@@ -17,14 +17,18 @@ export interface LinkParams {
 export type UpdateLinkParams = Pick<LinkParams, "note" | "tags">
 
 /**
- * Normalized link object returned from API
+ * Normalized link object with consistent structure for extension use.
+ *
+ * The API may return links in various response shapes (nested under 'link' or 'data.link'),
+ * with different field names, and with tags as objects. This interface represents the
+ * standardized format after normalization, ensuring consistent access throughout the extension.
  */
 export interface Link {
   id: string
   url: string
   title: string
   note: string
-  tags: string[]
+  tags: string[] // Tag names only (normalized from tag objects)
 }
 
 /**
@@ -67,7 +71,20 @@ async function authenticatedFetch(path: string, options: RequestInit = {}): Prom
 }
 
 /**
- * Normalize API response to consistent Link format
+ * Normalize API response to consistent Link format.
+ *
+ * The backend API returns links in varying structures depending on the endpoint:
+ * - Single resource: { link: {...} }
+ * - Collection: { data: { links: [...] } }
+ * - Direct object in some cases
+ *
+ * This function:
+ * - Extracts the link from any response structure
+ * - Maps tag objects [{id, name, slug}] to simple name strings
+ * - Handles field name variations (url vs submitted_url)
+ * - Provides sensible defaults (empty string for missing note)
+ *
+ * @returns A Link object with guaranteed shape matching the Link interface
  */
 function normalizeLinkResponse(rawData: any): Link {
   const link = rawData?.link ?? rawData?.data?.link ?? rawData
@@ -107,7 +124,11 @@ export async function createLink(params: LinkParams): Promise<any> {
 }
 
 /**
- * Fetch a link by URL. Returns normalized Link if found, otherwise null
+ * Fetch a link by URL from the backend.
+ *
+ * @param url - The URL to search for
+ * @returns A normalized Link object (with consistent structure and tag names as strings)
+ *          if found, otherwise null if no matching link exists
  */
 export async function fetchLinkByUrl(url: string): Promise<Link | null> {
   const json = await authenticatedFetch(`/links?url=${encodeURIComponent(url)}`)
@@ -119,7 +140,10 @@ export async function fetchLinkByUrl(url: string): Promise<Link | null> {
 }
 
 /**
- * Get details for a specific link by ID
+ * Get details for a specific link by ID.
+ *
+ * @param linkId - The unique identifier of the link
+ * @returns A normalized Link object with consistent structure and tag names as strings
  */
 export async function fetchLinkById(linkId: string): Promise<Link> {
   const data = await authenticatedFetch(`/links/${linkId}`)
@@ -127,7 +151,11 @@ export async function fetchLinkById(linkId: string): Promise<Link> {
 }
 
 /**
- * Update an existing link
+ * Update an existing link's note and/or tags.
+ *
+ * @param linkId - The unique identifier of the link to update
+ * @param params - Object containing note and/or tags to update
+ * @returns A normalized Link object with the updated data
  */
 export async function updateLink(linkId: string, params: UpdateLinkParams): Promise<Link> {
   const payload = {

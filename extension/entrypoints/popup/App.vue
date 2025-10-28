@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import type { LinkParams } from "../../lib/linkRadarClient"
 import { useClipboard } from "@vueuse/core"
 import { onMounted, ref } from "vue"
 import { getApiKey } from "../../lib/apiKey"
@@ -46,12 +47,11 @@ async function handleCreateLink() {
   if (!pageInfo.value)
     return
 
-  const linkData = {
+  const linkData: LinkParams = {
     title: pageInfo.value.title,
     url: pageInfo.value.url,
     note: notes.value,
     tags: tags.value,
-    saved_at: new Date().toISOString(),
   }
 
   const result = await createLink(linkData)
