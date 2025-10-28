@@ -38,14 +38,6 @@ export interface Tag {
 }
 
 /**
- * Result from checking if a link exists
- */
-export interface LinkExistsResult {
-  exists: boolean
-  linkId?: string
-}
-
-/**
  * Internal authenticated fetch wrapper
  * Automatically adds auth header and handles common errors
  */
@@ -98,7 +90,7 @@ function normalizeLinkResponse(rawData: any): Link {
 /**
  * Save a new link to the backend
  */
-export async function saveLink(params: LinkParams): Promise<any> {
+export async function createLink(params: LinkParams): Promise<any> {
   const payload = {
     link: {
       submitted_url: params.url,
@@ -115,26 +107,21 @@ export async function saveLink(params: LinkParams): Promise<any> {
 }
 
 /**
- * Check if a link with the given URL already exists
+ * Fetch a link by URL. Returns normalized Link if found, otherwise null
  */
-export async function checkLinkExists(url: string): Promise<LinkExistsResult> {
+export async function fetchLinkByUrl(url: string): Promise<Link | null> {
   const json = await authenticatedFetch(`/links?url=${encodeURIComponent(url)}`)
-
-  // Backend returns { data: { links: [...] } }
   const links = json?.data?.links ?? []
-
-  // If we found a link with this URL, return its ID
   if (Array.isArray(links) && links.length > 0) {
-    return { exists: true, linkId: links[0].id }
+    return normalizeLinkResponse(links[0])
   }
-
-  return { exists: false }
+  return null
 }
 
 /**
  * Get details for a specific link by ID
  */
-export async function getLink(linkId: string): Promise<Link> {
+export async function fetchLinkById(linkId: string): Promise<Link> {
   const data = await authenticatedFetch(`/links/${linkId}`)
   return normalizeLinkResponse(data)
 }

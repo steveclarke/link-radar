@@ -1,50 +1,127 @@
+import type { LinkData } from "../types"
 import { ref } from "vue"
 
-export interface LinkCheckResult {
-  exists: boolean
-  linkId: string | null
+export interface BasicResult {
+  success: boolean
+  error?: string
 }
 
 export function useLink() {
+  // State
   const isLinked = ref(false)
   const linkId = ref<string | null>(null)
-  const isChecking = ref(false)
+  const link = ref<{ id: string, tags: string[], note: string } | null>(null)
 
-  async function checkIfLinked(url: string): Promise<LinkCheckResult | null> {
-    isChecking.value = true
+  // Loading states
+  const isFetching = ref(false)
+  const isCreating = ref(false)
+  const isUpdating = ref(false)
+  const isDeleting = ref(false)
 
+  // Read
+  async function fetchLink(url: string) {
+    isFetching.value = true
     try {
       const response = await browser.runtime.sendMessage({
-        type: "CHECK_LINK_EXISTS",
+        type: "FETCH_LINK",
         url,
       })
 
       if (response.success) {
-        isLinked.value = response.exists
-        linkId.value = response.linkId || null
-
-        return {
-          exists: response.exists,
-          linkId: response.linkId || null,
-        }
+        const result = response.link || null
+        link.value = result
+        isLinked.value = !!result
+        linkId.value = result?.id || null
+        return result
       }
       else {
-        console.error("Failed to check link status:", response.error)
+        console.error("Failed to fetch link:", response.error)
+        link.value = null
+        isLinked.value = false
+        linkId.value = null
         return null
       }
     }
     catch (error) {
-      console.error("Error checking link:", error)
+      console.error("Error fetching link:", error)
+      link.value = null
+      isLinked.value = false
+      linkId.value = null
       return null
     }
     finally {
-      isChecking.value = false
+      isFetching.value = false
+    }
+  }
+
+  // Create
+  async function createLink(data: LinkData): Promise<BasicResult> {
+    isCreating.value = true
+    try {
+      const response = await browser.runtime.sendMessage({
+        type: "CREATE_LINK",
+        data,
+      })
+      if (response.success)
+        return { success: true }
+      return { success: false, error: response.error || "Unknown error" }
+    }
+    catch (error) {
+      console.error("Error creating link:", error)
+      return { success: false, error: "Error creating link" }
+    }
+    finally {
+      isCreating.value = false
+    }
+  }
+
+  // Update
+  async function updateLink(id: string, data: { note: string, tags: string[] }): Promise<BasicResult> {
+    isUpdating.value = true
+    try {
+      const response = await browser.runtime.sendMessage({
+        type: "UPDATE_LINK",
+        linkId: id,
+        data,
+      })
+      if (response.success)
+        return { success: true }
+      return { success: false, error: response.error || "Unknown error" }
+    }
+    catch (error) {
+      console.error("Error updating link:", error)
+      return { success: false, error: "Error updating link" }
+    }
+    finally {
+      isUpdating.value = false
+    }
+  }
+
+  // Delete
+  async function deleteLink(id: string): Promise<BasicResult> {
+    isDeleting.value = true
+    try {
+      const response = await browser.runtime.sendMessage({
+        type: "DELETE_LINK",
+        linkId: id,
+      })
+      if (response.success)
+        return { success: true }
+      return { success: false, error: response.error || "Unknown error" }
+    }
+    catch (error) {
+      console.error("Error deleting link:", error)
+      return { success: false, error: "Error deleting link" }
+    }
+    finally {
+      isDeleting.value = false
     }
   }
 
   function resetLinkState() {
     isLinked.value = false
     linkId.value = null
+    link.value = null
   }
 
   function setLinked(id: string) {
@@ -53,10 +130,21 @@ export function useLink() {
   }
 
   return {
+    // State
     isLinked,
     linkId,
-    isChecking,
-    checkIfLinked,
+    link,
+    // Loading
+    isFetching,
+    isCreating,
+    isUpdating,
+    isDeleting,
+    // Operations
+    fetchLink,
+    createLink,
+    updateLink,
+    deleteLink,
+    // Helpers
     resetLinkState,
     setLinked,
   }

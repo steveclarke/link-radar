@@ -1,33 +1,32 @@
 import {
-  checkLinkExists,
+  createLink,
   deleteLink,
-  getLink,
-  saveLink,
+  fetchLinkById,
+  fetchLinkByUrl,
   updateLink,
 } from "../lib/linkRadarClient"
 
 export default defineBackground(() => {
   // Listen for messages from content scripts or popup
   browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === "SAVE_LINK") {
-      saveLink(message.data)
+    if (message.type === "CREATE_LINK") {
+      createLink(message.data)
         .then(() => sendResponse({ success: true }))
         .catch(error => sendResponse({ success: false, error: error.message }))
 
       return true // Keep the message channel open for async response
     }
 
-    if (message.type === "CHECK_LINK_EXISTS") {
-      // Check if a link with this URL already exists
-      checkLinkExists(message.url)
-        .then(result => sendResponse({ success: true, ...result }))
+    if (message.type === "FETCH_LINK") {
+      fetchLinkByUrl(message.url)
+        .then(link => sendResponse({ success: true, link }))
         .catch(error => sendResponse({ success: false, error: error.message }))
 
       return true // Keep the message channel open for async response
     }
 
-    if (message.type === "GET_LINK_DETAILS") {
-      getLink(message.linkId)
+    if (message.type === "FETCH_LINK_BY_ID") {
+      fetchLinkById(message.linkId)
         .then(link => sendResponse({ success: true, link }))
         .catch(error => sendResponse({ success: false, error: error.message }))
 

@@ -6,15 +6,13 @@ import LinkActions from "./components/LinkActions.vue"
 import TagInput from "./components/TagInput.vue"
 import { useCurrentTab } from "./composables/useCurrentTab"
 import { useLink } from "./composables/useLink"
-import { useLinkOperations } from "./composables/useLinkOperations"
 import { useNotification } from "./composables/useNotification"
 
 // Composables
 const { message, showSuccess, showError } = useNotification()
 const apiKeyConfigured = ref(false)
 const { pageInfo, loadCurrentPageInfo } = useCurrentTab()
-const { isLinked, linkId, isChecking: isCheckingLink, checkIfLinked, resetLinkState } = useLink()
-const { isUpdating, isDeleting, saveLink: saveLinkApi, updateLink: updateLinkApi, deleteLink: deleteLinkApi, loadLinkDetails } = useLinkOperations()
+const { isLinked, linkId, isFetching, isUpdating, isDeleting, fetchLink, createLink, updateLink, deleteLink, resetLinkState } = useLink()
 const { copy, isSupported } = useClipboard()
 
 // Local form state
@@ -28,19 +26,15 @@ onMounted(async () => {
   const tabInfo = await loadCurrentPageInfo()
 
   if (tabInfo && apiKeyConfigured.value) {
-    await checkLinkStatus(tabInfo.url)
+    await fetchCurrentLink(tabInfo.url)
   }
 })
 
-async function checkLinkStatus(url: string) {
-  const result = await checkIfLinked(url)
-
-  if (result?.exists && result.linkId) {
-    const details = await loadLinkDetails(result.linkId)
-    if (details) {
-      tags.value = details.tags
-      notes.value = details.note
-    }
+async function fetchCurrentLink(url: string) {
+  const result = await fetchLink(url)
+  if (result) {
+    tags.value = result.tags ?? []
+    notes.value = result.note ?? ""
   }
   else {
     tags.value = []
@@ -48,7 +42,7 @@ async function checkLinkStatus(url: string) {
   }
 }
 
-async function handleSaveLink() {
+async function handleCreateLink() {
   if (!pageInfo.value)
     return
 
@@ -60,13 +54,13 @@ async function handleSaveLink() {
     saved_at: new Date().toISOString(),
   }
 
-  const result = await saveLinkApi(linkData)
+  const result = await createLink(linkData)
 
   if (result.success) {
     showSuccess("Link saved successfully!")
     notes.value = ""
     tags.value = []
-    await checkLinkStatus(pageInfo.value.url)
+    await fetchCurrentLink(pageInfo.value.url)
   }
   else {
     showError(`Failed to save link: ${result.error || "Unknown error"}`)
@@ -77,18 +71,15 @@ async function handleUpdateLink() {
   if (!linkId.value)
     return
 
-  const result = await updateLinkApi(linkId.value, {
+  const result = await updateLink(linkId.value, {
     note: notes.value,
     tags: tags.value,
   })
 
   if (result.success) {
     showSuccess("Link updated successfully!")
-    const details = await loadLinkDetails(linkId.value)
-    if (details) {
-      tags.value = details.tags
-      notes.value = details.note
-    }
+    if (pageInfo.value)
+      await fetchCurrentLink(pageInfo.value.url)
   }
   else {
     showError(`Failed to update link: ${result.error || "Unknown error"}`)
@@ -99,7 +90,7 @@ async function handleDeleteLink() {
   if (!linkId.value)
     return
 
-  const result = await deleteLinkApi(linkId.value)
+  const result = await deleteLink(linkId.value)
 
   if (result.success) {
     showSuccess("Link deleted successfully!")
@@ -169,12 +160,12 @@ function openSettings() {
     <LinkActions
       :api-key-configured="apiKeyConfigured"
       :is-linked="isLinked"
-      :is-checking-link="isCheckingLink"
+      :is-checking-link="isFetching"
       :is-deleting="isDeleting"
       :is-updating="isUpdating"
       @copy="copyToClipboard"
       @delete="handleDeleteLink"
-      @save="handleSaveLink"
+      @save="handleCreateLink"
       @update="handleUpdateLink"
     />
 
