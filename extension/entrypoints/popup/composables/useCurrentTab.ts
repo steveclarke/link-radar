@@ -11,7 +11,7 @@ export function useCurrentTab() {
     error.value = null
 
     try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+      const [tab] = await browser.tabs.query({ active: true, currentWindow: true })
 
       if (!tab || !tab.url) {
         error.value = "Unable to access current page"

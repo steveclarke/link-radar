@@ -30,7 +30,7 @@ export function useLinkOperations() {
     isSaving.value = true
 
     try {
-      const response = await chrome.runtime.sendMessage({
+      const response = await browser.runtime.sendMessage({
         type: "SAVE_LINK",
         data: linkData,
       })
@@ -61,7 +61,7 @@ export function useLinkOperations() {
     isUpdating.value = true
 
     try {
-      const response = await chrome.runtime.sendMessage({
+      const response = await browser.runtime.sendMessage({
         type: "UPDATE_LINK",
         linkId,
         data,
@@ -93,7 +93,7 @@ export function useLinkOperations() {
     isDeleting.value = true
 
     try {
-      const response = await chrome.runtime.sendMessage({
+      const response = await browser.runtime.sendMessage({
         type: "DELETE_LINK",
         linkId,
       })
@@ -122,7 +122,7 @@ export function useLinkOperations() {
 
   async function loadLinkDetails(linkId: string): Promise<LinkDetails | null> {
     try {
-      const response = await chrome.runtime.sendMessage({
+      const response = await browser.runtime.sendMessage({
         type: "GET_LINK_DETAILS",
         linkId,
       })

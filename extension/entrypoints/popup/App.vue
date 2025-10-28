@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 import { useClipboard } from "@vueuse/core"
 import { onMounted, ref } from "vue"
+import { getApiKey } from "../../lib/apiKey"
 import LinkActions from "./components/LinkActions.vue"
 import TagInput from "./components/TagInput.vue"
-import { useApiKey } from "./composables/useApiKey"
 import { useCurrentTab } from "./composables/useCurrentTab"
 import { useLink } from "./composables/useLink"
 import { useLinkOperations } from "./composables/useLinkOperations"
@@ -11,7 +11,7 @@ import { useNotification } from "./composables/useNotification"
 
 // Composables
 const { message, showSuccess, showError } = useNotification()
-const { apiKeyConfigured, checkApiKey, openSettings } = useApiKey()
+const apiKeyConfigured = ref(false)
 const { pageInfo, loadCurrentPageInfo } = useCurrentTab()
 const { isLinked, linkId, isChecking: isCheckingLink, checkIfLinked, resetLinkState } = useLink()
 const { isUpdating, isDeleting, saveLink: saveLinkApi, updateLink: updateLinkApi, deleteLink: deleteLinkApi, loadLinkDetails } = useLinkOperations()
@@ -23,7 +23,8 @@ const tags = ref<string[]>([])
 
 // Initialize on mount
 onMounted(async () => {
-  await checkApiKey()
+  const key = await getApiKey()
+  apiKeyConfigured.value = !!key
   const tabInfo = await loadCurrentPageInfo()
 
   if (tabInfo && apiKeyConfigured.value) {
@@ -123,6 +124,10 @@ async function copyToClipboard() {
     console.error("Error copying to clipboard:", error)
     showError("Failed to copy URL")
   }
+}
+
+function openSettings() {
+  browser.runtime.openOptionsPage()
 }
 </script>
 

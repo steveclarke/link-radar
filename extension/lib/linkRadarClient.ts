@@ -1,4 +1,5 @@
-import { BACKEND_URL, STORAGE_KEYS } from "./config"
+import { getApiKey } from "./apiKey"
+import { BACKEND_URL } from "./config"
 
 /**
  * Parameters for creating a new link
@@ -42,20 +43,6 @@ export interface Tag {
 export interface LinkExistsResult {
   exists: boolean
   linkId?: string
-}
-
-/**
- * Retrieve API key from Chrome storage
- */
-export async function getApiKey(): Promise<string> {
-  const result = await browser.storage.sync.get(STORAGE_KEYS.API_KEY)
-  const apiKey = result[STORAGE_KEYS.API_KEY]
-
-  if (!apiKey) {
-    throw new Error("API key not configured. Please set your API key in the extension settings.")
-  }
-
-  return apiKey
 }
 
 /**

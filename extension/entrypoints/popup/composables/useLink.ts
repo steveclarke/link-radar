@@ -14,7 +14,7 @@ export function useLink() {
     isChecking.value = true
 
     try {
-      const response = await chrome.runtime.sendMessage({
+      const response = await browser.runtime.sendMessage({
         type: "CHECK_LINK_EXISTS",
         url,
       })
@@ -47,9 +47,9 @@ export function useLink() {
     linkId.value = null
   }
 
-  function setLinked(linkId: string) {
+  function setLinked(id: string) {
     isLinked.value = true
-    linkId.value = linkId
+    linkId.value = id
   }
 
   return {
@@ -61,4 +61,3 @@ export function useLink() {
     setLinked,
   }
 }
-

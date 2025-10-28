@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { onMounted, ref } from "vue"
-import { STORAGE_KEYS } from "../../lib/config"
+import { getApiKey, setApiKey } from "../../lib/apiKey"
 
 const apiKey = ref("")
 const showApiKey = ref(false)
@@ -9,9 +9,9 @@ const isSaving = ref(false)
 
 async function loadSettings() {
   try {
-    const result = await chrome.storage.sync.get(STORAGE_KEYS.API_KEY)
-    if (result[STORAGE_KEYS.API_KEY]) {
-      apiKey.value = result[STORAGE_KEYS.API_KEY]
+    const key = await getApiKey()
+    if (key) {
+      apiKey.value = key
     }
   }
   catch (error) {
@@ -28,9 +28,7 @@ async function saveSettings() {
 
   isSaving.value = true
   try {
-    await chrome.storage.sync.set({
-      [STORAGE_KEYS.API_KEY]: apiKey.value.trim(),
-    })
+    await setApiKey(apiKey.value.trim())
     showSuccess("Settings saved successfully!")
   }
   catch (error) {
