@@ -1,7 +1,7 @@
 import type { LinkData } from "../types"
 import { ref } from "vue"
 
-export interface BasicResult {
+export interface LinkOperationResult {
   success: boolean
   error?: string
 }
@@ -55,7 +55,7 @@ export function useLink() {
   }
 
   // Create
-  async function createLink(data: LinkData): Promise<BasicResult> {
+  async function createLink(data: LinkData): Promise<LinkOperationResult> {
     isCreating.value = true
     try {
       const response = await browser.runtime.sendMessage({
@@ -76,7 +76,7 @@ export function useLink() {
   }
 
   // Update
-  async function updateLink(id: string, data: { note: string, tags: string[] }): Promise<BasicResult> {
+  async function updateLink(id: string, data: { note: string, tags: string[] }): Promise<LinkOperationResult> {
     isUpdating.value = true
     try {
       const response = await browser.runtime.sendMessage({
@@ -98,7 +98,7 @@ export function useLink() {
   }
 
   // Delete
-  async function deleteLink(id: string): Promise<BasicResult> {
+  async function deleteLink(id: string): Promise<LinkOperationResult> {
     isDeleting.value = true
     try {
       const response = await browser.runtime.sendMessage({
