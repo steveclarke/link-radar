@@ -123,37 +123,41 @@ function openSettings() {
 </script>
 
 <template>
-  <div class="page-info">
-    <div class="header">
-      <h1>Link Radar</h1>
-      <button class="settings-button" title="Settings" @click="openSettings">
+  <div class="flex flex-col gap-4 p-4 box-border">
+    <div class="flex items-center justify-between gap-3">
+      <h1 class="m-0 text-2xl text-gray-900">
+        Link Radar
+      </h1>
+      <button class="px-2.5 py-1.5 border-none rounded-md bg-gray-100 cursor-pointer text-lg transition-colors duration-200 leading-none hover:bg-gray-200" title="Settings" @click="openSettings">
         ⚙️
       </button>
     </div>
 
-    <div v-if="!apiKeyConfigured" class="warning-banner">
+    <div v-if="!apiKeyConfigured" class="bg-yellow-100 text-yellow-800 px-3 py-2.5 rounded-md border border-yellow-200 text-[13px] leading-relaxed">
       ⚠️ API key not configured.
-      <a class="warning-link" @click="openSettings">Click here to set it up</a>
+      <a class="text-yellow-800 underline cursor-pointer font-medium hover:text-yellow-900" @click="openSettings">Click here to set it up</a>
     </div>
 
-    <div v-if="pageInfo" class="current-page">
-      <h2>Current Page</h2>
-      <div class="page-details">
-        <img v-if="pageInfo.favicon" :src="pageInfo.favicon" class="favicon" alt="Site icon">
-        <div class="page-text">
-          <div class="page-title">
+    <div v-if="pageInfo" class="bg-white rounded-lg p-3 shadow-sm">
+      <h2 class="m-0 mb-2 text-base text-gray-800">
+        Current Page
+      </h2>
+      <div class="flex items-start gap-2">
+        <img v-if="pageInfo.favicon" :src="pageInfo.favicon" class="w-4 h-4 shrink-0 mt-0.5" alt="Site icon">
+        <div class="flex-1 min-w-0">
+          <div class="font-medium text-gray-900 mb-1 leading-snug wrap-break-word">
             {{ pageInfo.title }}
           </div>
-          <div class="page-url">
+          <div class="text-xs text-gray-600 break-all leading-tight">
             {{ pageInfo.url }}
           </div>
         </div>
       </div>
     </div>
 
-    <div class="notes-section">
-      <label for="notes">Add a note (optional):</label>
-      <textarea id="notes" v-model="notes" placeholder="Add your thoughts about this link..." />
+    <div class="bg-white rounded-lg p-3 shadow-sm">
+      <label for="notes" class="block text-sm font-medium text-gray-800 mb-2">Add a note (optional):</label>
+      <textarea id="notes" v-model="notes" class="w-full min-h-[60px] p-2 border border-gray-300 rounded text-sm resize-vertical box-border focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-200" placeholder="Add your thoughts about this link..." />
     </div>
     <TagInput v-model="tags" />
 
@@ -169,7 +173,7 @@ function openSettings() {
       @update="handleUpdateLink"
     />
 
-    <div v-if="message" class="message" :class="[`message-${message.type}`]">
+    <div v-if="message" class="fixed top-4 left-4 right-4 px-3 py-2 rounded text-sm font-medium z-1000" :class="message.type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-red-100 text-red-800 border border-red-200'">
       {{ message.text }}
     </div>
   </div>
@@ -186,183 +190,5 @@ body {
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   background: #f8f9fa;
-}
-</style>
-
-<style scoped>
-.page-info {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 16px;
-  box-sizing: border-box;
-}
-
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-h1 {
-  margin: 0;
-  font-size: 24px;
-  color: #1a1a1a;
-}
-
-.settings-button {
-  padding: 6px 10px;
-  border: none;
-  border-radius: 6px;
-  background: #f8f9fa;
-  cursor: pointer;
-  font-size: 18px;
-  transition: background-color 0.2s;
-  line-height: 1;
-}
-
-.settings-button:hover {
-  background: #e9ecef;
-}
-
-.vue-badge {
-  font-size: 12px;
-  background: linear-gradient(135deg, #42b883 0%, #35495e 100%);
-  color: white;
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-}
-
-h2 {
-  margin: 0 0 8px 0;
-  font-size: 16px;
-  color: #333;
-}
-
-.current-page {
-  background: white;
-  border-radius: 8px;
-  padding: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.page-details {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-.favicon {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.page-text {
-  flex: 1;
-  min-width: 0;
-}
-
-.page-title {
-  font-weight: 500;
-  color: #1a1a1a;
-  margin-bottom: 4px;
-  line-height: 1.3;
-  word-wrap: break-word;
-}
-
-.page-url {
-  font-size: 12px;
-  color: #666;
-  word-break: break-all;
-  line-height: 1.2;
-}
-
-.warning-banner {
-  background: #fff3cd;
-  color: #856404;
-  padding: 10px 12px;
-  border-radius: 6px;
-  border: 1px solid #ffeaa7;
-  font-size: 13px;
-  line-height: 1.4;
-}
-
-.warning-link {
-  color: #856404;
-  text-decoration: underline;
-  cursor: pointer;
-  font-weight: 500;
-}
-
-.warning-link:hover {
-  color: #533f03;
-}
-
-.notes-section {
-  background: white;
-  border-radius: 8px;
-  padding: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.notes-section label {
-  display: block;
-  font-size: 14px;
-  font-weight: 500;
-  color: #333;
-  margin-bottom: 8px;
-}
-
-.notes-section textarea {
-  width: 100%;
-  min-height: 60px;
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-  font-family: inherit;
-  resize: vertical;
-  box-sizing: border-box;
-}
-
-.notes-section textarea:focus {
-  outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
-}
-
-.message {
-  position: fixed;
-  top: 16px;
-  left: 16px;
-  right: 16px;
-  padding: 8px 12px;
-  border-radius: 4px;
-  font-size: 14px;
-  font-weight: 500;
-  z-index: 1000;
-}
-
-.message-success {
-  background: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
-}
-
-.message-error {
-  background: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
 }
 </style>

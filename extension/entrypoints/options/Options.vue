@@ -62,34 +62,38 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="settings-container">
-    <div class="settings-header">
-      <h1>Link Radar Settings</h1>
-      <p class="subtitle">
+  <div class="max-w-3xl mx-auto p-6 font-sans">
+    <div class="mb-8">
+      <h1 class="m-0 mb-2 text-[32px] text-gray-900">
+        Link Radar Settings
+      </h1>
+      <p class="m-0 text-base text-gray-600">
         Configure your Link Radar extension
       </p>
     </div>
 
-    <div class="settings-content">
-      <div class="setting-section">
-        <h2>API Configuration</h2>
-        <p class="help-text">
+    <div class="flex flex-col gap-6">
+      <div class="bg-white rounded-lg p-6 shadow-sm">
+        <h2 class="m-0 mb-4 text-xl text-gray-900">
+          API Configuration
+        </h2>
+        <p class="m-0 mb-5 text-sm text-gray-600 leading-normal">
           Enter your Link Radar API key to enable link saving. You can find this in your backend configuration.
         </p>
 
-        <div class="form-group">
-          <label for="api-key">API Key</label>
-          <div class="input-with-toggle">
+        <div class="mb-5">
+          <label for="api-key" class="block text-sm font-medium text-gray-800 mb-2">API Key</label>
+          <div class="flex gap-2 items-stretch">
             <input
               id="api-key"
               v-model="apiKey"
               :type="showApiKey ? 'text' : 'password'"
               placeholder="Enter your API key"
-              class="api-key-input"
+              class="flex-1 px-3 py-2.5 border border-gray-300 rounded-md text-sm font-mono transition-colors focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-200"
             >
             <button
               type="button"
-              class="toggle-visibility-btn"
+              class="px-3 border border-gray-300 rounded-md bg-white cursor-pointer text-lg transition-colors hover:bg-gray-50"
               :title="showApiKey ? 'Hide API key' : 'Show API key'"
               @click="toggleShowApiKey"
             >
@@ -100,211 +104,31 @@ onMounted(() => {
 
         <button
           :disabled="isSaving"
-          class="save-button"
+          class="px-6 py-2.5 border-none rounded-md text-sm font-medium bg-blue-600 text-white cursor-pointer transition-colors hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
           @click="saveSettings"
         >
           {{ isSaving ? 'Saving...' : 'Save Settings' }}
         </button>
       </div>
 
-      <div class="info-section">
-        <h3>Backend Setup</h3>
-        <p>
+      <div class="bg-white rounded-lg p-6 shadow-sm">
+        <h3 class="m-0 mb-4 text-xl text-gray-900">
+          Backend Setup
+        </h3>
+        <p class="m-0 mb-3 text-sm text-gray-600 leading-normal">
           To use Link Radar, you need to have the backend API running.
           By default, the extension expects the API to be available at:
         </p>
-        <code class="backend-url">http://localhost:3000/api/v1/links</code>
-        <p class="note">
+        <code class="block p-3 bg-gray-50 border border-gray-200 rounded font-mono text-[13px] text-gray-800 my-3">http://localhost:3000/api/v1/links</code>
+        <p class="m-0 text-[13px] text-gray-500 italic">
           For production use, the backend URL can be configured at build time
-          using the <code>VITE_BACKEND_URL</code> environment variable.
+          using the <code class="px-1.5 py-0.5 bg-gray-50 border border-gray-200 rounded-sm font-mono text-xs">VITE_BACKEND_URL</code> environment variable.
         </p>
       </div>
     </div>
 
-    <div v-if="message" class="message" :class="[`message-${message.type}`]">
+    <div v-if="message" class="fixed top-6 right-6 px-4 py-3 rounded-md text-sm font-medium z-1000 shadow-md" :class="message.type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-red-100 text-red-800 border border-red-200'">
       {{ message.text }}
     </div>
   </div>
 </template>
-
-<style scoped>
-.settings-container {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 24px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-}
-
-.settings-header {
-  margin-bottom: 32px;
-}
-
-.settings-header h1 {
-  margin: 0 0 8px 0;
-  font-size: 32px;
-  color: #1a1a1a;
-}
-
-.subtitle {
-  margin: 0;
-  font-size: 16px;
-  color: #666;
-}
-
-.settings-content {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.setting-section,
-.info-section {
-  background: white;
-  border-radius: 8px;
-  padding: 24px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.setting-section h2,
-.info-section h3 {
-  margin: 0 0 16px 0;
-  font-size: 20px;
-  color: #1a1a1a;
-}
-
-.help-text {
-  margin: 0 0 20px 0;
-  font-size: 14px;
-  color: #666;
-  line-height: 1.5;
-}
-
-.form-group {
-  margin-bottom: 20px;
-}
-
-.form-group label {
-  display: block;
-  font-size: 14px;
-  font-weight: 500;
-  color: #333;
-  margin-bottom: 8px;
-}
-
-.input-with-toggle {
-  display: flex;
-  gap: 8px;
-  align-items: stretch;
-}
-
-.api-key-input {
-  flex: 1;
-  padding: 10px 12px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 14px;
-  font-family: 'Monaco', 'Courier New', monospace;
-  transition: border-color 0.2s;
-}
-
-.api-key-input:focus {
-  outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
-}
-
-.toggle-visibility-btn {
-  padding: 0 12px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  background: white;
-  cursor: pointer;
-  font-size: 18px;
-  transition: background-color 0.2s;
-}
-
-.toggle-visibility-btn:hover {
-  background: #f8f9fa;
-}
-
-.save-button {
-  padding: 10px 24px;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  background: #007bff;
-  color: white;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.save-button:hover:not(:disabled) {
-  background: #0056b3;
-}
-
-.save-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.info-section p {
-  margin: 0 0 12px 0;
-  font-size: 14px;
-  color: #666;
-  line-height: 1.5;
-}
-
-.backend-url {
-  display: block;
-  padding: 12px;
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
-  border-radius: 4px;
-  font-family: 'Monaco', 'Courier New', monospace;
-  font-size: 13px;
-  color: #333;
-  margin: 12px 0;
-}
-
-.note {
-  font-size: 13px;
-  color: #888;
-  font-style: italic;
-}
-
-code {
-  padding: 2px 6px;
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
-  border-radius: 3px;
-  font-family: 'Monaco', 'Courier New', monospace;
-  font-size: 12px;
-}
-
-.message {
-  position: fixed;
-  top: 24px;
-  right: 24px;
-  padding: 12px 16px;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  z-index: 1000;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.message-success {
-  background: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
-}
-
-.message-error {
-  background: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
-}
-</style>

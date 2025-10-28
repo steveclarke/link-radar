@@ -204,20 +204,20 @@ function handleBlur() {
 </script>
 
 <template>
-  <div ref="dropdownRef" class="tag-input">
-    <label class="tag-label" for="tag-input">
+  <div ref="dropdownRef" class="relative flex flex-col gap-1.5">
+    <label class="text-sm font-medium text-gray-800" for="tag-input">
       Tags
     </label>
-    <div class="pill-container" role="list" aria-label="Selected tags">
+    <div class="flex flex-wrap gap-2 p-2 border border-gray-300 rounded-md bg-white" role="list" aria-label="Selected tags">
       <span
         v-for="tag in tags"
         :key="tag"
-        class="pill"
+        class="inline-flex items-center gap-1 bg-blue-100 text-blue-600 rounded-full px-2 py-1 text-xs font-medium"
         role="listitem"
       >
         {{ tag }}
         <button
-          class="remove-button"
+          class="border-none bg-transparent text-inherit cursor-pointer text-xs leading-none p-0 hover:opacity-80"
           type="button"
           :aria-label="`Remove ${tag} tag`"
           @click="removeTag(tag)"
@@ -228,7 +228,7 @@ function handleBlur() {
       <input
         id="tag-input"
         v-model="inputValue"
-        class="tag-field"
+        class="flex-1 min-w-[120px] border-none outline-none text-sm p-0.5"
         type="text"
         role="combobox"
         :aria-expanded="showSuggestions"
@@ -258,79 +258,8 @@ function handleBlur() {
       @update-selected-index="(idx) => selectedIndex = idx"
     />
 
-    <p class="helper-text">
+    <p class="m-0 text-xs text-gray-600">
       Separate tags with commas or Enter
     </p>
   </div>
 </template>
-
-<style scoped>
-.tag-input {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.tag-label {
-  font-size: 14px;
-  font-weight: 500;
-  color: #333;
-}
-
-.pill-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  background: #fff;
-}
-
-.pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: #e7f1ff;
-  color: #0d6efd;
-  border-radius: 999px;
-  padding: 4px 8px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.remove-button {
-  border: none;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  font-size: 12px;
-  line-height: 1;
-  padding: 0;
-}
-
-.remove-button:hover {
-  opacity: 0.8;
-}
-
-.tag-field {
-  flex: 1;
-  min-width: 120px;
-  border: none;
-  outline: none;
-  font-size: 14px;
-  font-family: inherit;
-  padding: 2px;
-}
-
-.helper-text {
-  margin: 0;
-  font-size: 12px;
-  color: #666;
-}
-
-/* Position relative needed for dropdown positioning */
-.tag-input {
-  position: relative;
-}
-</style>
