@@ -27,6 +27,16 @@ export interface Link {
 }
 
 /**
+ * Tag object returned from API
+ */
+export interface Tag {
+  id: string
+  name: string
+  slug: string
+  usage_count: number
+}
+
+/**
  * Result from checking if a link exists
  */
 export interface LinkExistsResult {
@@ -168,4 +178,15 @@ export async function deleteLink(linkId: string): Promise<void> {
   await authenticatedFetch(`/links/${linkId}`, {
     method: "DELETE",
   })
+}
+
+/**
+ * Search for tags by query
+ * @param query - Optional search query. If empty, returns all tags sorted by usage
+ * @returns Array of tags matching the search query
+ */
+export async function searchTags(query: string = ""): Promise<Tag[]> {
+  const params = query ? `?search=${encodeURIComponent(query)}` : ""
+  const json = await authenticatedFetch(`/tags${params}`)
+  return json?.data?.tags ?? []
 }
