@@ -1,9 +1,9 @@
 <script lang="ts" setup>
-import type { Tag } from "../../../lib/linkRadarClient"
+import type { Tag } from "../../../lib/types"
 import { onClickOutside, useDebounceFn } from "@vueuse/core"
 
 import { computed, ref, watch } from "vue"
-import { searchTags } from "../../../lib/linkRadarClient"
+import { useTag } from "../composables/useTag"
 import TagSuggestionsDropdown from "./TagSuggestionsDropdown.vue"
 
 const tags = defineModel<string[]>({ default: () => [] })
@@ -12,12 +12,12 @@ const tags = defineModel<string[]>({ default: () => [] })
 const DEBOUNCE_DELAY_MS = 300 // Delay before triggering tag search
 const BLUR_DELAY_MS = 200 // Delay to allow mousedown events to fire before blur processing
 
+const { searchTags, isSearching, searchError } = useTag()
+
 const inputValue = ref("")
 const suggestions = ref<Tag[]>([])
 const showSuggestions = ref(false)
 const selectedIndex = ref(-1)
-const isLoadingTags = ref(false)
-const searchError = ref<string | null>(null)
 const dropdownRef = ref<HTMLElement | null>(null)
 
 // Filter suggestions to exclude already-added tags
@@ -80,20 +80,8 @@ function removeTag(tagToRemove: string) {
 
 // Debounced search function
 const debouncedSearch = useDebounceFn(async (query: string) => {
-  isLoadingTags.value = true
-  searchError.value = null
-  try {
-    const results = await searchTags(query)
-    suggestions.value = results
-  }
-  catch (error) {
-    console.error("Error searching tags:", error)
-    searchError.value = "Failed to load tag suggestions"
-    suggestions.value = []
-  }
-  finally {
-    isLoadingTags.value = false
-  }
+  const results = await searchTags(query)
+  suggestions.value = results
 }, DEBOUNCE_DELAY_MS)
 
 // Watch input value and trigger debounced search
@@ -101,13 +89,11 @@ watch(inputValue, (newValue) => {
   const trimmed = newValue.trim()
   if (trimmed) {
     showSuggestions.value = true
-    searchError.value = null
     debouncedSearch(trimmed)
   }
   else {
     showSuggestions.value = false
     suggestions.value = []
-    searchError.value = null
   }
 })
 
@@ -221,7 +207,7 @@ function handleBlur() {
         :aria-controls="showSuggestions ? 'tag-suggestions-listbox' : undefined"
         :aria-activedescendant="selectedIndex >= 0 ? `tag-option-${selectedIndex}` : undefined"
         aria-autocomplete="list"
-        :aria-busy="isLoadingTags"
+        :aria-busy="isSearching"
         aria-label="Add tags"
         placeholder="Add tags…"
         @keydown="handleKeyDown"
@@ -234,7 +220,7 @@ function handleBlur() {
     <TagSuggestionsDropdown
       :suggestions="filteredSuggestions"
       :selected-index="selectedIndex"
-      :is-loading="isLoadingTags"
+      :is-loading="isSearching"
       :error="searchError"
       :input-value="inputValue"
       :has-exact-match="hasExactMatch"

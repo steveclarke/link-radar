@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { LinkParams } from "../../lib/linkRadarClient"
+import type { LinkParams } from "../../lib/types"
 import { useClipboard } from "@vueuse/core"
 import { onMounted, ref } from "vue"
 import { getApiKey } from "../../lib/apiKey"
@@ -12,7 +12,7 @@ import { useNotification } from "./composables/useNotification"
 // Composables
 const { message, showSuccess, showError } = useNotification()
 const apiKeyConfigured = ref(false)
-const { pageInfo, loadCurrentPageInfo } = useCurrentTab()
+const { tabInfo, loadCurrentTab } = useCurrentTab()
 const { isLinked, linkId, isFetching, isUpdating, isDeleting, fetchLink, createLink, updateLink, deleteLink, resetLinkState } = useLink()
 const { copy, isSupported } = useClipboard()
 
@@ -24,10 +24,10 @@ const tagNames = ref<string[]>([])
 onMounted(async () => {
   const key = await getApiKey()
   apiKeyConfigured.value = !!key
-  const tabInfo = await loadCurrentPageInfo()
+  const currentTab = await loadCurrentTab()
 
-  if (tabInfo && apiKeyConfigured.value) {
-    await fetchCurrentLink(tabInfo.url)
+  if (currentTab && apiKeyConfigured.value) {
+    await fetchCurrentLink(currentTab.url)
   }
 })
 
@@ -45,12 +45,12 @@ async function fetchCurrentLink(url: string) {
 }
 
 async function handleCreateLink() {
-  if (!pageInfo.value)
+  if (!tabInfo.value)
     return
 
   const linkData: LinkParams = {
-    title: pageInfo.value.title,
-    url: pageInfo.value.url,
+    title: tabInfo.value.title,
+    url: tabInfo.value.url,
     note: notes.value,
     tag_names: tagNames.value,
   }
@@ -61,7 +61,7 @@ async function handleCreateLink() {
     showSuccess("Link saved successfully!")
     notes.value = ""
     tagNames.value = []
-    await fetchCurrentLink(pageInfo.value.url)
+    await fetchCurrentLink(tabInfo.value.url)
   }
   else {
     showError(`Failed to save link: ${result.error || "Unknown error"}`)
@@ -79,8 +79,8 @@ async function handleUpdateLink() {
 
   if (result.success) {
     showSuccess("Link updated successfully!")
-    if (pageInfo.value)
-      await fetchCurrentLink(pageInfo.value.url)
+    if (tabInfo.value)
+      await fetchCurrentLink(tabInfo.value.url)
   }
   else {
     showError(`Failed to update link: ${result.error || "Unknown error"}`)
@@ -105,11 +105,11 @@ async function handleDeleteLink() {
 }
 
 async function copyToClipboard() {
-  if (!pageInfo.value || !isSupported.value)
+  if (!tabInfo.value || !isSupported.value)
     return
 
   try {
-    await copy(pageInfo.value.url)
+    await copy(tabInfo.value.url)
     showSuccess("URL copied to clipboard!")
   }
   catch (error) {
@@ -139,18 +139,18 @@ function openSettings() {
       <a class="text-yellow-800 underline cursor-pointer font-medium hover:text-yellow-900" @click="openSettings">Click here to set it up</a>
     </div>
 
-    <div v-if="pageInfo" class="bg-white rounded-lg p-3 shadow-sm">
+    <div v-if="tabInfo" class="bg-white rounded-lg p-3 shadow-sm">
       <h2 class="m-0 mb-2 text-base text-gray-800">
         Current Page
       </h2>
       <div class="flex items-start gap-2">
-        <img v-if="pageInfo.favicon" :src="pageInfo.favicon" class="w-4 h-4 shrink-0 mt-0.5" alt="Site icon">
+        <img v-if="tabInfo.favicon" :src="tabInfo.favicon" class="w-4 h-4 shrink-0 mt-0.5" alt="Site icon">
         <div class="flex-1 min-w-0">
           <div class="font-medium text-gray-900 mb-1 leading-snug wrap-break-word">
-            {{ pageInfo.title }}
+            {{ tabInfo.title }}
           </div>
           <div class="text-xs text-gray-600 break-all leading-tight">
-            {{ pageInfo.url }}
+            {{ tabInfo.url }}
           </div>
         </div>
       </div>

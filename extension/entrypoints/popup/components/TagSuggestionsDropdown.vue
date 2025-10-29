@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { Tag } from "../../../lib/linkRadarClient"
+import type { Tag } from "../../../lib/types"
 
 defineProps<{
   suggestions: Tag[]

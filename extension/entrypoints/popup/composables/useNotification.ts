@@ -1,9 +1,5 @@
+import type { MessageState } from "../../../lib/types"
 import { ref } from "vue"
-
-export interface MessageState {
-  text: string
-  type: "success" | "error"
-}
 
 // Configuration constants
 const ERROR_MESSAGE_TIMEOUT_MS = 15000

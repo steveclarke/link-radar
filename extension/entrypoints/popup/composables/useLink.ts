@@ -1,16 +1,11 @@
-import type { Link, LinkParams } from "../../../lib/linkRadarClient"
+import type { Link, LinkParams, LinkResult, UpdateLinkParams } from "../../../lib/types"
 import { ref } from "vue"
 import {
   createLink as apiCreateLink,
   deleteLink as apiDeleteLink,
   updateLink as apiUpdateLink,
   fetchLinkByUrl,
-} from "../../../lib/linkRadarClient"
-
-export interface LinkOperationResult {
-  success: boolean
-  error?: string
-}
+} from "../../../lib/apiClient"
 
 export function useLink() {
   // State
@@ -47,7 +42,7 @@ export function useLink() {
   }
 
   // Create
-  async function createLink(data: LinkParams): Promise<LinkOperationResult> {
+  async function createLink(data: LinkParams): Promise<LinkResult> {
     isCreating.value = true
     try {
       await apiCreateLink(data)
@@ -64,7 +59,7 @@ export function useLink() {
   }
 
   // Update
-  async function updateLink(id: string, data: { note: string, tags: string[] }): Promise<LinkOperationResult> {
+  async function updateLink(id: string, data: UpdateLinkParams): Promise<LinkResult> {
     isUpdating.value = true
     try {
       await apiUpdateLink(id, data)
@@ -81,7 +76,7 @@ export function useLink() {
   }
 
   // Delete
-  async function deleteLink(id: string): Promise<LinkOperationResult> {
+  async function deleteLink(id: string): Promise<LinkResult> {
     isDeleting.value = true
     try {
       await apiDeleteLink(id)

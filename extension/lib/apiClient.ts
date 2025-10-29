@@ -1,57 +1,13 @@
+import type {
+  Link,
+  LinkApiResponse,
+  LinkParams,
+  Tag,
+  TagsApiResponse,
+  UpdateLinkParams,
+} from "./types"
 import { getApiKey } from "./apiKey"
 import { BACKEND_URL } from "./config"
-
-/**
- * Parameters for creating a new link
- */
-export interface LinkParams {
-  url: string
-  title: string
-  note?: string
-  tag_names?: string[]
-}
-
-/**
- * Parameters for updating an existing link
- */
-export type UpdateLinkParams = Pick<LinkParams, "note" | "tag_names">
-
-/**
- * Link object structure that matches the backend API response.
- * This interface directly reflects the structure from _link.json.jbuilder.
- */
-export interface Link {
-  id: string
-  url: string
-  title: string
-  note: string
-  tags: Tag[] // Full tag objects with id, name, slug
-}
-
-/**
- * Tag object returned from API
- */
-export interface Tag {
-  id: string
-  name: string
-  slug: string
-  usage_count: number
-}
-
-/**
- * API response type interfaces matching backend jbuilder structure
- */
-interface LinkShowResponse {
-  data: {
-    link: Link
-  }
-}
-
-interface TagsIndexResponse {
-  data: {
-    tags: Tag[]
-  }
-}
 
 /**
  * Internal authenticated fetch wrapper
@@ -114,7 +70,7 @@ export async function createLink(params: LinkParams): Promise<any> {
  */
 export async function fetchLinkByUrl(url: string): Promise<Link | null> {
   try {
-    const response = await authenticatedFetch(`/links/by_url?url=${encodeURIComponent(url)}`) as LinkShowResponse
+    const response = await authenticatedFetch(`/links/by_url?url=${encodeURIComponent(url)}`) as LinkApiResponse
     return response.data.link
   }
   catch (error) {
@@ -133,7 +89,7 @@ export async function fetchLinkByUrl(url: string): Promise<Link | null> {
  * @returns Link object matching backend structure
  */
 export async function fetchLinkById(linkId: string): Promise<Link> {
-  const response = await authenticatedFetch(`/links/${linkId}`) as LinkShowResponse
+  const response = await authenticatedFetch(`/links/${linkId}`) as LinkApiResponse
   return response.data.link
 }
 
@@ -155,7 +111,7 @@ export async function updateLink(linkId: string, params: UpdateLinkParams): Prom
   const response = await authenticatedFetch(`/links/${linkId}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
-  }) as LinkShowResponse
+  }) as LinkApiResponse
 
   return response.data.link
 }
@@ -176,6 +132,6 @@ export async function deleteLink(linkId: string): Promise<void> {
  */
 export async function searchTags(query: string = ""): Promise<Tag[]> {
   const params = query ? `?search=${encodeURIComponent(query)}` : ""
-  const response = await authenticatedFetch(`/tags${params}`) as TagsIndexResponse
+  const response = await authenticatedFetch(`/tags${params}`) as TagsApiResponse
   return response.data.tags
 }
