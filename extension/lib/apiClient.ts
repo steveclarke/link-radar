@@ -6,8 +6,7 @@ import type {
   TagsApiResponse,
   UpdateLinkParams,
 } from "./types"
-import { getApiKey } from "./apiKey"
-import { BACKEND_URL } from "./config"
+import { BACKEND_URL, getApiKey } from "./settings"
 
 /**
  * Internal authenticated fetch wrapper

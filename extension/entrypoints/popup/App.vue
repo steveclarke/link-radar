@@ -1,8 +1,8 @@
 <script lang="ts" setup>
 import type { LinkParams } from "../../lib/types"
-import { useClipboard } from "@vueuse/core"
+import { useClipboard, useTimeoutFn } from "@vueuse/core"
 import { onMounted, ref } from "vue"
-import { getApiKey } from "../../lib/apiKey"
+import { getApiKey, getAutoCloseDelay } from "../../lib/settings"
 import LinkActions from "./components/LinkActions.vue"
 import TagInput from "./components/TagInput.vue"
 import { useCurrentTab } from "./composables/useCurrentTab"
@@ -19,11 +19,13 @@ const { copy, isSupported } = useClipboard()
 const apiKeyConfigured = ref(false)
 const notes = ref("")
 const tagNames = ref<string[]>([])
+const autoCloseDelay = ref(500)
 
 // Initialize on mount
 onMounted(async () => {
   const key = await getApiKey()
   apiKeyConfigured.value = !!key
+  autoCloseDelay.value = await getAutoCloseDelay()
   const currentTab = await loadCurrentTab()
 
   if (currentTab && apiKeyConfigured.value) {
@@ -62,6 +64,9 @@ async function handleCreateLink() {
     notes.value = ""
     tagNames.value = []
     await fetchCurrentLink(tabInfo.value.url)
+    if (autoCloseDelay.value > 0) {
+      useTimeoutFn(() => window.close(), autoCloseDelay.value, { immediate: true })
+    }
   }
   else {
     showError(`Failed to save link: ${result.error || "Unknown error"}`)
@@ -81,6 +86,9 @@ async function handleUpdateLink() {
     showSuccess("Link updated successfully!")
     if (tabInfo.value)
       await fetchCurrentLink(tabInfo.value.url)
+    if (autoCloseDelay.value > 0) {
+      useTimeoutFn(() => window.close(), autoCloseDelay.value, { immediate: true })
+    }
   }
   else {
     showError(`Failed to update link: ${result.error || "Unknown error"}`)
@@ -98,6 +106,9 @@ async function handleDeleteLink() {
     resetLinkState()
     notes.value = ""
     tagNames.value = []
+    if (autoCloseDelay.value > 0) {
+      useTimeoutFn(() => window.close(), autoCloseDelay.value, { immediate: true })
+    }
   }
   else {
     showError(`Failed to delete link: ${result.error || "Unknown error"}`)
