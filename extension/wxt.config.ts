@@ -22,7 +22,7 @@ export default defineConfig({
     },
   },
   // Browser startup configuration for development
-  runner: {
+  webExt: {
     chromiumArgs: ["--user-data-dir=./.wxt/chrome-data"],
   },
   // Use port 9001 for extension dev server (9000 reserved for web app)
