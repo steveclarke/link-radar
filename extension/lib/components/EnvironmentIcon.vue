@@ -16,12 +16,10 @@ interface Props {
   size?: string
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  size: "w-3 h-3",
-})
+const { size = "w-3 h-3", environment } = defineProps<Props>()
 
 // Get configuration for the current environment
-const config = computed(() => getEnvironmentConfig(props.environment))
+const config = computed(() => getEnvironmentConfig(environment))
 </script>
 
 <template>
