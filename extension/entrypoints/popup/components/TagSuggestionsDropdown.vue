@@ -1,19 +1,41 @@
 <script lang="ts" setup>
+/**
+ * Dropdown component for tag suggestions with keyboard navigation support.
+ * Shows existing tags with usage counts and provides option to create new tags.
+ *
+ * @component
+ */
 import type { Tag } from "../../../lib/types"
 
+/**
+ * Component props
+ */
 defineProps<{
+  /** Array of tag suggestions to display in the dropdown */
   suggestions: Tag[]
+  /** Index of the currently selected/highlighted suggestion (for keyboard navigation) */
   selectedIndex: number
+  /** Whether tags are currently being loaded from the API */
   isLoading: boolean
+  /** Error message to display if tag loading fails */
   error: string | null
+  /** Current value of the tag input field (used for "Create new" option) */
   inputValue: string
+  /** Whether an exact match exists in the suggestions list */
   hasExactMatch: boolean
+  /** Whether to show the dropdown (controls visibility) */
   show: boolean
 }>()
 
+/**
+ * Component events
+ */
 const emit = defineEmits<{
+  /** Emitted when a user selects an existing tag from the suggestions */
   selectTag: [tag: Tag]
+  /** Emitted when a user chooses to create a new tag with the current input value */
   createNew: []
+  /** Emitted when the selected index changes (e.g., on mouse hover) */
   updateSelectedIndex: [index: number]
 }>()
 </script>

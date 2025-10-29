@@ -1,12 +1,33 @@
 <script lang="ts" setup>
+/**
+ * Settings page component for the Link Radar browser extension.
+ * Provides UI for configuring the API key with validation, secure storage,
+ * and auto-dismissing notifications.
+ *
+ * @component
+ */
 import { onMounted, ref } from "vue"
 import { getApiKey, setApiKey } from "../../lib/apiKey"
 
+/** Duration in milliseconds for notification messages to display before auto-dismissal */
+const MESSAGE_TIMEOUT_MS = 3000
+
+/** Reactive reference to the API key input value */
 const apiKey = ref("")
+
+/** Whether the API key should be displayed as plain text (true) or masked (false) */
 const showApiKey = ref(false)
+
+/** Current notification message to display (null if no message) */
 const message = ref<{ text: string, type: "success" | "error" } | null>(null)
+
+/** Whether a save operation is currently in progress */
 const isSaving = ref(false)
 
+/**
+ * Loads saved API key from browser storage.
+ * Called automatically on component mount.
+ */
 async function loadSettings() {
   try {
     apiKey.value = (await getApiKey()) || ""
@@ -17,6 +38,10 @@ async function loadSettings() {
   }
 }
 
+/**
+ * Saves the API key to browser storage.
+ * Validates that the key is not empty before saving.
+ */
 async function saveSettings() {
   if (!apiKey.value.trim()) {
     showError("Please enter an API key")
@@ -37,25 +62,45 @@ async function saveSettings() {
   }
 }
 
+/**
+ * Toggles the visibility of the API key input field.
+ */
 function toggleShowApiKey() {
   showApiKey.value = !showApiKey.value
 }
 
+/**
+ * Displays a success notification message with auto-dismissal.
+ *
+ * @param text - The success message to display
+ */
 function showSuccess(text: string) {
   showMessage(text, "success")
 }
 
+/**
+ * Displays an error notification message with auto-dismissal.
+ *
+ * @param text - The error message to display
+ */
 function showError(text: string) {
   showMessage(text, "error")
 }
 
+/**
+ * Internal helper to display a notification message.
+ *
+ * @param text - The message text to display
+ * @param type - The message type ("success" or "error")
+ */
 function showMessage(text: string, type: "success" | "error") {
   message.value = { text, type }
   setTimeout(() => {
     message.value = null
-  }, 3000)
+  }, MESSAGE_TIMEOUT_MS)
 }
 
+// Load settings when component mounts
 onMounted(() => {
   loadSettings()
 })

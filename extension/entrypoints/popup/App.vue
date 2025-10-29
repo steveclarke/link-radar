@@ -11,12 +11,12 @@ import { useNotification } from "./composables/useNotification"
 
 // Composables
 const { message, showSuccess, showError } = useNotification()
-const apiKeyConfigured = ref(false)
 const { tabInfo, loadCurrentTab } = useCurrentTab()
 const { isLinked, linkId, isFetching, isUpdating, isDeleting, fetchLink, createLink, updateLink, deleteLink, resetLinkState } = useLink()
 const { copy, isSupported } = useClipboard()
 
 // Local form state
+const apiKeyConfigured = ref(false)
 const notes = ref("")
 const tagNames = ref<string[]>([])
 
@@ -48,14 +48,14 @@ async function handleCreateLink() {
   if (!tabInfo.value)
     return
 
-  const linkData: LinkParams = {
+  const linkParams: LinkParams = {
     title: tabInfo.value.title,
     url: tabInfo.value.url,
     note: notes.value,
     tag_names: tagNames.value,
   }
 
-  const result = await createLink(linkData)
+  const result = await createLink(linkParams)
 
   if (result.success) {
     showSuccess("Link saved successfully!")
