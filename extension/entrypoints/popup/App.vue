@@ -5,7 +5,7 @@
  */
 import { onMounted } from "vue"
 import NotificationToast from "../../lib/components/NotificationToast.vue"
-import ApiKeyWarning from "./components/ApiKeyWarning.vue"
+import AppConfigWarning from "./components/AppConfigWarning.vue"
 import AppHeader from "./components/AppHeader.vue"
 import LinkForm from "./components/LinkForm.vue"
 import TabInfoDisplay from "./components/TabInfoDisplay.vue"
@@ -13,7 +13,7 @@ import { useAppInit } from "./composables/useAppInit"
 
 const {
   isAppLoading,
-  isAppReady,
+  isAppConfigured,
   currentTabInfo,
   initApp,
 } = useAppInit()
@@ -33,11 +33,11 @@ onMounted(initApp)
     <!-- Content only shows after loading -->
     <template v-else>
       <AppHeader />
-      <ApiKeyWarning />
+      <AppConfigWarning :is-app-configured="isAppConfigured" />
       <TabInfoDisplay :tab-info="currentTabInfo" />
       <LinkForm
         :current-tab-info="currentTabInfo"
-        :is-app-ready="isAppReady"
+        :is-app-configured="isAppConfigured"
       />
     </template>
 

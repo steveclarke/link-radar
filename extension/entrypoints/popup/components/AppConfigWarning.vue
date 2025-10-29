@@ -1,23 +1,16 @@
 <script lang="ts" setup>
 /**
- * Warning banner component displayed when API key is not configured.
+ * Warning banner component displayed when app configuration is incomplete.
  * Provides a link to open settings.
  *
  * @component
  */
 import { Icon } from "@iconify/vue"
-import { onMounted, ref } from "vue"
-import { getActiveProfile } from "@/lib/settings"
 
-const isApiKeyConfigured = ref(false)
-
-/**
- * Checks if the API key is configured on component mount
- */
-onMounted(async () => {
-  const profile = await getActiveProfile()
-  isApiKeyConfigured.value = !!profile.apiKey
-})
+defineProps<{
+  /** Whether the app is properly configured */
+  isAppConfigured: boolean
+}>()
 
 /**
  * Opens the extension's settings page.
@@ -29,16 +22,16 @@ function openSettings() {
 
 <template>
   <div
-    v-if="!isApiKeyConfigured"
+    v-if="!isAppConfigured"
     class="bg-yellow-100 text-yellow-800 px-3 py-2.5 rounded-md border border-yellow-200 text-[13px] leading-relaxed flex items-start gap-2"
   >
     <Icon icon="material-symbols:warning" class="w-4 h-4 mt-0.5 shrink-0" />
     <div>
-      API key not configured.
+      App configuration incomplete.
       <a
         class="text-yellow-800 underline cursor-pointer font-medium hover:text-yellow-900"
         @click="openSettings"
-      >Click here to set it up</a>
+      >Click here to configure</a>
     </div>
   </div>
 </template>

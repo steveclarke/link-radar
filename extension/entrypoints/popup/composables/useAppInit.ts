@@ -14,7 +14,7 @@ import { useCurrentTab } from "./useCurrentTab"
  */
 export function useAppInit() {
   const isAppLoading = ref(false)
-  const isAppReady = ref(false)
+  const isAppConfigured = ref(false)
   const currentTabInfo = ref<TabInfo | null>(null)
 
   const { loadCurrentTab } = useCurrentTab()
@@ -26,9 +26,9 @@ export function useAppInit() {
   async function initApp() {
     isAppLoading.value = true
     try {
-      // Check if API key is configured
+      // Check if app is properly configured
       const profile = await getActiveProfile()
-      isAppReady.value = !!profile.apiKey
+      isAppConfigured.value = !!profile.apiKey
 
       // Load current browser tab info
       const tabData = await loadCurrentTab()
@@ -46,7 +46,7 @@ export function useAppInit() {
 
   return {
     isAppLoading,
-    isAppReady,
+    isAppConfigured,
     currentTabInfo,
     initApp,
   }

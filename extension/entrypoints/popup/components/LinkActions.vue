@@ -22,8 +22,8 @@ const props = defineProps<{
   isDeleting: boolean
   /** Whether an update operation is in progress */
   isUpdating: boolean
-  /** Whether the API key is configured */
-  apiKeyConfigured: boolean
+  /** Whether the app is properly configured */
+  isAppConfigured: boolean
 }>()
 
 /**
@@ -40,21 +40,21 @@ const emit = defineEmits<{
 
 /**
  * Computed property that determines if the Save button should be disabled.
- * Disabled when API key is not configured or link check is in progress.
+ * Disabled when app is not configured or link check is in progress.
  */
-const isSaveDisabled = computed(() => !props.apiKeyConfigured || props.isCheckingLink)
+const isSaveDisabled = computed(() => !props.isAppConfigured || props.isCheckingLink)
 
 /**
  * Computed property that determines if the Update button should be disabled.
- * Disabled when API key is not configured or update operation is in progress.
+ * Disabled when app is not configured or update operation is in progress.
  */
-const isUpdateDisabled = computed(() => !props.apiKeyConfigured || props.isUpdating)
+const isUpdateDisabled = computed(() => !props.isAppConfigured || props.isUpdating)
 
 /**
  * Computed property that determines if the Delete button should be disabled.
- * Disabled when API key is not configured or delete operation is in progress.
+ * Disabled when app is not configured or delete operation is in progress.
  */
-const isDeleteDisabled = computed(() => !props.apiKeyConfigured || props.isDeleting)
+const isDeleteDisabled = computed(() => !props.isAppConfigured || props.isDeleting)
 </script>
 
 <template>

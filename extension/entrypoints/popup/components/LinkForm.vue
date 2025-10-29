@@ -16,8 +16,8 @@ import UrlInput from "./UrlInput.vue"
 const props = defineProps<{
   /** Current browser tab information */
   currentTabInfo: TabInfo | null
-  /** Whether the app is configured and ready to use */
-  isAppReady: boolean
+  /** Whether the app is properly configured */
+  isAppConfigured: boolean
 }>()
 
 const {
@@ -92,7 +92,7 @@ function handleSave() {
         :is-checking-link="isFetching"
         :is-deleting="isDeleting"
         :is-updating="isUpdating"
-        :api-key-configured="isAppReady"
+        :is-app-configured="isAppConfigured"
         @save="handleSave"
         @update="handleUpdateLink"
         @delete="handleDeleteLink"
