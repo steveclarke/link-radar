@@ -18,7 +18,7 @@ const { copy, isSupported } = useClipboard()
 
 // Local form state
 const notes = ref("")
-const tags = ref<string[]>([])
+const tagNames = ref<string[]>([])
 
 // Initialize on mount
 onMounted(async () => {
@@ -34,11 +34,12 @@ onMounted(async () => {
 async function fetchCurrentLink(url: string) {
   const result = await fetchLink(url)
   if (result) {
-    tags.value = result.tags ?? []
-    notes.value = result.note ?? ""
+    // Extract tag names from Tag objects for the form
+    tagNames.value = result.tags.map(tag => tag.name)
+    notes.value = result.note
   }
   else {
-    tags.value = []
+    tagNames.value = []
     notes.value = ""
   }
 }
@@ -51,7 +52,7 @@ async function handleCreateLink() {
     title: pageInfo.value.title,
     url: pageInfo.value.url,
     note: notes.value,
-    tags: tags.value,
+    tag_names: tagNames.value,
   }
 
   const result = await createLink(linkData)
@@ -59,7 +60,7 @@ async function handleCreateLink() {
   if (result.success) {
     showSuccess("Link saved successfully!")
     notes.value = ""
-    tags.value = []
+    tagNames.value = []
     await fetchCurrentLink(pageInfo.value.url)
   }
   else {
@@ -73,7 +74,7 @@ async function handleUpdateLink() {
 
   const result = await updateLink(linkId.value, {
     note: notes.value,
-    tags: tags.value,
+    tag_names: tagNames.value,
   })
 
   if (result.success) {
@@ -96,7 +97,7 @@ async function handleDeleteLink() {
     showSuccess("Link deleted successfully!")
     resetLinkState()
     notes.value = ""
-    tags.value = []
+    tagNames.value = []
   }
   else {
     showError(`Failed to delete link: ${result.error || "Unknown error"}`)
@@ -159,7 +160,7 @@ function openSettings() {
       <label for="notes" class="block text-sm font-medium text-gray-800 mb-2">Add a note (optional):</label>
       <textarea id="notes" v-model="notes" class="w-full min-h-[60px] p-2 border border-gray-300 rounded text-sm resize-vertical box-border focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-200" placeholder="Add your thoughts about this link..." />
     </div>
-    <TagInput v-model="tags" />
+    <TagInput v-model="tagNames" />
 
     <LinkActions
       :api-key-configured="apiKeyConfigured"

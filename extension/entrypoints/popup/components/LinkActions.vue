@@ -10,10 +10,10 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (event: "save"): void
-  (event: "update"): void
-  (event: "delete"): void
-  (event: "copy"): void
+  save: []
+  update: []
+  delete: []
+  copy: []
 }>()
 
 const isSaveDisabled = computed(() => !props.apiKeyConfigured || props.isCheckingLink)

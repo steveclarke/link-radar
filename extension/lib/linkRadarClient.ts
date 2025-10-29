@@ -8,27 +8,24 @@ export interface LinkParams {
   url: string
   title: string
   note?: string
-  tags?: string[]
+  tag_names?: string[]
 }
 
 /**
  * Parameters for updating an existing link
  */
-export type UpdateLinkParams = Pick<LinkParams, "note" | "tags">
+export type UpdateLinkParams = Pick<LinkParams, "note" | "tag_names">
 
 /**
- * Normalized link object with consistent structure for extension use.
- *
- * The API may return links in various response shapes (nested under 'link' or 'data.link'),
- * with different field names, and with tags as objects. This interface represents the
- * standardized format after normalization, ensuring consistent access throughout the extension.
+ * Link object structure that matches the backend API response.
+ * This interface directly reflects the structure from _link.json.jbuilder.
  */
 export interface Link {
   id: string
   url: string
   title: string
   note: string
-  tags: string[] // Tag names only (normalized from tag objects)
+  tags: Tag[] // Full tag objects with id, name, slug
 }
 
 /**
@@ -42,8 +39,28 @@ export interface Tag {
 }
 
 /**
+ * API response type interfaces matching backend jbuilder structure
+ */
+interface LinkShowResponse {
+  data: {
+    link: Link
+  }
+}
+
+interface TagsIndexResponse {
+  data: {
+    tags: Tag[]
+  }
+}
+
+/**
  * Internal authenticated fetch wrapper
  * Automatically adds auth header and handles common errors
+ *
+ * @param path - API endpoint path (e.g., '/links', '/tags')
+ * @param options - RequestInit is the built-in TypeScript type for fetch() options.
+ *                  It includes: method, headers, body, mode, credentials, cache, signal, etc.
+ *                  This ensures type safety and matches the native fetch() API signature.
  */
 async function authenticatedFetch(path: string, options: RequestInit = {}): Promise<any> {
   const apiKey = await getApiKey()
@@ -71,40 +88,6 @@ async function authenticatedFetch(path: string, options: RequestInit = {}): Prom
 }
 
 /**
- * Normalize API response to consistent Link format.
- *
- * The backend API returns links in varying structures depending on the endpoint:
- * - Single resource: { link: {...} }
- * - Collection: { data: { links: [...] } }
- * - Direct object in some cases
- *
- * This function:
- * - Extracts the link from any response structure
- * - Maps tag objects [{id, name, slug}] to simple name strings
- * - Handles field name variations (url vs submitted_url)
- * - Provides sensible defaults (empty string for missing note)
- *
- * @returns A Link object with guaranteed shape matching the Link interface
- */
-function normalizeLinkResponse(rawData: any): Link {
-  const link = rawData?.link ?? rawData?.data?.link ?? rawData
-
-  if (!link) {
-    throw new Error("Invalid link response from API")
-  }
-
-  const tags = Array.isArray(link.tags) ? link.tags.map((tag: any) => tag?.name).filter(Boolean) : []
-
-  return {
-    id: link.id,
-    url: link.url ?? link.submitted_url,
-    title: link.title,
-    note: link.note ?? "",
-    tags,
-  }
-}
-
-/**
  * Save a new link to the backend
  */
 export async function createLink(params: LinkParams): Promise<any> {
@@ -113,7 +96,7 @@ export async function createLink(params: LinkParams): Promise<any> {
       submitted_url: params.url,
       title: params.title,
       note: params.note,
-      tag_names: params.tags || [],
+      tag_names: params.tag_names || [],
     },
   }
 
@@ -127,50 +110,54 @@ export async function createLink(params: LinkParams): Promise<any> {
  * Fetch a link by URL from the backend.
  *
  * @param url - The URL to search for
- * @returns A normalized Link object (with consistent structure and tag names as strings)
- *          if found, otherwise null if no matching link exists
+ * @returns Link object matching backend structure if found, otherwise null
  */
 export async function fetchLinkByUrl(url: string): Promise<Link | null> {
-  const json = await authenticatedFetch(`/links?url=${encodeURIComponent(url)}`)
-  const links = json?.data?.links ?? []
-  if (Array.isArray(links) && links.length > 0) {
-    return normalizeLinkResponse(links[0])
+  try {
+    const response = await authenticatedFetch(`/links/by_url?url=${encodeURIComponent(url)}`) as LinkShowResponse
+    return response.data.link
   }
-  return null
+  catch (error) {
+    // 404 means link not found, which is expected
+    if (error instanceof Error && error.message.includes("404")) {
+      return null
+    }
+    throw error
+  }
 }
 
 /**
  * Get details for a specific link by ID.
  *
  * @param linkId - The unique identifier of the link
- * @returns A normalized Link object with consistent structure and tag names as strings
+ * @returns Link object matching backend structure
  */
 export async function fetchLinkById(linkId: string): Promise<Link> {
-  const data = await authenticatedFetch(`/links/${linkId}`)
-  return normalizeLinkResponse(data)
+  const response = await authenticatedFetch(`/links/${linkId}`) as LinkShowResponse
+  return response.data.link
 }
 
 /**
  * Update an existing link's note and/or tags.
  *
  * @param linkId - The unique identifier of the link to update
- * @param params - Object containing note and/or tags to update
- * @returns A normalized Link object with the updated data
+ * @param params - Object containing note and/or tag_names to update
+ * @returns Link object with the updated data
  */
 export async function updateLink(linkId: string, params: UpdateLinkParams): Promise<Link> {
   const payload = {
     link: {
-      note: params?.note,
-      tag_names: params?.tags || [],
+      note: params.note,
+      tag_names: params.tag_names || [],
     },
   }
 
-  const data = await authenticatedFetch(`/links/${linkId}`, {
+  const response = await authenticatedFetch(`/links/${linkId}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
-  })
+  }) as LinkShowResponse
 
-  return normalizeLinkResponse(data)
+  return response.data.link
 }
 
 /**
@@ -189,6 +176,6 @@ export async function deleteLink(linkId: string): Promise<void> {
  */
 export async function searchTags(query: string = ""): Promise<Tag[]> {
   const params = query ? `?search=${encodeURIComponent(query)}` : ""
-  const json = await authenticatedFetch(`/tags${params}`)
-  return json?.data?.tags ?? []
+  const response = await authenticatedFetch(`/tags${params}`) as TagsIndexResponse
+  return response.data.tags
 }

@@ -6,13 +6,7 @@ import { computed, ref, watch } from "vue"
 import { searchTags } from "../../../lib/linkRadarClient"
 import TagSuggestionsDropdown from "./TagSuggestionsDropdown.vue"
 
-const props = defineProps<{
-  modelValue: string[]
-}>()
-
-const emit = defineEmits<{
-  (event: "update:modelValue", value: string[]): void
-}>()
+const tags = defineModel<string[]>({ default: () => [] })
 
 // Configuration constants
 const DEBOUNCE_DELAY_MS = 300 // Delay before triggering tag search
@@ -25,8 +19,6 @@ const selectedIndex = ref(-1)
 const isLoadingTags = ref(false)
 const searchError = ref<string | null>(null)
 const dropdownRef = ref<HTMLElement | null>(null)
-
-const tags = computed(() => props.modelValue ?? [])
 
 // Filter suggestions to exclude already-added tags
 const filteredSuggestions = computed(() => {
@@ -68,10 +60,6 @@ function normalizeTags(rawTags: string[]): string[] {
   return normalized
 }
 
-function emitUpdatedTags(updatedTags: string[]) {
-  emit("update:modelValue", updatedTags)
-}
-
 function addTagsFromInput() {
   if (!inputValue.value)
     return
@@ -82,13 +70,12 @@ function addTagsFromInput() {
     return
   }
 
-  const combined = normalizeTags([...tags.value, ...incomingTags])
-  emitUpdatedTags(combined)
+  tags.value = normalizeTags([...tags.value, ...incomingTags])
   inputValue.value = ""
 }
 
 function removeTag(tagToRemove: string) {
-  emitUpdatedTags(tags.value.filter(tag => tag !== tagToRemove))
+  tags.value = tags.value.filter(tag => tag !== tagToRemove)
 }
 
 // Debounced search function
@@ -135,7 +122,7 @@ function handleKeyDown(event: KeyboardEvent) {
     event.preventDefault()
     const updatedTags = [...tags.value]
     updatedTags.pop()
-    emitUpdatedTags(updatedTags)
+    tags.value = updatedTags
     return
   }
 
@@ -184,8 +171,7 @@ function addTag(tagName: string) {
   if (!incomingTags.length)
     return
 
-  const combined = normalizeTags([...tags.value, ...incomingTags])
-  emitUpdatedTags(combined)
+  tags.value = normalizeTags([...tags.value, ...incomingTags])
   inputValue.value = ""
   selectedIndex.value = -1
 }

@@ -1,5 +1,11 @@
 import type { Link, LinkParams } from "../../../lib/linkRadarClient"
 import { ref } from "vue"
+import {
+  createLink as apiCreateLink,
+  deleteLink as apiDeleteLink,
+  updateLink as apiUpdateLink,
+  fetchLinkByUrl,
+} from "../../../lib/linkRadarClient"
 
 export interface LinkOperationResult {
   success: boolean
@@ -22,25 +28,11 @@ export function useLink() {
   async function fetchLink(url: string) {
     isFetching.value = true
     try {
-      const response = await browser.runtime.sendMessage({
-        type: "FETCH_LINK",
-        url,
-      })
-
-      if (response.success) {
-        const result = response.link || null
-        link.value = result
-        isLinked.value = !!result
-        linkId.value = result?.id || null
-        return result
-      }
-      else {
-        console.error("Failed to fetch link:", response.error)
-        link.value = null
-        isLinked.value = false
-        linkId.value = null
-        return null
-      }
+      const result = await fetchLinkByUrl(url)
+      link.value = result
+      isLinked.value = !!result
+      linkId.value = result?.id || null
+      return result
     }
     catch (error) {
       console.error("Error fetching link:", error)
@@ -58,17 +50,13 @@ export function useLink() {
   async function createLink(data: LinkParams): Promise<LinkOperationResult> {
     isCreating.value = true
     try {
-      const response = await browser.runtime.sendMessage({
-        type: "CREATE_LINK",
-        data,
-      })
-      if (response.success)
-        return { success: true }
-      return { success: false, error: response.error || "Unknown error" }
+      await apiCreateLink(data)
+      return { success: true }
     }
     catch (error) {
       console.error("Error creating link:", error)
-      return { success: false, error: "Error creating link" }
+      const errorMessage = error instanceof Error ? error.message : "Error creating link"
+      return { success: false, error: errorMessage }
     }
     finally {
       isCreating.value = false
@@ -79,18 +67,13 @@ export function useLink() {
   async function updateLink(id: string, data: { note: string, tags: string[] }): Promise<LinkOperationResult> {
     isUpdating.value = true
     try {
-      const response = await browser.runtime.sendMessage({
-        type: "UPDATE_LINK",
-        linkId: id,
-        data,
-      })
-      if (response.success)
-        return { success: true }
-      return { success: false, error: response.error || "Unknown error" }
+      await apiUpdateLink(id, data)
+      return { success: true }
     }
     catch (error) {
       console.error("Error updating link:", error)
-      return { success: false, error: "Error updating link" }
+      const errorMessage = error instanceof Error ? error.message : "Error updating link"
+      return { success: false, error: errorMessage }
     }
     finally {
       isUpdating.value = false
@@ -101,17 +84,13 @@ export function useLink() {
   async function deleteLink(id: string): Promise<LinkOperationResult> {
     isDeleting.value = true
     try {
-      const response = await browser.runtime.sendMessage({
-        type: "DELETE_LINK",
-        linkId: id,
-      })
-      if (response.success)
-        return { success: true }
-      return { success: false, error: response.error || "Unknown error" }
+      await apiDeleteLink(id)
+      return { success: true }
     }
     catch (error) {
       console.error("Error deleting link:", error)
-      return { success: false, error: "Error deleting link" }
+      const errorMessage = error instanceof Error ? error.message : "Error deleting link"
+      return { success: false, error: errorMessage }
     }
     finally {
       isDeleting.value = false
