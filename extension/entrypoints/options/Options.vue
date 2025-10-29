@@ -1,25 +1,33 @@
 <script lang="ts" setup>
 /**
  * Settings page component for the Link Radar browser extension.
- * Provides UI for configuring the API key with validation, secure storage,
- * and auto-dismissing notifications.
+ * Provides UI for configuring environment profiles (each with URL + API key),
+ * auto-close delay, and developer mode settings.
  *
  * @component
  */
-import type { BackendEnvironment } from "../../lib/settings"
+import type { BackendEnvironment, EnvironmentProfiles } from "../../lib/settings"
 import { Icon } from "@iconify/vue"
 import { computed, onMounted, ref } from "vue"
-import { BACKEND_URL, DEFAULT_AUTO_CLOSE_DELAY, getApiKey, getAutoCloseDelay, getBackendEnvironment, getCustomBackendUrl, getDeveloperMode, LOCAL_DEV_BACKEND_URL, setApiKey, setAutoCloseDelay, setBackendEnvironment, setCustomBackendUrl, setDeveloperMode } from "../../lib/settings"
-import EnvironmentLabel from "../popup/components/EnvironmentLabel.vue"
+import { DEFAULT_AUTO_CLOSE_DELAY, getAutoCloseDelay, getBackendEnvironment, getDeveloperMode, getProfiles, setAutoCloseDelay, setBackendEnvironment, setDeveloperMode, setProfileApiKey, setProfileUrl } from "../../lib/settings"
+import BackendEnvironmentConfig from "./components/BackendEnvironmentConfig.vue"
 
 /** Duration in milliseconds for notification messages to display before auto-dismissal */
 const MESSAGE_TIMEOUT_MS = 3000
 
-/** Reactive reference to the API key input value */
-const apiKey = ref("")
+/** Environment profiles state */
+const profiles = ref<EnvironmentProfiles>({
+  production: { url: "", apiKey: "" },
+  local: { url: "", apiKey: "" },
+  custom: { url: "", apiKey: "" },
+})
 
-/** Whether the API key should be displayed as plain text (true) or masked (false) */
-const showApiKey = ref(false)
+/** Whether API keys should be displayed as plain text (true) or masked (false) */
+const showApiKeys = ref({
+  production: false,
+  local: false,
+  custom: false,
+})
 
 /** Auto-close delay in milliseconds for the popup after successful operations */
 const autoCloseDelay = ref(DEFAULT_AUTO_CLOSE_DELAY)
@@ -28,10 +36,7 @@ const autoCloseDelay = ref(DEFAULT_AUTO_CLOSE_DELAY)
 const developerMode = ref(false)
 
 /** Backend environment selection */
-const backendEnvironment = ref<BackendEnvironment>("production")
-
-/** Custom backend URL (when environment is "custom") */
-const customBackendUrl = ref("")
+const backendEnvironment = ref<BackendEnvironment>("local")
 
 /** Current notification message to display (null if no message) */
 const message = ref<{ text: string, type: "success" | "error" } | null>(null)
@@ -45,16 +50,15 @@ const delayLabel = computed(() => {
 })
 
 /**
- * Loads saved API key, auto-close delay, developer mode, and backend environment from browser storage.
+ * Loads saved profiles, auto-close delay, developer mode, and backend environment from browser storage.
  * Called automatically on component mount.
  */
 async function loadSettings() {
   try {
-    apiKey.value = (await getApiKey()) || ""
+    profiles.value = await getProfiles()
     autoCloseDelay.value = await getAutoCloseDelay()
     developerMode.value = await getDeveloperMode()
     backendEnvironment.value = await getBackendEnvironment()
-    customBackendUrl.value = await getCustomBackendUrl()
   }
   catch (error) {
     console.error("Error loading settings:", error)
@@ -63,28 +67,35 @@ async function loadSettings() {
 }
 
 /**
- * Saves all settings (API key, auto-close delay, developer mode, backend environment) to browser storage.
- * Validates that the key is not empty before saving.
+ * Saves all settings to browser storage.
  */
 async function saveSettings() {
-  if (!apiKey.value.trim()) {
-    showError("Please enter an API key")
+  // Validate current environment profile
+  const currentProfile = profiles.value[backendEnvironment.value]
+
+  if (!currentProfile.apiKey.trim()) {
+    showError(`Please enter an API key for ${backendEnvironment.value} environment`)
     return
   }
 
-  // Validate custom URL if custom environment is selected
-  if (backendEnvironment.value === "custom" && !customBackendUrl.value.trim()) {
+  if (backendEnvironment.value === "custom" && !currentProfile.url.trim()) {
     showError("Please enter a custom backend URL")
     return
   }
 
   isSaving.value = true
   try {
-    await setApiKey(apiKey.value.trim())
+    // Save all profile configurations
+    await setProfileApiKey("production", profiles.value.production.apiKey)
+    await setProfileApiKey("local", profiles.value.local.apiKey)
+    await setProfileApiKey("custom", profiles.value.custom.apiKey)
+    await setProfileUrl("custom", profiles.value.custom.url)
+
+    // Save other settings
     await setAutoCloseDelay(autoCloseDelay.value)
     await setDeveloperMode(developerMode.value)
     await setBackendEnvironment(backendEnvironment.value)
-    await setCustomBackendUrl(customBackendUrl.value.trim())
+
     showSuccess("Settings saved successfully!")
   }
   catch (error) {
@@ -97,10 +108,10 @@ async function saveSettings() {
 }
 
 /**
- * Toggles the visibility of the API key input field.
+ * Toggles the visibility of the API key input field for a specific environment.
  */
-function toggleShowApiKey() {
-  showApiKey.value = !showApiKey.value
+function toggleShowApiKey(environment: BackendEnvironment) {
+  showApiKeys.value[environment] = !showApiKeys.value[environment]
 }
 
 /**
@@ -172,36 +183,38 @@ onMounted(() => {
     </div>
 
     <div class="flex flex-col gap-6">
+      <!-- Production API Key Section -->
       <div class="bg-white rounded-lg p-6 shadow-sm">
         <h2 class="m-0 mb-4 text-xl text-gray-900">
           API Configuration
         </h2>
         <p class="m-0 mb-5 text-sm text-gray-600 leading-normal">
-          Enter your Link Radar API key to enable link saving. You can find this in your backend configuration.
+          Enter your production API key to enable link saving. This is used when connecting to your production backend.
         </p>
 
         <div class="mb-5">
-          <label for="api-key" class="block text-sm font-medium text-gray-800 mb-2">API Key</label>
+          <label for="production-api-key" class="block text-sm font-medium text-gray-800 mb-2">Production API Key</label>
           <div class="flex gap-2 items-stretch">
             <input
-              id="api-key"
-              v-model="apiKey"
-              :type="showApiKey ? 'text' : 'password'"
-              placeholder="Enter your API key"
+              id="production-api-key"
+              v-model="profiles.production.apiKey"
+              :type="showApiKeys.production ? 'text' : 'password'"
+              placeholder="Enter your production API key"
               class="flex-1 px-3 py-2.5 border border-gray-300 rounded-md text-sm font-mono transition-colors focus:outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-200"
             >
             <button
               type="button"
               class="px-3 border border-gray-300 rounded-md bg-white cursor-pointer text-lg transition-colors hover:bg-gray-50 flex items-center justify-center"
-              :title="showApiKey ? 'Hide API key' : 'Show API key'"
-              @click="toggleShowApiKey"
+              :title="showApiKeys.production ? 'Hide API key' : 'Show API key'"
+              @click="toggleShowApiKey('production')"
             >
-              <Icon :icon="showApiKey ? 'material-symbols:visibility-off' : 'material-symbols:visibility'" class="w-5 h-5" />
+              <Icon :icon="showApiKeys.production ? 'material-symbols:visibility-off' : 'material-symbols:visibility'" class="w-5 h-5" />
             </button>
           </div>
         </div>
       </div>
 
+      <!-- Popup Behavior Section -->
       <div class="bg-white rounded-lg p-6 shadow-sm">
         <h3 class="m-0 mb-4 text-xl text-gray-900">
           Popup Behavior
@@ -252,99 +265,15 @@ onMounted(() => {
       </button>
     </div>
 
-    <!-- Developer Information (only visible in developer mode) -->
+    <!-- Backend Environment Configuration (only visible in developer mode) -->
     <div v-if="developerMode" class="mt-8 pt-8 border-t border-gray-200">
-      <div class="bg-brand-50 border border-brand-200 rounded-lg p-6">
-        <div class="flex items-start gap-3">
-          <div class="text-2xl">
-            <Icon icon="material-symbols:info" class="w-6 h-6 text-brand-600" />
-          </div>
-          <div class="flex-1">
-            <h3 class="m-0 mb-4 text-lg font-semibold text-brand-900">
-              Backend Environment
-            </h3>
-
-            <!-- Environment Selection -->
-            <div class="mb-4">
-              <label class="block text-sm font-medium text-brand-900 mb-3">
-                Select Backend Environment:
-              </label>
-              <div class="space-y-3">
-                <!-- Production -->
-                <label class="flex items-start gap-3 cursor-pointer group">
-                  <input
-                    v-model="backendEnvironment"
-                    type="radio"
-                    value="production"
-                    class="mt-1 w-4 h-4 accent-brand-600 cursor-pointer"
-                  >
-                  <div class="flex-1">
-                    <div class="font-medium text-brand-900 group-hover:text-brand-700">
-                      <EnvironmentLabel environment="production" />
-                    </div>
-                    <div class="text-xs text-brand-700 mt-0.5">
-                      {{ BACKEND_URL }}
-                    </div>
-                  </div>
-                </label>
-
-                <!-- Local Development -->
-                <label class="flex items-start gap-3 cursor-pointer group">
-                  <input
-                    v-model="backendEnvironment"
-                    type="radio"
-                    value="local"
-                    class="mt-1 w-4 h-4 accent-brand-600 cursor-pointer"
-                  >
-                  <div class="flex-1">
-                    <div class="font-medium text-brand-900 group-hover:text-brand-700">
-                      <EnvironmentLabel environment="local" />
-                    </div>
-                    <div class="text-xs text-brand-700 mt-0.5">
-                      {{ LOCAL_DEV_BACKEND_URL }}
-                    </div>
-                  </div>
-                </label>
-
-                <!-- Custom -->
-                <label class="flex items-start gap-3 cursor-pointer group">
-                  <input
-                    v-model="backendEnvironment"
-                    type="radio"
-                    value="custom"
-                    class="mt-1 w-4 h-4 accent-brand-600 cursor-pointer"
-                  >
-                  <div class="flex-1">
-                    <div class="font-medium text-brand-900 group-hover:text-brand-700">
-                      <EnvironmentLabel environment="custom" />
-                    </div>
-                    <div class="text-xs text-brand-700 mt-0.5">
-                      Specify your own backend URL (e.g., staging environment)
-                    </div>
-                  </div>
-                </label>
-
-                <!-- Custom URL Input -->
-                <div v-if="backendEnvironment === 'custom'" class="ml-7 mt-2">
-                  <input
-                    v-model="customBackendUrl"
-                    type="url"
-                    placeholder="https://api.example.com/api/v1"
-                    class="w-full px-3 py-2 border border-brand-300 bg-white rounded-md text-sm font-mono transition-colors focus:outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-200"
-                  >
-                </div>
-              </div>
-            </div>
-
-            <div class="pt-4 mt-4 border-t border-brand-300">
-              <p class="m-0 text-xs text-brand-700 italic">
-                <strong>Note:</strong> Remember to save your settings after changing the backend environment.
-                The popup will show which backend you're currently connected to.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <BackendEnvironmentConfig
+        v-model="backendEnvironment"
+        :profiles="profiles"
+        :show-api-keys="showApiKeys"
+        @update:profiles="profiles = $event"
+        @toggle-api-key="toggleShowApiKey"
+      />
     </div>
 
     <div v-if="message" class="fixed top-6 right-6 px-4 py-3 rounded-md text-sm font-medium z-1000 shadow-md" :class="message.type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-red-100 text-red-800 border border-red-200'">

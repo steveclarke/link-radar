@@ -6,7 +6,7 @@ import type {
   TagsApiResponse,
   UpdateLinkParams,
 } from "./types"
-import { getActiveBackendUrl, getApiKey } from "./settings"
+import { getActiveProfile } from "./settings"
 
 /**
  * Internal authenticated fetch wrapper
@@ -19,14 +19,13 @@ import { getActiveBackendUrl, getApiKey } from "./settings"
  *                  This ensures type safety and matches the native fetch() API signature.
  */
 async function authenticatedFetch(path: string, options: RequestInit = {}): Promise<any> {
-  const apiKey = await getApiKey()
-  const backendUrl = await getActiveBackendUrl()
+  const profile = await getActiveProfile()
 
-  const response = await fetch(`${backendUrl}${path}`, {
+  const response = await fetch(`${profile.url}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`,
+      "Authorization": `Bearer ${profile.apiKey}`,
       ...options.headers,
     },
   })

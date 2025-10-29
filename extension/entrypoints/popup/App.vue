@@ -3,7 +3,7 @@ import type { LinkParams } from "../../lib/types"
 import { Icon } from "@iconify/vue"
 import { useClipboard, useTimeoutFn } from "@vueuse/core"
 import { onMounted, ref } from "vue"
-import { getApiKey, getAutoCloseDelay } from "../../lib/settings"
+import { getActiveProfile, getAutoCloseDelay } from "../../lib/settings"
 import EnvironmentBadge from "./components/EnvironmentBadge.vue"
 import LinkActions from "./components/LinkActions.vue"
 import TagInput from "./components/TagInput.vue"
@@ -25,8 +25,8 @@ const autoCloseDelay = ref(500)
 
 // Initialize on mount
 onMounted(async () => {
-  const key = await getApiKey()
-  apiKeyConfigured.value = !!key
+  const profile = await getActiveProfile()
+  apiKeyConfigured.value = !!profile.apiKey
   autoCloseDelay.value = await getAutoCloseDelay()
   const currentTab = await loadCurrentTab()
 
