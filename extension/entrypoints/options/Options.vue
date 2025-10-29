@@ -22,6 +22,7 @@ const {
   developerMode,
   backendEnvironment,
   isSaving,
+  isLoading,
   // Methods
   loadSettings,
   saveSettings,
@@ -32,35 +33,45 @@ onMounted(loadSettings)
 
 <template>
   <div class="max-w-5xl mx-auto p-6 font-sans">
-    <SettingsHeader v-model="developerMode" />
-
-    <div class="flex flex-col gap-6">
-      <ApiConfigSection
-        v-model="profiles.production.apiKey"
-        v-model:show-api-key="showApiKeys.production"
-      />
-
-      <PopupBehaviorSection v-model="autoCloseDelay" />
+    <!-- Loading state -->
+    <div v-if="isLoading" class="text-center py-12">
+      <p class="text-slate-600 text-lg">
+        Loading settings...
+      </p>
     </div>
 
-    <!-- Global Save Button -->
-    <div class="mt-8 flex justify-end">
-      <button
-        :disabled="isSaving"
-        class="px-8 py-3 border-none rounded-md text-base font-medium bg-brand-600 text-white cursor-pointer transition-colors hover:bg-brand-700 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
-        @click="saveSettings"
-      >
-        {{ isSaving ? 'Saving...' : 'Save All Settings' }}
-      </button>
-    </div>
+    <!-- Content only shows after loading -->
+    <div v-else>
+      <SettingsHeader v-model="developerMode" />
 
-    <!-- Backend Environment Configuration (only visible in developer mode) -->
-    <div v-if="developerMode" class="mt-8 pt-8 border-t border-slate-200">
-      <BackendEnvironmentConfig
-        v-model="backendEnvironment"
-        v-model:profiles="profiles"
-        v-model:show-api-keys="showApiKeys"
-      />
+      <div class="flex flex-col gap-6">
+        <ApiConfigSection
+          v-model="profiles.production.apiKey"
+          v-model:show-api-key="showApiKeys.production"
+        />
+
+        <PopupBehaviorSection v-model="autoCloseDelay" />
+      </div>
+
+      <!-- Global Save Button -->
+      <div class="mt-8 flex justify-end">
+        <button
+          :disabled="isSaving"
+          class="px-8 py-3 border-none rounded-md text-base font-medium bg-brand-600 text-white cursor-pointer transition-colors hover:bg-brand-700 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
+          @click="saveSettings"
+        >
+          {{ isSaving ? 'Saving...' : 'Save All Settings' }}
+        </button>
+      </div>
+
+      <!-- Backend Environment Configuration (only visible in developer mode) -->
+      <div v-if="developerMode" class="mt-8 pt-8 border-t border-slate-200">
+        <BackendEnvironmentConfig
+          v-model="backendEnvironment"
+          v-model:profiles="profiles"
+          v-model:show-api-keys="showApiKeys"
+        />
+      </div>
     </div>
 
     <NotificationToast />

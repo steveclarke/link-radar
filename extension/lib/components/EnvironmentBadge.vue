@@ -2,7 +2,7 @@
 import type { BackendEnvironment } from "../settings"
 import { computed, onMounted, onUnmounted, ref } from "vue"
 import { getEnvironmentConfig } from "../../entrypoints/popup/composables/useEnvironmentConfig"
-import { getActiveBackendUrl, getBackendEnvironment, STORAGE_KEYS } from "../settings"
+import { getActiveBackendUrl, getBackendEnvironment, SENSITIVE_STORAGE_KEYS, SYNC_STORAGE_KEYS } from "../settings"
 import EnvironmentIcon from "./EnvironmentIcon.vue"
 
 // Props
@@ -34,7 +34,7 @@ async function loadEnvironment() {
 function handleStorageChange(changes: Record<string, chrome.storage.StorageChange>) {
   // Check if backend environment or environment profiles changed
   // Environment profiles contain the custom URL
-  if (changes[STORAGE_KEYS.BACKEND_ENVIRONMENT] || changes[STORAGE_KEYS.ENVIRONMENT_PROFILES]) {
+  if (changes[SYNC_STORAGE_KEYS.BACKEND_ENVIRONMENT] || changes[SENSITIVE_STORAGE_KEYS.ENVIRONMENT_PROFILES]) {
     loadEnvironment()
   }
 }
@@ -43,13 +43,15 @@ function handleStorageChange(changes: Record<string, chrome.storage.StorageChang
 onMounted(() => {
   loadEnvironment()
   // Listen for storage changes to keep badge reactive
-  // Settings are stored in sync storage, so we need to listen there
+  // Backend environment is in sync storage, profiles are in local storage
   browser.storage.sync.onChanged.addListener(handleStorageChange)
+  browser.storage.local.onChanged.addListener(handleStorageChange)
 })
 
 // Clean up listener on unmount
 onUnmounted(() => {
   browser.storage.sync.onChanged.removeListener(handleStorageChange)
+  browser.storage.local.onChanged.removeListener(handleStorageChange)
 })
 </script>
 

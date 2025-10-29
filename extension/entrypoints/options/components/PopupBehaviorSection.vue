@@ -8,6 +8,7 @@
  */
 
 import { computed } from "vue"
+import { MAX_AUTO_CLOSE_DELAY } from "../../../lib/settings"
 
 /**
  * v-model for the auto-close delay in milliseconds
@@ -42,7 +43,7 @@ const delayLabel = computed(() => {
           v-model.number="autoCloseDelay"
           type="range"
           min="0"
-          max="2000"
+          :max="MAX_AUTO_CLOSE_DELAY"
           step="500"
           class="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-brand-600"
         >
@@ -50,13 +51,13 @@ const delayLabel = computed(() => {
           v-model.number="autoCloseDelay"
           type="number"
           min="0"
-          max="2000"
+          :max="MAX_AUTO_CLOSE_DELAY"
           placeholder="ms"
           class="w-24 px-3 py-2 border border-slate-300 rounded-md text-sm text-right transition-colors focus:outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-200"
         >
       </div>
       <p class="mt-2 text-xs text-slate-500">
-        Recommended values: 0 (disabled), 500ms (quick), 1000ms (medium), 1500ms (slower), 2000ms (slowest)
+        Recommended values: 0 (disabled), 500ms (quick), 1000ms (medium), 1500ms (slower), {{ MAX_AUTO_CLOSE_DELAY }}ms (slowest)
       </p>
     </div>
   </div>

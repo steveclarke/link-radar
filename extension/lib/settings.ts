@@ -38,13 +38,27 @@ export interface EnvironmentProfiles {
 export const DEFAULT_AUTO_CLOSE_DELAY = 500
 
 /**
- * Browser storage keys for persisting user settings
+ * Maximum allowed auto-close delay in milliseconds.
+ * Prevents users from setting unreasonably long delays.
  */
-export const STORAGE_KEYS = {
+export const MAX_AUTO_CLOSE_DELAY = 2000
+
+/**
+ * Browser storage keys for sensitive data (stored locally, never synced).
+ * API keys and credentials should never sync across devices for security.
+ */
+export const SENSITIVE_STORAGE_KEYS = {
+  /** Environment profiles (contains API keys - stored locally only) */
+  ENVIRONMENT_PROFILES: "linkradar_environment_profiles",
+} as const
+
+/**
+ * Browser storage keys for non-sensitive settings (synced across browsers).
+ * User preferences that are safe to sync for convenience.
+ */
+export const SYNC_STORAGE_KEYS = {
   /** Current active environment */
   BACKEND_ENVIRONMENT: "linkradar_backend_environment",
-  /** Environment profiles (all URLs and API keys) */
-  ENVIRONMENT_PROFILES: "linkradar_environment_profiles",
   /** Auto-close delay setting */
   AUTO_CLOSE_DELAY: "linkradar_auto_close_delay",
   /** Developer mode toggle */
@@ -95,8 +109,8 @@ export function initializeProfiles(): EnvironmentProfiles {
  * Initializes with defaults on first run.
  */
 export async function getProfiles(): Promise<EnvironmentProfiles> {
-  const result = await browser.storage.sync.get(STORAGE_KEYS.ENVIRONMENT_PROFILES)
-  const profiles = result[STORAGE_KEYS.ENVIRONMENT_PROFILES] as EnvironmentProfiles | undefined
+  const result = await browser.storage.local.get(SENSITIVE_STORAGE_KEYS.ENVIRONMENT_PROFILES)
+  const profiles = result[SENSITIVE_STORAGE_KEYS.ENVIRONMENT_PROFILES] as EnvironmentProfiles | undefined
 
   if (!profiles) {
     // First run - initialize with defaults
@@ -112,7 +126,7 @@ export async function getProfiles(): Promise<EnvironmentProfiles> {
  * Save all environment profiles to storage.
  */
 export async function setProfiles(profiles: EnvironmentProfiles): Promise<void> {
-  await browser.storage.sync.set({ [STORAGE_KEYS.ENVIRONMENT_PROFILES]: profiles })
+  await browser.storage.local.set({ [SENSITIVE_STORAGE_KEYS.ENVIRONMENT_PROFILES]: profiles })
 }
 
 /**
@@ -155,8 +169,8 @@ export async function setProfileUrl(environment: BackendEnvironment, url: string
  * Returns "local" when not configured (default for development).
  */
 export async function getBackendEnvironment(): Promise<BackendEnvironment> {
-  const result = await browser.storage.sync.get(STORAGE_KEYS.BACKEND_ENVIRONMENT)
-  return (result[STORAGE_KEYS.BACKEND_ENVIRONMENT] as BackendEnvironment) ?? "local"
+  const result = await browser.storage.sync.get(SYNC_STORAGE_KEYS.BACKEND_ENVIRONMENT)
+  return (result[SYNC_STORAGE_KEYS.BACKEND_ENVIRONMENT] as BackendEnvironment) ?? "local"
 }
 
 /**
@@ -164,7 +178,7 @@ export async function getBackendEnvironment(): Promise<BackendEnvironment> {
  * @param environment - The backend environment to use
  */
 export async function setBackendEnvironment(environment: BackendEnvironment): Promise<void> {
-  await browser.storage.sync.set({ [STORAGE_KEYS.BACKEND_ENVIRONMENT]: environment })
+  await browser.storage.sync.set({ [SYNC_STORAGE_KEYS.BACKEND_ENVIRONMENT]: environment })
 }
 
 /**
@@ -180,8 +194,8 @@ export async function getActiveBackendUrl(): Promise<string> {
  * Returns the default value (500ms) when not configured.
  */
 export async function getAutoCloseDelay(): Promise<number> {
-  const result = await browser.storage.sync.get(STORAGE_KEYS.AUTO_CLOSE_DELAY)
-  return result[STORAGE_KEYS.AUTO_CLOSE_DELAY] ?? DEFAULT_AUTO_CLOSE_DELAY
+  const result = await browser.storage.sync.get(SYNC_STORAGE_KEYS.AUTO_CLOSE_DELAY)
+  return result[SYNC_STORAGE_KEYS.AUTO_CLOSE_DELAY] ?? DEFAULT_AUTO_CLOSE_DELAY
 }
 
 /**
@@ -189,7 +203,7 @@ export async function getAutoCloseDelay(): Promise<number> {
  * @param delay - Delay in milliseconds (0 = disabled)
  */
 export async function setAutoCloseDelay(delay: number): Promise<void> {
-  await browser.storage.sync.set({ [STORAGE_KEYS.AUTO_CLOSE_DELAY]: delay })
+  await browser.storage.sync.set({ [SYNC_STORAGE_KEYS.AUTO_CLOSE_DELAY]: delay })
 }
 
 /**
@@ -197,8 +211,8 @@ export async function setAutoCloseDelay(delay: number): Promise<void> {
  * Returns false when not configured (disabled by default).
  */
 export async function getDeveloperMode(): Promise<boolean> {
-  const result = await browser.storage.sync.get(STORAGE_KEYS.DEVELOPER_MODE)
-  return result[STORAGE_KEYS.DEVELOPER_MODE] ?? false
+  const result = await browser.storage.sync.get(SYNC_STORAGE_KEYS.DEVELOPER_MODE)
+  return result[SYNC_STORAGE_KEYS.DEVELOPER_MODE] ?? false
 }
 
 /**
@@ -206,5 +220,5 @@ export async function getDeveloperMode(): Promise<boolean> {
  * @param enabled - Whether developer mode is enabled
  */
 export async function setDeveloperMode(enabled: boolean): Promise<void> {
-  await browser.storage.sync.set({ [STORAGE_KEYS.DEVELOPER_MODE]: enabled })
+  await browser.storage.sync.set({ [SYNC_STORAGE_KEYS.DEVELOPER_MODE]: enabled })
 }
