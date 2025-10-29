@@ -1,8 +1,8 @@
 <script lang="ts" setup>
 import type { BackendEnvironment } from "../settings"
 import { computed, onMounted, onUnmounted, ref } from "vue"
-import { getActiveBackendUrl, getBackendEnvironment, STORAGE_KEYS } from "../settings"
 import { getEnvironmentConfig } from "../../entrypoints/popup/composables/useEnvironmentConfig"
+import { getActiveBackendUrl, getBackendEnvironment, STORAGE_KEYS } from "../settings"
 import EnvironmentIcon from "./EnvironmentIcon.vue"
 
 // Props
@@ -68,4 +68,3 @@ onUnmounted(() => {
     {{ environmentBadge.label }}
   </div>
 </template>
-

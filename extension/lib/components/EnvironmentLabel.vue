@@ -26,4 +26,3 @@ const config = computed(() => getEnvironmentConfig(props.environment))
     {{ config.label }}
   </div>
 </template>
-

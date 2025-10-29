@@ -31,4 +31,3 @@ const config = computed(() => getEnvironmentConfig(props.environment))
     :class="size"
   />
 </template>
-
