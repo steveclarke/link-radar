@@ -3,6 +3,7 @@ import type { LinkParams } from "../../lib/types"
 import { useClipboard, useTimeoutFn } from "@vueuse/core"
 import { onMounted, ref } from "vue"
 import { getApiKey, getAutoCloseDelay } from "../../lib/settings"
+import EnvironmentBadge from "./components/EnvironmentBadge.vue"
 import LinkActions from "./components/LinkActions.vue"
 import TagInput from "./components/TagInput.vue"
 import { useCurrentTab } from "./composables/useCurrentTab"
@@ -137,9 +138,12 @@ function openSettings() {
 <template>
   <div class="flex flex-col gap-4 p-4 box-border">
     <div class="flex items-center justify-between gap-3">
-      <h1 class="m-0 text-2xl text-gray-900">
-        Link Radar
-      </h1>
+      <div class="flex items-center gap-2">
+        <h1 class="m-0 text-2xl text-gray-900">
+          Link Radar
+        </h1>
+        <EnvironmentBadge />
+      </div>
       <button class="px-2.5 py-1.5 border-none rounded-md bg-gray-100 cursor-pointer text-lg transition-colors duration-200 leading-none hover:bg-gray-200" title="Settings" @click="openSettings">
         ⚙️
       </button>

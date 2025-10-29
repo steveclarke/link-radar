@@ -6,11 +6,12 @@ import type {
   TagsApiResponse,
   UpdateLinkParams,
 } from "./types"
-import { BACKEND_URL, getApiKey } from "./settings"
+import { getActiveBackendUrl, getApiKey } from "./settings"
 
 /**
  * Internal authenticated fetch wrapper
  * Automatically adds auth header and handles common errors
+ * Dynamically uses the configured backend URL based on environment settings
  *
  * @param path - API endpoint path (e.g., '/links', '/tags')
  * @param options - RequestInit is the built-in TypeScript type for fetch() options.
@@ -19,8 +20,9 @@ import { BACKEND_URL, getApiKey } from "./settings"
  */
 async function authenticatedFetch(path: string, options: RequestInit = {}): Promise<any> {
   const apiKey = await getApiKey()
+  const backendUrl = await getActiveBackendUrl()
 
-  const response = await fetch(`${BACKEND_URL}${path}`, {
+  const response = await fetch(`${backendUrl}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",

@@ -6,8 +6,9 @@
  *
  * @component
  */
+import type { BackendEnvironment } from "../../lib/settings"
 import { computed, onMounted, ref } from "vue"
-import { DEFAULT_AUTO_CLOSE_DELAY, getApiKey, getAutoCloseDelay, getDeveloperMode, setApiKey, setAutoCloseDelay, setDeveloperMode } from "../../lib/settings"
+import { BACKEND_URL, DEFAULT_AUTO_CLOSE_DELAY, getApiKey, getAutoCloseDelay, getBackendEnvironment, getCustomBackendUrl, getDeveloperMode, LOCAL_DEV_BACKEND_URL, setApiKey, setAutoCloseDelay, setBackendEnvironment, setCustomBackendUrl, setDeveloperMode } from "../../lib/settings"
 
 /** Duration in milliseconds for notification messages to display before auto-dismissal */
 const MESSAGE_TIMEOUT_MS = 3000
@@ -24,6 +25,12 @@ const autoCloseDelay = ref(DEFAULT_AUTO_CLOSE_DELAY)
 /** Whether developer mode is enabled (shows backend configuration) */
 const developerMode = ref(false)
 
+/** Backend environment selection */
+const backendEnvironment = ref<BackendEnvironment>("production")
+
+/** Custom backend URL (when environment is "custom") */
+const customBackendUrl = ref("")
+
 /** Current notification message to display (null if no message) */
 const message = ref<{ text: string, type: "success" | "error" } | null>(null)
 
@@ -36,7 +43,7 @@ const delayLabel = computed(() => {
 })
 
 /**
- * Loads saved API key, auto-close delay, and developer mode from browser storage.
+ * Loads saved API key, auto-close delay, developer mode, and backend environment from browser storage.
  * Called automatically on component mount.
  */
 async function loadSettings() {
@@ -44,6 +51,8 @@ async function loadSettings() {
     apiKey.value = (await getApiKey()) || ""
     autoCloseDelay.value = await getAutoCloseDelay()
     developerMode.value = await getDeveloperMode()
+    backendEnvironment.value = await getBackendEnvironment()
+    customBackendUrl.value = await getCustomBackendUrl()
   }
   catch (error) {
     console.error("Error loading settings:", error)
@@ -52,7 +61,7 @@ async function loadSettings() {
 }
 
 /**
- * Saves all settings (API key, auto-close delay, developer mode) to browser storage.
+ * Saves all settings (API key, auto-close delay, developer mode, backend environment) to browser storage.
  * Validates that the key is not empty before saving.
  */
 async function saveSettings() {
@@ -61,11 +70,19 @@ async function saveSettings() {
     return
   }
 
+  // Validate custom URL if custom environment is selected
+  if (backendEnvironment.value === "custom" && !customBackendUrl.value.trim()) {
+    showError("Please enter a custom backend URL")
+    return
+  }
+
   isSaving.value = true
   try {
     await setApiKey(apiKey.value.trim())
     await setAutoCloseDelay(autoCloseDelay.value)
     await setDeveloperMode(developerMode.value)
+    await setBackendEnvironment(backendEnvironment.value)
+    await setCustomBackendUrl(customBackendUrl.value.trim())
     showSuccess("Settings saved successfully!")
   }
   catch (error) {
@@ -241,18 +258,88 @@ onMounted(() => {
             ℹ️
           </div>
           <div class="flex-1">
-            <h3 class="m-0 mb-3 text-lg font-semibold text-blue-900">
-              Backend Setup Information
+            <h3 class="m-0 mb-4 text-lg font-semibold text-blue-900">
+              Backend Environment
             </h3>
-            <p class="m-0 mb-3 text-sm text-blue-800 leading-relaxed">
-              To use Link Radar, you need to have the backend API running.
-              By default, the extension expects the API to be available at:
-            </p>
-            <code class="block p-3 bg-white border border-blue-300 rounded font-mono text-[13px] text-blue-900 my-3">http://localhost:3000/api/v1/links</code>
-            <p class="m-0 text-xs text-blue-700 italic">
-              For production use, the backend URL can be configured at build time
-              using the <code class="px-1.5 py-0.5 bg-white border border-blue-300 rounded-sm font-mono text-xs">VITE_BACKEND_URL</code> environment variable.
-            </p>
+
+            <!-- Environment Selection -->
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-blue-900 mb-3">
+                Select Backend Environment:
+              </label>
+              <div class="space-y-3">
+                <!-- Production -->
+                <label class="flex items-start gap-3 cursor-pointer group">
+                  <input
+                    v-model="backendEnvironment"
+                    type="radio"
+                    value="production"
+                    class="mt-1 w-4 h-4 accent-blue-600 cursor-pointer"
+                  >
+                  <div class="flex-1">
+                    <div class="font-medium text-blue-900 group-hover:text-blue-700">
+                      🟢 Production
+                    </div>
+                    <div class="text-xs text-blue-700 mt-0.5">
+                      {{ BACKEND_URL }}
+                    </div>
+                  </div>
+                </label>
+
+                <!-- Local Development -->
+                <label class="flex items-start gap-3 cursor-pointer group">
+                  <input
+                    v-model="backendEnvironment"
+                    type="radio"
+                    value="local"
+                    class="mt-1 w-4 h-4 accent-blue-600 cursor-pointer"
+                  >
+                  <div class="flex-1">
+                    <div class="font-medium text-blue-900 group-hover:text-blue-700">
+                      🟡 Local Development
+                    </div>
+                    <div class="text-xs text-blue-700 mt-0.5">
+                      {{ LOCAL_DEV_BACKEND_URL }}
+                    </div>
+                  </div>
+                </label>
+
+                <!-- Custom -->
+                <label class="flex items-start gap-3 cursor-pointer group">
+                  <input
+                    v-model="backendEnvironment"
+                    type="radio"
+                    value="custom"
+                    class="mt-1 w-4 h-4 accent-blue-600 cursor-pointer"
+                  >
+                  <div class="flex-1">
+                    <div class="font-medium text-blue-900 group-hover:text-blue-700">
+                      🔵 Custom URL
+                    </div>
+                    <div class="text-xs text-blue-700 mt-0.5">
+                      Specify your own backend URL (e.g., staging environment)
+                    </div>
+                  </div>
+                </label>
+
+                <!-- Custom URL Input -->
+                <div v-if="backendEnvironment === 'custom'" class="ml-7 mt-2">
+                  <input
+                    v-model="customBackendUrl"
+                    type="url"
+                    placeholder="https://api.example.com/api/v1"
+                    class="w-full px-3 py-2 border border-blue-300 bg-white rounded-md text-sm font-mono transition-colors focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-200"
+                  >
+                </div>
+              </div>
+            </div>
+
+            <div class="pt-4 mt-4 border-t border-blue-300">
+              <p class="m-0 text-xs text-blue-700 italic">
+                <strong>Note:</strong> Remember to save your settings after changing the backend environment.
+                The popup will show which backend you're currently connected to.
+              </p>
+            </div>
           </div>
         </div>
       </div>

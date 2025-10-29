@@ -13,10 +13,20 @@
 export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000/api/v1"
 
 /**
+ * Local development backend URL
+ */
+export const LOCAL_DEV_BACKEND_URL = "http://localhost:3000/api/v1"
+
+/**
  * Default auto-close delay in milliseconds for the popup after successful operations.
  * 0 = disabled (popup stays open)
  */
 export const DEFAULT_AUTO_CLOSE_DELAY = 500
+
+/**
+ * Backend environment types
+ */
+export type BackendEnvironment = "production" | "local" | "custom"
 
 /**
  * Browser storage keys for persisting user settings
@@ -25,6 +35,8 @@ export const STORAGE_KEYS = {
   API_KEY: "linkradar_api_key",
   AUTO_CLOSE_DELAY: "linkradar_auto_close_delay",
   DEVELOPER_MODE: "linkradar_developer_mode",
+  BACKEND_ENVIRONMENT: "linkradar_backend_environment",
+  CUSTOM_BACKEND_URL: "linkradar_custom_backend_url",
 } as const
 
 /**
@@ -77,3 +89,56 @@ export async function setDeveloperMode(enabled: boolean): Promise<void> {
   await browser.storage.sync.set({ [STORAGE_KEYS.DEVELOPER_MODE]: enabled })
 }
 
+/**
+ * Read the backend environment setting from browser sync storage.
+ * Returns "production" when not configured (default).
+ */
+export async function getBackendEnvironment(): Promise<BackendEnvironment> {
+  const result = await browser.storage.sync.get(STORAGE_KEYS.BACKEND_ENVIRONMENT)
+  return (result[STORAGE_KEYS.BACKEND_ENVIRONMENT] as BackendEnvironment) ?? "production"
+}
+
+/**
+ * Persist the backend environment setting to browser sync storage.
+ * @param environment - The backend environment to use
+ */
+export async function setBackendEnvironment(environment: BackendEnvironment): Promise<void> {
+  await browser.storage.sync.set({ [STORAGE_KEYS.BACKEND_ENVIRONMENT]: environment })
+}
+
+/**
+ * Read the custom backend URL from browser sync storage.
+ * Returns empty string when not configured.
+ */
+export async function getCustomBackendUrl(): Promise<string> {
+  const result = await browser.storage.sync.get(STORAGE_KEYS.CUSTOM_BACKEND_URL)
+  return result[STORAGE_KEYS.CUSTOM_BACKEND_URL] ?? ""
+}
+
+/**
+ * Persist the custom backend URL to browser sync storage.
+ * @param url - The custom backend URL
+ */
+export async function setCustomBackendUrl(url: string): Promise<void> {
+  await browser.storage.sync.set({ [STORAGE_KEYS.CUSTOM_BACKEND_URL]: url })
+}
+
+/**
+ * Get the active backend URL based on the current environment setting.
+ * Returns the appropriate URL for production, local development, or custom environment.
+ */
+export async function getActiveBackendUrl(): Promise<string> {
+  const environment = await getBackendEnvironment()
+
+  switch (environment) {
+    case "local":
+      return LOCAL_DEV_BACKEND_URL
+    case "custom": {
+      const customUrl = await getCustomBackendUrl()
+      return customUrl || BACKEND_URL // Fallback to production if custom URL not set
+    }
+    case "production":
+    default:
+      return BACKEND_URL
+  }
+}
