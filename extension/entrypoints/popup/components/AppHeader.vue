@@ -5,7 +5,7 @@
  * @component
  */
 import { Icon } from "@iconify/vue"
-import EnvironmentBadge from "./EnvironmentBadge.vue"
+import EnvironmentBadge from "../../../lib/components/EnvironmentBadge.vue"
 
 /**
  * Component events

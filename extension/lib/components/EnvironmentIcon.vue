@@ -1,8 +1,8 @@
 <script lang="ts" setup>
-import type { BackendEnvironment } from "../../../lib/settings"
+import type { BackendEnvironment } from "../settings"
 import { Icon } from "@iconify/vue"
 import { computed } from "vue"
-import { getEnvironmentConfig } from "../composables/useEnvironmentConfig"
+import { getEnvironmentConfig } from "../../entrypoints/popup/composables/useEnvironmentConfig"
 
 /**
  * Reusable environment icon component that displays a colored circle
@@ -31,3 +31,4 @@ const config = computed(() => getEnvironmentConfig(props.environment))
     :class="size"
   />
 </template>
+

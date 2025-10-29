@@ -11,7 +11,7 @@ import { onClickOutside, useDebounceFn, useTimeoutFn } from "@vueuse/core"
 
 import { computed, ref, watch } from "vue"
 import { useTag } from "../composables/useTag"
-import TagSuggestionsDropdown from "./TagSuggestionsDropdown.vue"
+import TagSuggestions from "./TagSuggestions.vue"
 
 /** Array of tag names that are bound to the parent component */
 const tags = defineModel<string[]>({ default: () => [] })
@@ -318,8 +318,8 @@ function handleBlur() {
       >
     </div>
 
-    <!-- Suggestions Dropdown -->
-    <TagSuggestionsDropdown
+    <!-- Suggestions -->
+    <TagSuggestions
       :suggestions="filteredSuggestions"
       :selected-index="selectedIndex"
       :is-loading="isSearching"

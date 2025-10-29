@@ -6,7 +6,7 @@
  * @component
  */
 
-import EnvironmentBadge from "../../popup/components/EnvironmentBadge.vue"
+import EnvironmentBadge from "../../../lib/components/EnvironmentBadge.vue"
 
 /**
  * v-model for developer mode boolean state

@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 /**
- * Card component displaying current page information including favicon, title, and description.
+ * Component displaying current page information including favicon, title, and description.
  *
  * @component
  */

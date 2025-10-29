@@ -1,7 +1,7 @@
 <script lang="ts" setup>
-import type { BackendEnvironment } from "../../../lib/settings"
+import type { BackendEnvironment } from "../settings"
 import { computed } from "vue"
-import { getEnvironmentConfig } from "../composables/useEnvironmentConfig"
+import { getEnvironmentConfig } from "../../entrypoints/popup/composables/useEnvironmentConfig"
 import EnvironmentIcon from "./EnvironmentIcon.vue"
 
 /**
@@ -26,3 +26,4 @@ const config = computed(() => getEnvironmentConfig(props.environment))
     {{ config.label }}
   </div>
 </template>
+

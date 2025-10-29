@@ -5,7 +5,7 @@ import ApiKeyWarning from "./components/ApiKeyWarning.vue"
 import AppHeader from "./components/AppHeader.vue"
 import LinkActions from "./components/LinkActions.vue"
 import NotesInput from "./components/NotesInput.vue"
-import PageInfoCard from "./components/PageInfoCard.vue"
+import PageInfoDisplay from "./components/PageInfoDisplay.vue"
 import TagInput from "./components/TagInput.vue"
 import UrlInput from "./components/UrlInput.vue"
 import { useFormHandlers } from "./composables/useFormHandlers"
@@ -37,7 +37,7 @@ onMounted(initialize)
   <div class="flex flex-col gap-4 p-4 box-border">
     <AppHeader @open-settings="openSettings" />
     <ApiKeyWarning />
-    <PageInfoCard :tab-info="tabInfo" />
+    <PageInfoDisplay :tab-info="tabInfo" />
     <NotesInput v-model="notes" />
     <TagInput v-model="tagNames" />
     <UrlInput v-model="url" />

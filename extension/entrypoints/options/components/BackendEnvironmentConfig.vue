@@ -7,7 +7,7 @@
 import type { BackendEnvironment, EnvironmentProfiles } from "../../../lib/settings"
 import { Icon } from "@iconify/vue"
 import { BACKEND_URL, DEV_BACKEND_URL } from "../../../lib/settings"
-import EnvironmentLabel from "../../popup/components/EnvironmentLabel.vue"
+import EnvironmentLabel from "../../../lib/components/EnvironmentLabel.vue"
 
 /**
  * Component props

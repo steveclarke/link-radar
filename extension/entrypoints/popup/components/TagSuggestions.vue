@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 /**
- * Dropdown component for tag suggestions with keyboard navigation support.
+ * Component for tag suggestions with keyboard navigation support.
  * Shows existing tags with usage counts and provides option to create new tags.
  *
  * @component
@@ -11,7 +11,7 @@ import type { Tag } from "../../../lib/types"
  * Component props
  */
 defineProps<{
-  /** Array of tag suggestions to display in the dropdown */
+  /** Array of tag suggestions to display */
   suggestions: Tag[]
   /** Index of the currently selected/highlighted suggestion (for keyboard navigation) */
   selectedIndex: number
@@ -23,7 +23,7 @@ defineProps<{
   inputValue: string
   /** Whether an exact match exists in the suggestions list */
   hasExactMatch: boolean
-  /** Whether to show the dropdown (controls visibility) */
+  /** Whether to show the suggestions (controls visibility) */
   show: boolean
 }>()
 
