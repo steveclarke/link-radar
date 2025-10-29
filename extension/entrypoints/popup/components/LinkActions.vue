@@ -6,6 +6,7 @@
  *
  * @component
  */
+import { Icon } from "@iconify/vue"
 import { computed } from "vue"
 
 /**
@@ -96,40 +97,58 @@ function handleCopy() {
 </script>
 
 <template>
-  <div class="flex gap-2">
-    <template v-if="!isLinked">
+  <div class="flex justify-between items-center gap-3">
+    <!-- Primary Action Button (Left) -->
+    <button
+      v-if="!isLinked"
+      class="px-4 py-2 border-none rounded-md text-sm font-medium cursor-pointer transition-all duration-200 bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
+      type="button"
+      :disabled="isSaveDisabled"
+      @click="handleSave"
+    >
+      {{ isCheckingLink ? "Checking..." : "Save This Link" }}
+    </button>
+    <button
+      v-else
+      class="px-4 py-2 border-none rounded-md text-sm font-medium cursor-pointer transition-all duration-200 bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
+      type="button"
+      :disabled="isUpdateDisabled"
+      @click="handleUpdate"
+    >
+      {{ isUpdating ? "Updating..." : "Update" }}
+    </button>
+
+    <!-- Secondary Action Buttons (Right) -->
+    <div class="flex gap-2">
+      <!-- Delete button (only shown when linked) -->
       <button
-        class="flex-1 px-3 py-2 border-none rounded-md text-sm font-medium cursor-pointer transition-all duration-200 bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        v-if="isLinked"
+        class="w-9 h-9 p-0 border-none rounded-md cursor-pointer transition-all duration-200 bg-slate-200 hover:bg-slate-300 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center"
         type="button"
-        :disabled="isSaveDisabled"
-        @click="handleSave"
-      >
-        {{ isCheckingLink ? "Checking..." : "Save This Link" }}
-      </button>
-      <button class="flex-1 px-3 py-2 border-none rounded-md text-sm font-medium cursor-pointer transition-colors duration-200 bg-gray-600 text-white hover:bg-gray-700" type="button" @click="handleCopy">
-        Copy URL
-      </button>
-    </template>
-    <template v-else>
-      <button
-        class="flex-1 px-3 py-2 border-none rounded-md text-sm font-medium cursor-pointer transition-all duration-200 bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
-        type="button"
-        :disabled="isUpdateDisabled"
-        @click="handleUpdate"
-      >
-        {{ isUpdating ? "Updating..." : "Update" }}
-      </button>
-      <button
-        class="flex-1 px-3 py-2 border-none rounded-md text-sm font-medium cursor-pointer transition-all duration-200 bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-        type="button"
+        title="Delete link"
+        aria-label="Delete link"
         :disabled="isDeleteDisabled"
         @click="handleDelete"
       >
-        {{ isDeleting ? "Deleting..." : "Delete" }}
+        <Icon
+          icon="material-symbols:delete-outline"
+          class="w-5 h-5 text-slate-600"
+        />
       </button>
-      <button class="flex-1 px-3 py-2 border-none rounded-md text-sm font-medium cursor-pointer transition-colors duration-200 bg-gray-600 text-white hover:bg-gray-700" type="button" @click="handleCopy">
-        Copy URL
+
+      <!-- Copy URL button (always shown) -->
+      <button
+        class="w-9 h-9 p-0 border-none rounded-md cursor-pointer transition-all duration-200 bg-slate-200 hover:bg-slate-300 flex items-center justify-center"
+        type="button"
+        title="Copy URL to clipboard"
+        aria-label="Copy URL to clipboard"
+        @click="handleCopy"
+      >
+        <Icon
+          icon="material-symbols:content-copy"
+          class="w-5 h-5 text-slate-600"
+        />
       </button>
-    </template>
+    </div>
   </div>
 </template>

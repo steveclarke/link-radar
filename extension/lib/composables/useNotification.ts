@@ -2,9 +2,10 @@
  * @fileoverview Composable for managing user notifications and messages.
  * Provides reactive state and methods for displaying success and error messages
  * with automatic timeout-based dismissal.
+ * Uses shared state across all instances to ensure notifications are visible everywhere.
  */
 
-import type { MessageState } from "../../../lib/types"
+import type { MessageState } from "../types"
 import { ref } from "vue"
 
 /**
@@ -20,17 +21,24 @@ const ERROR_MESSAGE_TIMEOUT_MS = 15000
 const SUCCESS_MESSAGE_TIMEOUT_MS = 3000
 
 /**
+ * Shared message state across all composable instances.
+ * Defined outside the composable function to ensure all components see the same message.
+ */
+const message = ref<MessageState | null>(null)
+
+/**
+ * Shared timeout ID for auto-dismissal.
+ * Defined outside the composable function to manage timeouts globally.
+ */
+let timeoutId: ReturnType<typeof setTimeout> | null = null
+
+/**
  * Composable for managing user notifications with automatic timeout-based dismissal.
  * Error messages persist longer than success messages to ensure visibility.
  * Prevents message overlap by clearing existing timeouts when showing new messages.
+ * State is shared across all instances of this composable.
  */
 export function useNotification() {
-  /** Current message state (null if no message is displayed) */
-  const message = ref<MessageState | null>(null)
-
-  /** Timeout ID for auto-dismissal (null if no timeout is active) */
-  let timeoutId: ReturnType<typeof setTimeout> | null = null
-
   /**
    * Displays a message with the specified type and auto-dismissal.
    * Clears any existing message and timeout before showing the new message.

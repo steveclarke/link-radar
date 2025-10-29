@@ -279,10 +279,10 @@ function handleBlur() {
 
 <template>
   <div ref="dropdownRef" class="relative flex flex-col gap-1.5">
-    <label class="text-sm font-medium text-gray-800" for="tag-input">
+    <label class="text-sm font-medium text-slate-800" for="tag-input">
       Tags
     </label>
-    <div class="flex flex-wrap gap-2 p-2 border border-gray-300 rounded-md bg-white" role="list" aria-label="Selected tags">
+    <div class="flex flex-wrap gap-2 p-2 border border-slate-300 rounded-md bg-white" role="list" aria-label="Selected tags">
       <span
         v-for="tag in tags"
         :key="tag"
@@ -332,7 +332,7 @@ function handleBlur() {
       @update-selected-index="(idx) => selectedIndex = idx"
     />
 
-    <p class="m-0 text-xs text-gray-600">
+    <p class="m-0 text-xs text-slate-600">
       Separate tags with commas or Enter
     </p>
   </div>

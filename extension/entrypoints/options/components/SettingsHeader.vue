@@ -1,0 +1,49 @@
+<script lang="ts" setup>
+/**
+ * Settings page header component with title, environment badge, and developer mode toggle.
+ * Uses v-model for two-way binding of developer mode state.
+ *
+ * @component
+ */
+
+import EnvironmentBadge from "../../popup/components/EnvironmentBadge.vue"
+
+/**
+ * v-model for developer mode boolean state
+ */
+const developerMode = defineModel<boolean>({ default: false })
+</script>
+
+<template>
+  <div class="mb-8 flex items-start justify-between">
+    <div>
+      <div class="flex items-center gap-3 mb-2">
+        <h1 class="m-0 text-[32px] text-slate-900">
+          Link Radar Settings
+        </h1>
+        <EnvironmentBadge />
+      </div>
+      <p class="m-0 text-base text-slate-600">
+        Configure your Link Radar extension
+      </p>
+    </div>
+    <div class="flex items-center gap-3">
+      <span class="text-sm font-medium text-slate-700">
+        Developer Mode
+      </span>
+      <button
+        type="button"
+        class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-600 focus:ring-offset-2"
+        :class="developerMode ? 'bg-brand-600' : 'bg-slate-200'"
+        role="switch"
+        :aria-checked="developerMode"
+        @click="developerMode = !developerMode"
+      >
+        <span
+          class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+          :class="developerMode ? 'translate-x-5' : 'translate-x-0'"
+        />
+      </button>
+    </div>
+  </div>
+</template>

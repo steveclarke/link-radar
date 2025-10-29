@@ -6,49 +6,40 @@
  */
 import type { BackendEnvironment, EnvironmentProfiles } from "../../../lib/settings"
 import { Icon } from "@iconify/vue"
-import { computed } from "vue"
 import { BACKEND_URL, DEV_BACKEND_URL } from "../../../lib/settings"
 import EnvironmentLabel from "../../popup/components/EnvironmentLabel.vue"
 
-interface Props {
-  /** Current environment profiles */
-  profiles: EnvironmentProfiles
-  /** Currently selected backend environment */
-  modelValue: BackendEnvironment
+/**
+ * Component props
+ */
+defineProps<{
   /** Whether to show/hide API keys */
   showApiKeys: {
     production: boolean
     local: boolean
     custom: boolean
   }
-}
+}>()
 
-interface Emits {
-  (e: "update:modelValue", value: BackendEnvironment): void
-  (e: "update:profiles", value: EnvironmentProfiles): void
-  (e: "toggleApiKey", environment: BackendEnvironment): void
-}
+/**
+ * Component events
+ */
+defineEmits<{
+  /** Emitted when API key visibility should be toggled */
+  toggleApiKey: [environment: BackendEnvironment]
+}>()
 
-const props = defineProps<Props>()
-const emit = defineEmits<Emits>()
+/** Currently selected backend environment with two-way binding */
+const selectedEnvironment = defineModel<BackendEnvironment>({ required: true })
 
-/** Local computed for two-way binding */
-const selectedEnvironment = computed({
-  get: () => props.modelValue,
-  set: value => emit("update:modelValue", value),
-})
-
-/** Local computed for profiles with two-way binding */
-const localProfiles = computed({
-  get: () => props.profiles,
-  set: value => emit("update:profiles", value),
-})
+/** Environment profiles with two-way binding */
+const localProfiles = defineModel<EnvironmentProfiles>("profiles", { required: true })
 
 /**
  * Check if a profile is configured (has required fields)
  */
 function isProfileConfigured(environment: BackendEnvironment): boolean {
-  const profile = props.profiles[environment]
+  const profile = localProfiles.value[environment]
   if (environment === "custom") {
     return !!profile.url && !!profile.apiKey
   }

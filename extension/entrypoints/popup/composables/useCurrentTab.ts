@@ -23,7 +23,7 @@ export function useCurrentTab() {
 
   /**
    * Loads information about the currently active browser tab.
-   * Queries for the active tab in the current window and extracts its title, URL, and favicon.
+   * Queries for the active tab in the current window and extracts its title, URL, favicon, and meta description.
    *
    * @returns Promise resolving to TabInfo if successful, null if failed
    */
@@ -37,15 +37,34 @@ export function useCurrentTab() {
       // We destructure [tab] to get the first (and only) result since there can only be one active tab
       const [tab] = await browser.tabs.query({ active: true, currentWindow: true })
 
-      if (!tab || !tab.url) {
+      if (!tab || !tab.url || !tab.id) {
         error.value = "Unable to access current tab"
         return null
+      }
+
+      // Extract meta description from the page using browser.scripting.executeScript
+      // This injects a script into the page to read the meta description tag
+      let description: string | undefined
+      try {
+        const results = await browser.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => {
+            const metaDescription = document.querySelector("meta[name=\"description\"]")
+            return metaDescription?.getAttribute("content") || undefined
+          },
+        })
+        description = results[0]?.result
+      }
+      catch (err) {
+        // Failed to extract description (e.g., on chrome:// pages), continue without it
+        console.warn("Could not extract meta description:", err)
       }
 
       tabInfo.value = {
         title: tab.title || "Untitled",
         url: tab.url,
         favicon: tab.favIconUrl,
+        description,
       }
 
       return tabInfo.value

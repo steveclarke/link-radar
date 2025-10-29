@@ -208,27 +208,3 @@ export async function getDeveloperMode(): Promise<boolean> {
 export async function setDeveloperMode(enabled: boolean): Promise<void> {
   await browser.storage.sync.set({ [STORAGE_KEYS.DEVELOPER_MODE]: enabled })
 }
-
-// ============================================================================
-// Legacy Compatibility Functions (DEPRECATED)
-// ============================================================================
-// These functions are provided for backward compatibility during migration
-// but should be replaced with profile-based functions in new code.
-
-/**
- * @deprecated Use getActiveProfile() instead.
- * Read the API key for the current environment from browser sync storage.
- */
-export async function getApiKey(): Promise<string | undefined> {
-  const profile = await getActiveProfile()
-  return profile.apiKey || undefined
-}
-
-/**
- * @deprecated Use setProfileApiKey() instead.
- * Persist the API key for the current environment to browser sync storage.
- */
-export async function setApiKey(apiKey: string): Promise<void> {
-  const environment = await getBackendEnvironment()
-  await setProfileApiKey(environment, apiKey)
-}
