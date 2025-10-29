@@ -10,20 +10,9 @@
 import { Icon } from "@iconify/vue"
 
 /**
- * Component props
+ * Whether the API key should be shown in plain text (v-model)
  */
-defineProps<{
-  /** Whether the API key should be shown in plain text */
-  showApiKey: boolean
-}>()
-
-/**
- * Component events
- */
-defineEmits<{
-  /** Emitted when the visibility toggle button is clicked */
-  toggleVisibility: []
-}>()
+const showApiKey = defineModel<boolean>("showApiKey", { default: false })
 
 /**
  * v-model for the API key string
@@ -54,7 +43,7 @@ const apiKey = defineModel<string>({ default: "" })
           type="button"
           class="px-3 border border-slate-300 rounded-md bg-white cursor-pointer text-lg transition-colors hover:bg-slate-50 flex items-center justify-center"
           :title="showApiKey ? 'Hide API key' : 'Show API key'"
-          @click="$emit('toggleVisibility')"
+          @click="showApiKey = !showApiKey"
         >
           <Icon :icon="showApiKey ? 'material-symbols:visibility-off' : 'material-symbols:visibility'" class="w-5 h-5" />
         </button>

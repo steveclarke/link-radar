@@ -32,9 +32,6 @@ export function useLink() {
   /** Whether a fetch operation is in progress */
   const isFetching = ref(false)
 
-  /** Whether a create operation is in progress */
-  const isCreating = ref(false)
-
   /** Whether an update operation is in progress */
   const isUpdating = ref(false)
 
@@ -76,7 +73,6 @@ export function useLink() {
    * @returns Promise resolving to LinkResult indicating success or error
    */
   async function createLink(data: LinkParams): Promise<LinkResult> {
-    isCreating.value = true
     try {
       await apiCreateLink(data)
       return { success: true }
@@ -85,9 +81,6 @@ export function useLink() {
       console.error("Error creating link:", error)
       const errorMessage = error instanceof Error ? error.message : "Error creating link"
       return { success: false, error: errorMessage }
-    }
-    finally {
-      isCreating.value = false
     }
   }
 
@@ -164,7 +157,6 @@ export function useLink() {
     link,
     // Loading
     isFetching,
-    isCreating,
     isUpdating,
     isDeleting,
     // Operations

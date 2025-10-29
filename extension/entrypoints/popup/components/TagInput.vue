@@ -329,7 +329,7 @@ function handleBlur() {
       :show="showSuggestions"
       @select-tag="handleSelectSuggestion"
       @create-new="addTagsFromInput"
-      @update-selected-index="(idx) => selectedIndex = idx"
+      @update-selected-index="selectedIndex = $event"
     />
 
     <p class="m-0 text-xs text-slate-600">

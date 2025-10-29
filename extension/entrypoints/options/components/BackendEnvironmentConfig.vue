@@ -9,31 +9,18 @@ import { Icon } from "@iconify/vue"
 import EnvironmentLabel from "../../../lib/components/EnvironmentLabel.vue"
 import { BACKEND_URL, DEV_BACKEND_URL } from "../../../lib/settings"
 
-/**
- * Component props
- */
-defineProps<{
-  /** Whether to show/hide API keys */
-  showApiKeys: {
-    production: boolean
-    local: boolean
-    custom: boolean
-  }
-}>()
-
-/**
- * Component events
- */
-defineEmits<{
-  /** Emitted when API key visibility should be toggled */
-  toggleApiKey: [environment: BackendEnvironment]
-}>()
-
 /** Currently selected backend environment with two-way binding */
 const selectedEnvironment = defineModel<BackendEnvironment>({ required: true })
 
 /** Environment profiles with two-way binding */
 const localProfiles = defineModel<EnvironmentProfiles>("profiles", { required: true })
+
+/** Whether to show/hide API keys (v-model) */
+const showApiKeys = defineModel<{
+  production: boolean
+  local: boolean
+  custom: boolean
+}>("showApiKeys", { required: true })
 
 /**
  * Check if a profile is configured (has required fields)
@@ -208,7 +195,7 @@ function getConfigStatus(environment: BackendEnvironment): { text: string, class
                       type="button"
                       class="px-3 border border-brand-300 rounded-md bg-white cursor-pointer transition-colors hover:bg-brand-100 flex items-center justify-center"
                       :title="showApiKeys.custom ? 'Hide API key' : 'Show API key'"
-                      @click="$emit('toggleApiKey', 'custom')"
+                      @click="showApiKeys.custom = !showApiKeys.custom"
                     >
                       <Icon :icon="showApiKeys.custom ? 'material-symbols:visibility-off' : 'material-symbols:visibility'" class="w-5 h-5" />
                     </button>

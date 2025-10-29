@@ -56,44 +56,6 @@ const isUpdateDisabled = computed(() => !props.apiKeyConfigured || props.isUpdat
  * Disabled when API key is not configured or delete operation is in progress.
  */
 const isDeleteDisabled = computed(() => !props.apiKeyConfigured || props.isDeleting)
-
-/**
- * Handles the Save button click.
- * Emits the 'save' event if the button is not disabled.
- */
-function handleSave() {
-  if (isSaveDisabled.value)
-    return
-  emit("save")
-}
-
-/**
- * Handles the Update button click.
- * Emits the 'update' event if the button is not disabled.
- */
-function handleUpdate() {
-  if (isUpdateDisabled.value)
-    return
-  emit("update")
-}
-
-/**
- * Handles the Delete button click.
- * Emits the 'delete' event if the button is not disabled.
- */
-function handleDelete() {
-  if (isDeleteDisabled.value)
-    return
-  emit("delete")
-}
-
-/**
- * Handles the Copy URL button click.
- * Emits the 'copy' event (always enabled).
- */
-function handleCopy() {
-  emit("copy")
-}
 </script>
 
 <template>
@@ -104,7 +66,7 @@ function handleCopy() {
       class="px-4 py-2 border-none rounded-md text-sm font-medium cursor-pointer transition-all duration-200 bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
       type="button"
       :disabled="isSaveDisabled"
-      @click="handleSave"
+      @click="emit('save')"
     >
       {{ isCheckingLink ? "Checking..." : "Save This Link" }}
     </button>
@@ -113,7 +75,7 @@ function handleCopy() {
       class="px-4 py-2 border-none rounded-md text-sm font-medium cursor-pointer transition-all duration-200 bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
       type="button"
       :disabled="isUpdateDisabled"
-      @click="handleUpdate"
+      @click="emit('update')"
     >
       {{ isUpdating ? "Updating..." : "Update" }}
     </button>
@@ -128,7 +90,7 @@ function handleCopy() {
         title="Delete link"
         aria-label="Delete link"
         :disabled="isDeleteDisabled"
-        @click="handleDelete"
+        @click="emit('delete')"
       >
         <Icon
           icon="material-symbols:delete-outline"
@@ -142,7 +104,7 @@ function handleCopy() {
         type="button"
         title="Copy URL to clipboard"
         aria-label="Copy URL to clipboard"
-        @click="handleCopy"
+        @click="emit('copy')"
       >
         <Icon
           icon="material-symbols:content-copy"

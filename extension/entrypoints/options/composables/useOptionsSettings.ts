@@ -4,9 +4,9 @@
  */
 
 import type { BackendEnvironment, EnvironmentProfiles } from "../../../lib/settings"
-import { computed, ref } from "vue"
+import { ref } from "vue"
 import { useNotification } from "../../../lib/composables/useNotification"
-import { DEFAULT_AUTO_CLOSE_DELAY, getAutoCloseDelay, getBackendEnvironment, getDeveloperMode, getProfiles, setAutoCloseDelay, setBackendEnvironment, setDeveloperMode, setProfileApiKey, setProfileUrl } from "../../../lib/settings"
+import { DEFAULT_AUTO_CLOSE_DELAY, getAutoCloseDelay, getBackendEnvironment, getDeveloperMode, getProfiles, setAutoCloseDelay, setBackendEnvironment, setDeveloperMode, setProfiles } from "../../../lib/settings"
 
 /**
  * Composable that manages all settings state and operations.
@@ -42,12 +42,6 @@ export function useOptionsSettings() {
 
   /** Whether a save operation is currently in progress */
   const isSaving = ref(false)
-
-  // Computed
-  /** Computed label for the auto-close delay display */
-  const delayLabel = computed(() => {
-    return autoCloseDelay.value === 0 ? "Disabled" : `${autoCloseDelay.value}ms`
-  })
 
   // Methods
   /**
@@ -86,11 +80,8 @@ export function useOptionsSettings() {
 
     isSaving.value = true
     try {
-      // Save all profile configurations
-      await setProfileApiKey("production", profiles.value.production.apiKey)
-      await setProfileApiKey("local", profiles.value.local.apiKey)
-      await setProfileApiKey("custom", profiles.value.custom.apiKey)
-      await setProfileUrl("custom", profiles.value.custom.url)
+      // Save all profile configurations in a single operation
+      await setProfiles(profiles.value)
 
       // Save other settings
       await setAutoCloseDelay(autoCloseDelay.value)
@@ -108,15 +99,6 @@ export function useOptionsSettings() {
     }
   }
 
-  /**
-   * Toggles the visibility of the API key input field for a specific environment.
-   *
-   * @param environment - The environment whose API key visibility to toggle
-   */
-  function toggleShowApiKey(environment: BackendEnvironment) {
-    showApiKeys.value[environment] = !showApiKeys.value[environment]
-  }
-
   return {
     // State
     profiles,
@@ -125,11 +107,8 @@ export function useOptionsSettings() {
     developerMode,
     backendEnvironment,
     isSaving,
-    // Computed
-    delayLabel,
     // Methods
     loadSettings,
     saveSettings,
-    toggleShowApiKey,
   }
 }

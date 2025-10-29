@@ -25,7 +25,6 @@ const {
   // Methods
   loadSettings,
   saveSettings,
-  toggleShowApiKey,
 } = useOptionsSettings()
 
 onMounted(loadSettings)
@@ -38,8 +37,7 @@ onMounted(loadSettings)
     <div class="flex flex-col gap-6">
       <ApiConfigSection
         v-model="profiles.production.apiKey"
-        :show-api-key="showApiKeys.production"
-        @toggle-visibility="toggleShowApiKey('production')"
+        v-model:show-api-key="showApiKeys.production"
       />
 
       <PopupBehaviorSection v-model="autoCloseDelay" />
@@ -60,10 +58,8 @@ onMounted(loadSettings)
     <div v-if="developerMode" class="mt-8 pt-8 border-t border-slate-200">
       <BackendEnvironmentConfig
         v-model="backendEnvironment"
-        :profiles="profiles"
-        :show-api-keys="showApiKeys"
-        @update:profiles="profiles = $event"
-        @toggle-api-key="toggleShowApiKey"
+        v-model:profiles="profiles"
+        v-model:show-api-keys="showApiKeys"
       />
     </div>
 
