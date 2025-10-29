@@ -20,6 +20,13 @@ export default defineConfig({
       48: "icon/48.png",
       128: "icon/128.png",
     },
+    // Firefox requires an explicit addon ID when using the storage API
+    // This ID must be in email-like format (even if not a real email)
+    browser_specific_settings: {
+      gecko: {
+        id: "linkradar@linkradar.app",
+      },
+    },
   },
   // Browser startup configuration for development
   webExt: {

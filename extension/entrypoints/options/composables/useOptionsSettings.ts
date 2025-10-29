@@ -137,8 +137,10 @@ export function useOptionsSettings() {
 
     isSaving.value = true
     try {
-      // Save all profile configurations in a single operation
-      await setProfiles(profiles.value)
+      // Convert reactive Proxy object to plain object before saving
+      // browser.storage cannot serialize Proxy objects, so we need a plain copy
+      const plainProfiles: EnvironmentProfiles = JSON.parse(JSON.stringify(profiles.value))
+      await setProfiles(plainProfiles)
 
       // Save other settings
       await setAutoCloseDelay(autoCloseDelay.value)
