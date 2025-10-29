@@ -7,8 +7,10 @@
  * @component
  */
 import type { BackendEnvironment } from "../../lib/settings"
+import { Icon } from "@iconify/vue"
 import { computed, onMounted, ref } from "vue"
 import { BACKEND_URL, DEFAULT_AUTO_CLOSE_DELAY, getApiKey, getAutoCloseDelay, getBackendEnvironment, getCustomBackendUrl, getDeveloperMode, LOCAL_DEV_BACKEND_URL, setApiKey, setAutoCloseDelay, setBackendEnvironment, setCustomBackendUrl, setDeveloperMode } from "../../lib/settings"
+import EnvironmentLabel from "../popup/components/EnvironmentLabel.vue"
 
 /** Duration in milliseconds for notification messages to display before auto-dismissal */
 const MESSAGE_TIMEOUT_MS = 3000
@@ -190,11 +192,11 @@ onMounted(() => {
             >
             <button
               type="button"
-              class="px-3 border border-gray-300 rounded-md bg-white cursor-pointer text-lg transition-colors hover:bg-gray-50"
+              class="px-3 border border-gray-300 rounded-md bg-white cursor-pointer text-lg transition-colors hover:bg-gray-50 flex items-center justify-center"
               :title="showApiKey ? 'Hide API key' : 'Show API key'"
               @click="toggleShowApiKey"
             >
-              {{ showApiKey ? '👁️' : '👁️‍🗨️' }}
+              <Icon :icon="showApiKey ? 'material-symbols:visibility-off' : 'material-symbols:visibility'" class="w-5 h-5" />
             </button>
           </div>
         </div>
@@ -255,7 +257,7 @@ onMounted(() => {
       <div class="bg-brand-50 border border-brand-200 rounded-lg p-6">
         <div class="flex items-start gap-3">
           <div class="text-2xl">
-            ℹ️
+            <Icon icon="material-symbols:info" class="w-6 h-6 text-brand-600" />
           </div>
           <div class="flex-1">
             <h3 class="m-0 mb-4 text-lg font-semibold text-brand-900">
@@ -278,7 +280,7 @@ onMounted(() => {
                   >
                   <div class="flex-1">
                     <div class="font-medium text-brand-900 group-hover:text-brand-700">
-                      🟢 Production
+                      <EnvironmentLabel environment="production" />
                     </div>
                     <div class="text-xs text-brand-700 mt-0.5">
                       {{ BACKEND_URL }}
@@ -296,7 +298,7 @@ onMounted(() => {
                   >
                   <div class="flex-1">
                     <div class="font-medium text-brand-900 group-hover:text-brand-700">
-                      🟡 Local Development
+                      <EnvironmentLabel environment="local" />
                     </div>
                     <div class="text-xs text-brand-700 mt-0.5">
                       {{ LOCAL_DEV_BACKEND_URL }}
@@ -314,7 +316,7 @@ onMounted(() => {
                   >
                   <div class="flex-1">
                     <div class="font-medium text-brand-900 group-hover:text-brand-700">
-                      🔵 Custom URL
+                      <EnvironmentLabel environment="custom" />
                     </div>
                     <div class="text-xs text-brand-700 mt-0.5">
                       Specify your own backend URL (e.g., staging environment)

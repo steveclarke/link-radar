@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import type { LinkParams } from "../../lib/types"
+import { Icon } from "@iconify/vue"
 import { useClipboard, useTimeoutFn } from "@vueuse/core"
 import { onMounted, ref } from "vue"
 import { getApiKey, getAutoCloseDelay } from "../../lib/settings"
@@ -144,14 +145,17 @@ function openSettings() {
         </h1>
         <EnvironmentBadge />
       </div>
-      <button class="px-2.5 py-1.5 border-none rounded-md bg-gray-100 cursor-pointer text-lg transition-colors duration-200 leading-none hover:bg-gray-200" title="Settings" @click="openSettings">
-        ⚙️
+      <button class="px-2.5 py-1.5 border-none rounded-md bg-gray-100 cursor-pointer text-lg transition-colors duration-200 leading-none hover:bg-gray-200 flex items-center justify-center" title="Settings" @click="openSettings">
+        <Icon icon="material-symbols:settings" class="w-5 h-5" />
       </button>
     </div>
 
-    <div v-if="!apiKeyConfigured" class="bg-yellow-100 text-yellow-800 px-3 py-2.5 rounded-md border border-yellow-200 text-[13px] leading-relaxed">
-      ⚠️ API key not configured.
-      <a class="text-yellow-800 underline cursor-pointer font-medium hover:text-yellow-900" @click="openSettings">Click here to set it up</a>
+    <div v-if="!apiKeyConfigured" class="bg-yellow-100 text-yellow-800 px-3 py-2.5 rounded-md border border-yellow-200 text-[13px] leading-relaxed flex items-start gap-2">
+      <Icon icon="material-symbols:warning" class="w-4 h-4 mt-0.5 shrink-0" />
+      <div>
+        API key not configured.
+        <a class="text-yellow-800 underline cursor-pointer font-medium hover:text-yellow-900" @click="openSettings">Click here to set it up</a>
+      </div>
     </div>
 
     <div v-if="tabInfo" class="bg-white rounded-lg p-3 shadow-sm">
