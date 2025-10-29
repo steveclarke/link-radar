@@ -21,6 +21,7 @@ const {
   isFetching,
   isUpdating,
   isDeleting,
+  isLoading,
   // Handlers
   handleCreateLink,
   handleUpdateLink,
@@ -35,23 +36,33 @@ onMounted(initialize)
 
 <template>
   <div class="flex flex-col gap-4 p-4 box-border">
-    <AppHeader @open-settings="openSettings" />
-    <ApiKeyWarning />
-    <PageInfoDisplay :tab-info="tabInfo" />
-    <NotesInput v-model="notes" />
-    <TagInput v-model="tagNames" />
-    <UrlInput v-model="url" />
-    <LinkActions
-      :api-key-configured="apiKeyConfigured"
-      :is-linked="isLinked"
-      :is-checking-link="isFetching"
-      :is-deleting="isDeleting"
-      :is-updating="isUpdating"
-      @copy="copyToClipboard"
-      @delete="handleDeleteLink"
-      @save="handleCreateLink"
-      @update="handleUpdateLink"
-    />
+    <!-- Loading state -->
+    <div v-if="isLoading" class="text-center py-8">
+      <p class="text-slate-600">
+        Loading...
+      </p>
+    </div>
+
+    <!-- Content only shows after loading -->
+    <template v-else>
+      <AppHeader @open-settings="openSettings" />
+      <ApiKeyWarning />
+      <PageInfoDisplay :tab-info="tabInfo" />
+      <NotesInput v-model="notes" />
+      <TagInput v-model="tagNames" />
+      <UrlInput v-model="url" />
+      <LinkActions
+        :api-key-configured="apiKeyConfigured"
+        :is-linked="isLinked"
+        :is-checking-link="isFetching"
+        :is-deleting="isDeleting"
+        :is-updating="isUpdating"
+        @copy="copyToClipboard"
+        @delete="handleDeleteLink"
+        @save="handleCreateLink"
+        @update="handleUpdateLink"
+      />
+    </template>
     <NotificationToast />
   </div>
 </template>

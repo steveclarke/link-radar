@@ -7,7 +7,7 @@ import type { LinkParams } from "../../../lib/types"
 import { useClipboard } from "@vueuse/core"
 import { ref } from "vue"
 import { useNotification } from "../../../lib/composables/useNotification"
-import { getActiveProfile, getAutoCloseDelay } from "../../../lib/settings"
+import { DEFAULT_AUTO_CLOSE_DELAY, getActiveProfile, getAutoCloseDelay } from "../../../lib/settings"
 import { useAutoClose } from "./useAutoClose"
 import { useCurrentTab } from "./useCurrentTab"
 import { useLink } from "./useLink"
@@ -30,23 +30,30 @@ export function useFormHandlers() {
   const url = ref("")
   const notes = ref("")
   const tagNames = ref<string[]>([])
-  const autoCloseDelay = ref(500)
+  const autoCloseDelay = ref(DEFAULT_AUTO_CLOSE_DELAY)
+  const isLoading = ref(false)
 
   /**
    * Initializes the form by loading configuration and current tab info.
    * Should be called on component mount.
    */
   async function initialize() {
-    const profile = await getActiveProfile()
-    apiKeyConfigured.value = !!profile.apiKey
-    autoCloseDelay.value = await getAutoCloseDelay()
-    const currentTab = await loadCurrentTab()
+    isLoading.value = true
+    try {
+      const profile = await getActiveProfile()
+      apiKeyConfigured.value = !!profile.apiKey
+      autoCloseDelay.value = await getAutoCloseDelay()
+      const currentTab = await loadCurrentTab()
 
-    if (currentTab) {
-      url.value = currentTab.url
-      if (apiKeyConfigured.value) {
-        await fetchCurrentLink(currentTab.url)
+      if (currentTab) {
+        url.value = currentTab.url
+        if (apiKeyConfigured.value) {
+          await fetchCurrentLink(currentTab.url)
+        }
       }
+    }
+    finally {
+      isLoading.value = false
     }
   }
 
@@ -182,6 +189,7 @@ export function useFormHandlers() {
     isFetching,
     isUpdating,
     isDeleting,
+    isLoading,
     // Handlers
     handleCreateLink,
     handleUpdateLink,
