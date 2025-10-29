@@ -1,25 +1,14 @@
 <script lang="ts" setup>
 /**
- * Component displaying current page information including favicon, title, and description.
+ * Component displaying current tab information including favicon, title, and description.
  *
  * @component
  */
+import type { TabInfo } from "../../../lib/types"
 
-/**
- * Component props
- */
 defineProps<{
-  /** Information about the current tab/page */
-  tabInfo: {
-    /** Page title */
-    title: string
-    /** Page URL */
-    url: string
-    /** Optional favicon URL */
-    favicon?: string
-    /** Optional page meta description */
-    description?: string
-  } | null
+  /** Current browser tab information */
+  tabInfo: TabInfo | null
 }>()
 </script>
 

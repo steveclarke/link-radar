@@ -4,20 +4,21 @@
  */
 
 import { useTimeoutFn } from "@vueuse/core"
+import { getAutoCloseDelay } from "../../../lib/settings"
 
 /**
  * Composable for auto-closing the popup window.
  *
- * @returns Function to trigger auto-close with a specified delay
+ * @returns Function to trigger auto-close
  */
 export function useAutoClose() {
   /**
-   * Triggers the auto-close mechanism if delay is greater than 0.
-   * Closes the browser popup window after the specified delay.
-   *
-   * @param delay - Delay in milliseconds before closing (0 or negative means no auto-close)
+   * Triggers the auto-close mechanism based on user settings.
+   * Closes the browser popup window after the configured delay.
+   * If delay is 0 or negative, no auto-close occurs.
    */
-  function triggerAutoClose(delay: number) {
+  async function triggerAutoClose() {
+    const delay = await getAutoCloseDelay()
     if (delay > 0) {
       useTimeoutFn(() => window.close(), delay, { immediate: true })
     }

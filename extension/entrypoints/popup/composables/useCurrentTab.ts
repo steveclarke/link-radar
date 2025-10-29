@@ -1,6 +1,6 @@
 /**
  * @fileoverview Composable for accessing current browser tab information.
- * Provides reactive state and methods to load details about the currently active tab.
+ * Provides reactive access to the active tab's title, URL, and favicon.
  */
 
 import type { TabInfo } from "../../../lib/types"
@@ -8,22 +8,16 @@ import { ref } from "vue"
 
 /**
  * Composable for managing current browser tab information.
- * Provides reactive access to the active tab's title, URL, and favicon
- * using the WebExtensions browser.tabs API.
+ * Provides reactive access to the active tab's title, URL, and favicon.
  */
 export function useCurrentTab() {
-  /** Current tab information (title, URL, favicon) */
   const tabInfo = ref<TabInfo | null>(null)
-
-  /** Whether tab information is currently being loaded */
   const isLoading = ref(false)
-
-  /** Error message if tab loading fails */
   const error = ref<string | null>(null)
 
   /**
    * Loads information about the currently active browser tab.
-   * Queries for the active tab in the current window and extracts its title, URL, favicon, and meta description.
+   * Queries for the active tab and extracts its title, URL, favicon, and meta description.
    *
    * @returns Promise resolving to TabInfo if successful, null if failed
    */
@@ -32,9 +26,9 @@ export function useCurrentTab() {
     error.value = null
 
     try {
-      // browser.tabs.query returns an array of tabs matching the query criteria
-      // { active: true, currentWindow: true } finds the currently active tab in the current window
-      // We destructure [tab] to get the first (and only) result since there can only be one active tab
+      // browser.tabs.query returns an array of tabs matching the query criteria.
+      // { active: true, currentWindow: true } finds the currently active tab in the current window.
+      // We destructure [tab] to get the first (and only) result since there can only be one active tab.
       const [tab] = await browser.tabs.query({ active: true, currentWindow: true })
 
       if (!tab || !tab.url || !tab.id) {
@@ -42,8 +36,8 @@ export function useCurrentTab() {
         return null
       }
 
-      // Extract meta description from the page using browser.scripting.executeScript
-      // This injects a script into the page to read the meta description tag
+      // Extract meta description from the page using browser.scripting.executeScript.
+      // This injects a script into the page to read the meta description tag.
       let description: string | undefined
       try {
         const results = await browser.scripting.executeScript({

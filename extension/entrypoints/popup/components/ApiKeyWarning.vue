@@ -9,13 +9,10 @@ import { Icon } from "@iconify/vue"
 import { onMounted, ref } from "vue"
 import { getActiveProfile } from "@/lib/settings"
 
-/**
- * Whether the API key is configured for the active environment
- */
-const isApiKeyConfigured = ref(true)
+const isApiKeyConfigured = ref(false)
 
 /**
- * Check if the API key is configured on mount
+ * Checks if the API key is configured on component mount
  */
 onMounted(async () => {
   const profile = await getActiveProfile()

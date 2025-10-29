@@ -8,6 +8,7 @@
  */
 import { Icon } from "@iconify/vue"
 import { computed } from "vue"
+import CopyUrlButton from "./CopyUrlButton.vue"
 
 /**
  * Component props
@@ -21,7 +22,7 @@ const props = defineProps<{
   isDeleting: boolean
   /** Whether an update operation is in progress */
   isUpdating: boolean
-  /** Whether the API key has been configured (required for save/update/delete) */
+  /** Whether the API key is configured */
   apiKeyConfigured: boolean
 }>()
 
@@ -35,8 +36,6 @@ const emit = defineEmits<{
   update: []
   /** Emitted when the user clicks "Delete" to remove an existing link */
   delete: []
-  /** Emitted when the user clicks "Copy URL" to copy the current URL to clipboard */
-  copy: []
 }>()
 
 /**
@@ -99,18 +98,7 @@ const isDeleteDisabled = computed(() => !props.apiKeyConfigured || props.isDelet
       </button>
 
       <!-- Copy URL button (always shown) -->
-      <button
-        class="w-9 h-9 p-0 border-none rounded-md cursor-pointer transition-all duration-200 bg-slate-200 hover:bg-slate-300 flex items-center justify-center"
-        type="button"
-        title="Copy URL to clipboard"
-        aria-label="Copy URL to clipboard"
-        @click="emit('copy')"
-      >
-        <Icon
-          icon="material-symbols:content-copy"
-          class="w-5 h-5 text-slate-600"
-        />
-      </button>
+      <CopyUrlButton />
     </div>
   </div>
 </template>

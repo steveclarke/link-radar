@@ -8,18 +8,10 @@ import { Icon } from "@iconify/vue"
 import EnvironmentBadge from "../../../lib/components/EnvironmentBadge.vue"
 
 /**
- * Component events
+ * Opens the extension's settings/options page.
  */
-const emit = defineEmits<{
-  /** Emitted when the settings button is clicked */
-  openSettings: []
-}>()
-
-/**
- * Handles the settings button click.
- */
-function handleSettingsClick() {
-  emit("openSettings")
+function openSettings() {
+  browser.runtime.openOptionsPage()
 }
 </script>
 
@@ -34,7 +26,7 @@ function handleSettingsClick() {
     <button
       class="px-2.5 py-1.5 border-none rounded-md bg-slate-100 cursor-pointer text-lg transition-colors duration-200 leading-none hover:bg-slate-200 flex items-center justify-center"
       title="Settings"
-      @click="handleSettingsClick"
+      @click="openSettings"
     >
       <Icon icon="material-symbols:settings" class="w-5 h-5" />
     </button>
