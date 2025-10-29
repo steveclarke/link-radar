@@ -173,7 +173,7 @@ function openSettings() {
 
     <div class="bg-white rounded-lg p-3 shadow-sm">
       <label for="notes" class="block text-sm font-medium text-gray-800 mb-2">Add a note (optional):</label>
-      <textarea id="notes" v-model="notes" class="w-full min-h-[60px] p-2 border border-gray-300 rounded text-sm resize-vertical box-border focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-200" placeholder="Add your thoughts about this link..." />
+      <textarea id="notes" v-model="notes" class="w-full min-h-[60px] p-2 border border-gray-300 rounded text-sm resize-vertical box-border focus:outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-200" placeholder="Add your thoughts about this link..." />
     </div>
     <TagInput v-model="tagNames" />
 

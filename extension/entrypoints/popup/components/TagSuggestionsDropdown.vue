@@ -49,7 +49,7 @@ const emit = defineEmits<{
     aria-label="Tag suggestions"
   >
     <div v-if="isLoading" class="flex items-center justify-center gap-2 p-3 text-gray-600 text-[13px]" role="status" aria-live="polite">
-      <span class="inline-block w-3.5 h-3.5 border-2 border-gray-200 border-t-blue-600 rounded-full animate-spin" aria-hidden="true"></span>
+      <span class="inline-block w-3.5 h-3.5 border-2 border-gray-200 border-t-brand-600 rounded-full animate-spin" aria-hidden="true"></span>
       <span>Loading tags...</span>
     </div>
     <div v-else-if="error" class="p-3 text-center text-red-600 text-[13px] bg-red-50 rounded m-1" role="alert">
@@ -63,7 +63,7 @@ const emit = defineEmits<{
         role="option"
         :aria-selected="index === selectedIndex"
         class="flex items-center justify-between px-3 py-2 cursor-pointer text-sm transition-colors duration-150"
-        :class="{ 'bg-blue-50': index === selectedIndex }"
+        :class="{ 'bg-brand-50': index === selectedIndex }"
         @mousedown.prevent="emit('selectTag', tag)"
         @mouseenter="emit('updateSelectedIndex', index)"
       >
@@ -78,8 +78,8 @@ const emit = defineEmits<{
         :id="`tag-option-${suggestions.length}`"
         role="option"
         :aria-selected="selectedIndex === suggestions.length"
-        class="flex items-center justify-between px-3 py-2 cursor-pointer text-sm transition-colors duration-150 italic text-blue-600 border-t border-gray-200"
-        :class="{ 'bg-blue-100': selectedIndex === suggestions.length }"
+        class="flex items-center justify-between px-3 py-2 cursor-pointer text-sm transition-colors duration-150 italic text-brand-600 border-t border-gray-200"
+        :class="{ 'bg-brand-100': selectedIndex === suggestions.length }"
         @mousedown.prevent="emit('createNew')"
         @mouseenter="emit('updateSelectedIndex', suggestions.length)"
       >

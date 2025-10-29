@@ -99,7 +99,7 @@ function handleCopy() {
   <div class="flex gap-2">
     <template v-if="!isLinked">
       <button
-        class="flex-1 px-3 py-2 border-none rounded-md text-sm font-medium cursor-pointer transition-all duration-200 bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        class="flex-1 px-3 py-2 border-none rounded-md text-sm font-medium cursor-pointer transition-all duration-200 bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
         type="button"
         :disabled="isSaveDisabled"
         @click="handleSave"
@@ -112,7 +112,7 @@ function handleCopy() {
     </template>
     <template v-else>
       <button
-        class="flex-1 px-3 py-2 border-none rounded-md text-sm font-medium cursor-pointer transition-all duration-200 bg-cyan-600 text-white hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        class="flex-1 px-3 py-2 border-none rounded-md text-sm font-medium cursor-pointer transition-all duration-200 bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
         type="button"
         :disabled="isUpdateDisabled"
         @click="handleUpdate"

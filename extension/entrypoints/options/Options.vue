@@ -155,8 +155,8 @@ onMounted(() => {
         </span>
         <button
           type="button"
-          class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
-          :class="developerMode ? 'bg-blue-600' : 'bg-gray-200'"
+          class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-600 focus:ring-offset-2"
+          :class="developerMode ? 'bg-brand-600' : 'bg-gray-200'"
           role="switch"
           :aria-checked="developerMode"
           @click="developerMode = !developerMode"
@@ -186,7 +186,7 @@ onMounted(() => {
               v-model="apiKey"
               :type="showApiKey ? 'text' : 'password'"
               placeholder="Enter your API key"
-              class="flex-1 px-3 py-2.5 border border-gray-300 rounded-md text-sm font-mono transition-colors focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-200"
+              class="flex-1 px-3 py-2.5 border border-gray-300 rounded-md text-sm font-mono transition-colors focus:outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-200"
             >
             <button
               type="button"
@@ -211,7 +211,7 @@ onMounted(() => {
 
         <div class="mb-4">
           <label for="auto-close-delay" class="block text-sm font-medium text-gray-800 mb-2">
-            Auto-close delay: <span class="font-semibold text-blue-600">{{ delayLabel }}</span>
+            Auto-close delay: <span class="font-semibold text-brand-600">{{ delayLabel }}</span>
           </label>
           <div class="flex gap-3 items-center">
             <input
@@ -221,7 +221,7 @@ onMounted(() => {
               min="0"
               max="2000"
               step="500"
-              class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+              class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-brand-600"
             >
             <input
               v-model.number="autoCloseDelay"
@@ -229,7 +229,7 @@ onMounted(() => {
               min="0"
               max="2000"
               placeholder="ms"
-              class="w-24 px-3 py-2 border border-gray-300 rounded-md text-sm text-right transition-colors focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-200"
+              class="w-24 px-3 py-2 border border-gray-300 rounded-md text-sm text-right transition-colors focus:outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-200"
             >
           </div>
           <p class="mt-2 text-xs text-gray-500">
@@ -243,7 +243,7 @@ onMounted(() => {
     <div class="mt-8 flex justify-end">
       <button
         :disabled="isSaving"
-        class="px-8 py-3 border-none rounded-md text-base font-medium bg-blue-600 text-white cursor-pointer transition-colors hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
+        class="px-8 py-3 border-none rounded-md text-base font-medium bg-brand-600 text-white cursor-pointer transition-colors hover:bg-brand-700 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
         @click="saveSettings"
       >
         {{ isSaving ? 'Saving...' : 'Save All Settings' }}
@@ -252,19 +252,19 @@ onMounted(() => {
 
     <!-- Developer Information (only visible in developer mode) -->
     <div v-if="developerMode" class="mt-8 pt-8 border-t border-gray-200">
-      <div class="bg-blue-50 border border-blue-200 rounded-lg p-6">
+      <div class="bg-brand-50 border border-brand-200 rounded-lg p-6">
         <div class="flex items-start gap-3">
           <div class="text-2xl">
             ℹ️
           </div>
           <div class="flex-1">
-            <h3 class="m-0 mb-4 text-lg font-semibold text-blue-900">
+            <h3 class="m-0 mb-4 text-lg font-semibold text-brand-900">
               Backend Environment
             </h3>
 
             <!-- Environment Selection -->
             <div class="mb-4">
-              <label class="block text-sm font-medium text-blue-900 mb-3">
+              <label class="block text-sm font-medium text-brand-900 mb-3">
                 Select Backend Environment:
               </label>
               <div class="space-y-3">
@@ -274,13 +274,13 @@ onMounted(() => {
                     v-model="backendEnvironment"
                     type="radio"
                     value="production"
-                    class="mt-1 w-4 h-4 accent-blue-600 cursor-pointer"
+                    class="mt-1 w-4 h-4 accent-brand-600 cursor-pointer"
                   >
                   <div class="flex-1">
-                    <div class="font-medium text-blue-900 group-hover:text-blue-700">
+                    <div class="font-medium text-brand-900 group-hover:text-brand-700">
                       🟢 Production
                     </div>
-                    <div class="text-xs text-blue-700 mt-0.5">
+                    <div class="text-xs text-brand-700 mt-0.5">
                       {{ BACKEND_URL }}
                     </div>
                   </div>
@@ -292,13 +292,13 @@ onMounted(() => {
                     v-model="backendEnvironment"
                     type="radio"
                     value="local"
-                    class="mt-1 w-4 h-4 accent-blue-600 cursor-pointer"
+                    class="mt-1 w-4 h-4 accent-brand-600 cursor-pointer"
                   >
                   <div class="flex-1">
-                    <div class="font-medium text-blue-900 group-hover:text-blue-700">
+                    <div class="font-medium text-brand-900 group-hover:text-brand-700">
                       🟡 Local Development
                     </div>
-                    <div class="text-xs text-blue-700 mt-0.5">
+                    <div class="text-xs text-brand-700 mt-0.5">
                       {{ LOCAL_DEV_BACKEND_URL }}
                     </div>
                   </div>
@@ -310,13 +310,13 @@ onMounted(() => {
                     v-model="backendEnvironment"
                     type="radio"
                     value="custom"
-                    class="mt-1 w-4 h-4 accent-blue-600 cursor-pointer"
+                    class="mt-1 w-4 h-4 accent-brand-600 cursor-pointer"
                   >
                   <div class="flex-1">
-                    <div class="font-medium text-blue-900 group-hover:text-blue-700">
+                    <div class="font-medium text-brand-900 group-hover:text-brand-700">
                       🔵 Custom URL
                     </div>
-                    <div class="text-xs text-blue-700 mt-0.5">
+                    <div class="text-xs text-brand-700 mt-0.5">
                       Specify your own backend URL (e.g., staging environment)
                     </div>
                   </div>
@@ -328,14 +328,14 @@ onMounted(() => {
                     v-model="customBackendUrl"
                     type="url"
                     placeholder="https://api.example.com/api/v1"
-                    class="w-full px-3 py-2 border border-blue-300 bg-white rounded-md text-sm font-mono transition-colors focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-200"
+                    class="w-full px-3 py-2 border border-brand-300 bg-white rounded-md text-sm font-mono transition-colors focus:outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-200"
                   >
                 </div>
               </div>
             </div>
 
-            <div class="pt-4 mt-4 border-t border-blue-300">
-              <p class="m-0 text-xs text-blue-700 italic">
+            <div class="pt-4 mt-4 border-t border-brand-300">
+              <p class="m-0 text-xs text-brand-700 italic">
                 <strong>Note:</strong> Remember to save your settings after changing the backend environment.
                 The popup will show which backend you're currently connected to.
               </p>

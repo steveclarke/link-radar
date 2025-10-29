@@ -286,7 +286,7 @@ function handleBlur() {
       <span
         v-for="tag in tags"
         :key="tag"
-        class="inline-flex items-center gap-1 bg-blue-100 text-blue-600 rounded-full px-2 py-1 text-xs font-medium"
+        class="inline-flex items-center gap-1 bg-brand-100 text-brand-600 rounded-full px-2 py-1 text-xs font-medium"
         role="listitem"
       >
         {{ tag }}
