@@ -1,3 +1,13 @@
+/**
+ * @fileoverview API client for backend communication.
+ *
+ * This layer exists to provide a shared HTTP interface that can be used by both:
+ * - Vue components/composables (popup UI, options page)
+ * - Service workers (background scripts, context menus)
+ *
+ * By keeping HTTP logic separate from Vue-specific code, we ensure it's reusable
+ * across all extension contexts.
+ */
 import type {
   Link,
   LinkApiResponse,
@@ -9,9 +19,9 @@ import type {
 import { getActiveProfile } from "./settings"
 
 /**
- * Internal authenticated fetch wrapper
- * Automatically adds auth header and handles common errors
- * Dynamically uses the configured backend URL based on environment settings
+ * Internal authenticated fetch wrapper. Automatically adds auth header and
+ * handles common errors. Dynamically uses the configured backend URL based on
+ * environment settings.
  *
  * @param path - API endpoint path (e.g., '/links', '/tags')
  * @param options - RequestInit is the built-in TypeScript type for fetch() options.

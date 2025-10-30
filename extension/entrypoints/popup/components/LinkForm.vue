@@ -1,13 +1,15 @@
 <script lang="ts" setup>
 /**
- * LinkForm component that encapsulates all link-related form UI.
- * Manages form state and handles link CRUD operations.
+ * LinkForm component that manages link form state, operations, and UI.
+ * Watches for tab changes, fetches link data, and handles CRUD operations.
  *
  * @component
  */
-import type { TabInfo } from "../../../lib/types"
+import type { LinkParams, TabInfo } from "../../../lib/types"
 import { ref, watch } from "vue"
-import { useLinkForm } from "../composables/useLinkForm"
+import { useNotification } from "../../../lib/composables/useNotification"
+import { useAutoClose } from "../composables/useAutoClose"
+import { useLink } from "../composables/useLink"
 import LinkActions from "./LinkActions.vue"
 import NotesInput from "./NotesInput.vue"
 import TagInput from "./TagInput.vue"
@@ -20,23 +22,18 @@ const props = defineProps<{
   isAppConfigured: boolean
 }>()
 
-const {
-  url,
-  notes,
-  tagNames,
-  isLinked,
-  isFetching,
-  isUpdating,
-  isDeleting,
-  handleCreateLink,
-  handleUpdateLink,
-  handleDeleteLink,
-  fetchLink,
-} = useLinkForm()
+// Composables
+const { showSuccess, showError } = useNotification()
+const { isLinked, linkId, isFetching, isUpdating, isDeleting, createLink, updateLink, deleteLink, resetLinkState, fetchLink } = useLink()
+const { triggerAutoClose } = useAutoClose()
 
+// Form state
+const url = ref("")
+const notes = ref("")
+const tagNames = ref<string[]>([])
 const isCheckingLink = ref(false)
 
-// Check if link exists when tab info is available
+// Watch for tab changes and fetch/populate link data
 watch(() => props.currentTabInfo, async (newTabInfo) => {
   if (!newTabInfo)
     return
@@ -65,10 +62,87 @@ watch(() => props.currentTabInfo, async (newTabInfo) => {
   }
 }, { immediate: true })
 
-// Wrap handleCreateLink to pass tab title
-function handleSave() {
-  if (props.currentTabInfo) {
-    handleCreateLink(props.currentTabInfo.title)
+/**
+ * Handles creating a new link from the form data.
+ * Shows success/error notification and triggers auto-close on success.
+ */
+async function handleCreateLink() {
+  if (!props.currentTabInfo)
+    return
+
+  const linkParams: LinkParams = {
+    title: props.currentTabInfo.title,
+    url: url.value,
+    note: notes.value,
+    tag_names: tagNames.value,
+  }
+
+  const result = await createLink(linkParams)
+
+  if (result.success) {
+    showSuccess("Link saved successfully!")
+    // Fetch the newly created link to get its ID and update state
+    const newLink = await fetchLink(url.value)
+    if (newLink) {
+      // Update form with the saved link data
+      notes.value = newLink.note
+      tagNames.value = newLink.tags.map(t => t.name)
+    }
+    await triggerAutoClose()
+  }
+  else {
+    showError(`Failed to save link: ${result.error || "Unknown error"}`)
+  }
+}
+
+/**
+ * Handles updating an existing link with new form data.
+ * Shows success/error notification and triggers auto-close on success.
+ */
+async function handleUpdateLink() {
+  if (!linkId.value)
+    return
+
+  const result = await updateLink(linkId.value, {
+    note: notes.value,
+    tag_names: tagNames.value,
+  })
+
+  if (result.success) {
+    showSuccess("Link updated successfully!")
+    // Re-fetch to keep state in sync
+    const updatedLink = await fetchLink(url.value)
+    if (updatedLink) {
+      // Update form with the saved link data
+      notes.value = updatedLink.note
+      tagNames.value = updatedLink.tags.map(t => t.name)
+    }
+    await triggerAutoClose()
+  }
+  else {
+    showError(`Failed to update link: ${result.error || "Unknown error"}`)
+  }
+}
+
+/**
+ * Handles deleting the current link.
+ * Shows success/error notification and triggers auto-close on success.
+ */
+async function handleDeleteLink() {
+  if (!linkId.value)
+    return
+
+  const result = await deleteLink(linkId.value)
+
+  if (result.success) {
+    showSuccess("Link deleted successfully!")
+    resetLinkState()
+    notes.value = ""
+    tagNames.value = []
+    await triggerAutoClose()
+  }
+  else {
+    showError(`Failed to delete link: ${result.error || "Unknown error"}`)
   }
 }
 </script>
@@ -93,7 +167,7 @@ function handleSave() {
         :is-deleting="isDeleting"
         :is-updating="isUpdating"
         :is-app-configured="isAppConfigured"
-        @save="handleSave"
+        @save="handleCreateLink"
         @update="handleUpdateLink"
         @delete="handleDeleteLink"
       />
