@@ -1,7 +1,10 @@
 /**
- * @fileoverview Reactive settings composable with cross-tab synchronization.
- * Provides singleton state management for all extension settings with automatic
- * browser storage listeners.
+ * @fileoverview Reactive settings composable for general app behavior settings.
+ * Provides singleton state management for popup behavior and developer mode
+ * with automatic browser storage synchronization.
+ *
+ * For environment-related settings (backend URLs, API keys, environment selection),
+ * use the useEnvironment composable instead.
  *
  * This composable establishes the architectural pattern for settings management:
  * - Vue contexts use this composable for reactive state
@@ -9,18 +12,12 @@
  * - Both stay synchronized via browser storage events
  */
 
-import type { Environment, EnvironmentConfig, EnvironmentConfigs } from "../settings"
 import { computed, effectScope, ref } from "vue"
 import {
   getAutoCloseDelay,
-  getConfigs,
   getDeveloperMode,
-  getEnvironment,
-  SENSITIVE_STORAGE_KEYS,
   setAutoCloseDelay,
-  setConfigs,
   setDeveloperMode,
-  setEnvironment,
   SYNC_STORAGE_KEYS,
 } from "../settings"
 
@@ -29,64 +26,20 @@ let isInitialized = false
 // Effect scope for managing lifecycle of watchers and listeners
 let scope: ReturnType<typeof effectScope> | null = null
 
-const environment = ref<Environment>("production")
-const environmentConfigs = ref<EnvironmentConfigs>({
-  production: { url: "", apiKey: "" },
-  local: { url: "", apiKey: "" },
-  custom: { url: "", apiKey: "" },
-})
 const autoCloseDelay = ref(500)
 const isDeveloperMode = ref(false)
 
 /**
- * Computed property for the currently active environment configuration.
- * Automatically updates when environment or configs change.
- */
-const environmentConfig = computed<EnvironmentConfig | null>(() => {
-  if (!environment.value)
-    return null
-  return environmentConfigs.value[environment.value]
-})
-
-/**
- * Computed property that determines if the app is configured and ready to use.
- * Checks if the active environment has an API key set.
- */
-const isAppConfigured = computed<boolean>(() => {
-  return !!environmentConfig.value?.apiKey
-})
-
-/**
- * Load all settings from browser storage.
+ * Load all app behavior settings from browser storage.
  * Called once during initialization.
  */
 async function loadAllSettings() {
   try {
-    environmentConfigs.value = await getConfigs()
-    environment.value = await getEnvironment()
     autoCloseDelay.value = await getAutoCloseDelay()
     isDeveloperMode.value = await getDeveloperMode()
   }
   catch (error) {
     console.error("Error loading settings:", error)
-  }
-}
-
-/**
- * Local storage change handler for cross-tab synchronization.
- * Reloads environment configs when they change in another tab.
- * Type-safe handler that only processes known storage keys.
- */
-async function handleLocalStorageChange(changes: Record<string, chrome.storage.StorageChange>) {
-  try {
-    // Type narrowing: only handle known keys
-    const profileChange = changes[SENSITIVE_STORAGE_KEYS.ENVIRONMENT_PROFILES]
-    if (profileChange) {
-      environmentConfigs.value = await getConfigs()
-    }
-  }
-  catch (error) {
-    console.error("Error handling local storage change:", error)
   }
 }
 
@@ -98,13 +51,8 @@ async function handleLocalStorageChange(changes: Record<string, chrome.storage.S
 async function handleSyncStorageChange(changes: Record<string, chrome.storage.StorageChange>) {
   try {
     // Type narrowing: only handle known keys
-    const environmentChange = changes[SYNC_STORAGE_KEYS.BACKEND_ENVIRONMENT]
     const delayChange = changes[SYNC_STORAGE_KEYS.AUTO_CLOSE_DELAY]
     const developerModeChange = changes[SYNC_STORAGE_KEYS.DEVELOPER_MODE]
-
-    if (environmentChange) {
-      environment.value = await getEnvironment()
-    }
 
     if (delayChange) {
       autoCloseDelay.value = await getAutoCloseDelay()
@@ -117,22 +65,6 @@ async function handleSyncStorageChange(changes: Record<string, chrome.storage.St
   catch (error) {
     console.error("Error handling sync storage change:", error)
   }
-}
-
-/**
- * Update environment setting and persist to storage.
- */
-async function updateEnvironment(newEnvironment: Environment) {
-  environment.value = newEnvironment
-  await setEnvironment(newEnvironment)
-}
-
-/**
- * Update environment configurations and persist to storage.
- */
-async function updateEnvironmentConfigs(newConfigs: EnvironmentConfigs) {
-  environmentConfigs.value = newConfigs
-  await setConfigs(newConfigs)
 }
 
 /**
@@ -160,27 +92,28 @@ export function disposeSettings() {
     scope.stop()
     scope = null
   }
-  browser.storage.local.onChanged.removeListener(handleLocalStorageChange)
   browser.storage.sync.onChanged.removeListener(handleSyncStorageChange)
   isInitialized = false
 }
 
 /**
- * Reactive settings composable with singleton pattern.
+ * Reactive settings composable for app behavior settings with singleton pattern.
  * Provides shared state across all Vue components with automatic
  * cross-tab synchronization via browser storage events.
+ *
+ * For environment configuration (backend URLs, API keys), use useEnvironment() instead.
  *
  * Storage listeners are managed in an effectScope for proper cleanup.
  * Call disposeSettings() to cleanup if needed (e.g., tests, HMR).
  *
  * @example
  * ```typescript
- * const { environmentConfig, isAppConfigured, environment } = useSettings()
+ * const { autoCloseDelay, isDeveloperMode } = useSettings()
  *
  * // Use in templates or computed properties - automatically reactive
  * watchEffect(() => {
- *   console.log('Current environment:', environment.value)
- *   console.log('Is configured:', isAppConfigured.value)
+ *   console.log('Auto-close delay:', autoCloseDelay.value)
+ *   console.log('Developer mode:', isDeveloperMode.value)
  * })
  * ```
  */
@@ -194,7 +127,6 @@ export function useSettings() {
       loadAllSettings()
 
       // Set up storage listeners for cross-tab sync within the scope
-      browser.storage.local.onChanged.addListener(handleLocalStorageChange)
       browser.storage.sync.onChanged.addListener(handleSyncStorageChange)
     })
 
@@ -202,20 +134,14 @@ export function useSettings() {
   }
 
   return {
-    // Reactive state (read-only for form draft pattern)
-    environment: computed(() => environment.value),
-    environmentConfig,
-    environmentConfigs: computed(() => environmentConfigs.value),
+    // Reactive state
     autoCloseDelay: computed(() => autoCloseDelay.value),
     isDeveloperMode: computed({
       get: () => isDeveloperMode.value,
       set: (value) => { updateDeveloperMode(value) },
     }),
-    isAppConfigured,
 
     // Update methods for saving form data
-    updateEnvironment,
-    updateEnvironmentConfigs,
     updateAutoCloseDelay,
     updateDeveloperMode,
   }

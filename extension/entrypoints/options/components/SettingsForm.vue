@@ -8,20 +8,25 @@
 
 import type { Environment, EnvironmentConfigs } from "../../../lib/settings"
 import { ref, toRaw, watch } from "vue"
+import { useEnvironment } from "../../../lib/composables/useEnvironment"
 import { useNotification } from "../../../lib/composables/useNotification"
 import { useSettings } from "../../../lib/composables/useSettings"
 import ApiConfigSection from "./ApiConfigSection.vue"
 import EnvironmentConfig from "./EnvironmentConfig.vue"
 import PopupBehaviorSection from "./PopupBehaviorSection.vue"
 
-// Get reactive settings and update methods
+// Get reactive environment settings and update methods
 const {
-  isDeveloperMode,
   environment: savedEnvironment,
   environmentConfigs: savedEnvironmentConfigs,
-  autoCloseDelay: savedAutoCloseDelay,
   updateEnvironment,
   updateEnvironmentConfigs,
+} = useEnvironment()
+
+// Get reactive app behavior settings and update methods
+const {
+  isDeveloperMode,
+  autoCloseDelay: savedAutoCloseDelay,
   updateAutoCloseDelay,
 } = useSettings()
 

@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import { computed } from "vue"
-import { getEnvironmentConfig } from "../../entrypoints/popup/composables/useEnvironmentConfig"
-import { useSettings } from "../composables/useSettings"
+import { ENVIRONMENT_BADGE_CONFIGS, useEnvironment } from "../composables/useEnvironment"
 import EnvironmentIcon from "./EnvironmentIcon.vue"
 
 // Props
@@ -11,11 +10,11 @@ interface Props {
 
 const { showProduction = false } = defineProps<Props>()
 
-// Get reactive settings from composable (automatically syncs across tabs)
-const { environment, environmentConfig } = useSettings()
+// Get reactive environment from composable (automatically syncs across tabs)
+const { environment, environmentConfig } = useEnvironment()
 
 // Computed environment badge properties
-const environmentBadge = computed(() => getEnvironmentConfig(environment.value))
+const environmentBadge = computed(() => ENVIRONMENT_BADGE_CONFIGS[environment.value])
 
 // Computed backend URL from current environment config
 const activeBackendUrl = computed(() => environmentConfig.value?.url || "")

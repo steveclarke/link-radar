@@ -5,7 +5,7 @@
 
 import type { TabInfo } from "../../../lib/types"
 import { ref } from "vue"
-import { useSettings } from "../../../lib/composables/useSettings"
+import { useEnvironment } from "../../../lib/composables/useEnvironment"
 import { useCurrentTab } from "./useCurrentTab"
 
 /**
@@ -16,7 +16,7 @@ export function useAppInit() {
   const isAppLoading = ref(false)
   const currentTabInfo = ref<TabInfo | null>(null)
 
-  const { isAppConfigured } = useSettings()
+  const { isAppConfigured } = useEnvironment()
   const { loadCurrentTab } = useCurrentTab()
 
   /**
