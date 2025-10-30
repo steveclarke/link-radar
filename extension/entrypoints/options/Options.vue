@@ -1,8 +1,9 @@
 <script lang="ts" setup>
 /**
  * Settings page orchestrator component for the Link Radar browser extension.
- * Provides UI for configuring environment profiles, auto-close delay, and developer mode settings.
- * Uses composables for business logic and components for UI sections.
+ * Provides UI for configuring environment configs, auto-close delay, and
+ * developer mode settings.  Uses composables for business logic and components
+ * for UI sections.
  *
  * @component
  */
@@ -16,11 +17,11 @@ import { useOptionsSettings } from "./composables/useOptionsSettings"
 
 const {
   // State
-  profiles,
+  environmentConfigs,
   showApiKeys,
   autoCloseDelay,
-  developerMode,
-  backendEnvironment,
+  isDeveloperMode,
+  environment,
   isSaving,
   isLoading,
   // Methods
@@ -42,11 +43,11 @@ onMounted(loadSettings)
 
     <!-- Content only shows after loading -->
     <div v-else>
-      <SettingsHeader v-model="developerMode" />
+      <SettingsHeader v-model="isDeveloperMode" />
 
       <div class="flex flex-col gap-6">
         <ApiConfigSection
-          v-model="profiles.production.apiKey"
+          v-model="environmentConfigs.production.apiKey"
           v-model:show-api-key="showApiKeys.production"
         />
 
@@ -64,11 +65,11 @@ onMounted(loadSettings)
         </button>
       </div>
 
-      <!-- Backend Environment Configuration (only visible in developer mode) -->
-      <div v-if="developerMode" class="mt-8 pt-8 border-t border-slate-200">
+      <!-- Environment Configuration (only visible in developer mode) -->
+      <div v-if="isDeveloperMode" class="mt-8 pt-8 border-t border-slate-200">
         <BackendEnvironmentConfig
-          v-model="backendEnvironment"
-          v-model:profiles="profiles"
+          v-model="environment"
+          v-model:environment-configs="environmentConfigs"
           v-model:show-api-keys="showApiKeys"
         />
       </div>

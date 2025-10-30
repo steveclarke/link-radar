@@ -1,17 +1,17 @@
 <script lang="ts" setup>
 /**
- * Reusable environment option component for backend environment selection.
+ * Reusable environment option component for environment selection.
  * Displays a radio button option with status badge and expandable configuration panel.
  *
  * @component
  */
-import type { BackendEnvironment } from "../../../lib/settings"
+import type { Environment } from "../../../lib/settings"
 import { computed } from "vue"
 import EnvironmentLabel from "../../../lib/components/EnvironmentLabel.vue"
 
 const props = defineProps<{
   /** The environment type (production, local, custom) */
-  environment: BackendEnvironment
+  environment: Environment
   /** Whether this environment is currently selected */
   isSelected: boolean
   /** Whether this environment is configured with required fields */

@@ -8,14 +8,14 @@
  */
 
 /**
- * Backend environment types
+ * Environment types for backend configurations
  */
-export type BackendEnvironment = "production" | "local" | "custom"
+export type Environment = "production" | "local" | "custom"
 
 /**
- * Environment profile containing URL and API key for a specific environment
+ * Environment configuration containing URL and API key for a specific environment
  */
-export interface EnvironmentProfile {
+export interface EnvironmentConfig {
   /** Backend API URL for this environment */
   url: string
   /** API key for this environment */
@@ -23,12 +23,12 @@ export interface EnvironmentProfile {
 }
 
 /**
- * Collection of environment profiles for all supported environments
+ * Collection of environment configurations for all supported environments
  */
-export interface EnvironmentProfiles {
-  production: EnvironmentProfile
-  local: EnvironmentProfile
-  custom: EnvironmentProfile
+export interface EnvironmentConfigs {
+  production: EnvironmentConfig
+  local: EnvironmentConfig
+  custom: EnvironmentConfig
 }
 
 /**
@@ -84,10 +84,10 @@ export const DEV_BACKEND_URL = import.meta.env.VITE_DEV_BACKEND_URL || "http://l
 export const DEV_API_KEY = import.meta.env.VITE_DEV_API_KEY || "dev_api_key_change_in_production"
 
 /**
- * Initialize default environment profiles from environment variables.
- * Called on first run or when profiles don't exist in storage.
+ * Initialize default environment configurations from environment variables.
+ * Called on first run or when configs don't exist in storage.
  */
-export function initializeProfiles(): EnvironmentProfiles {
+export function initializeConfigs(): EnvironmentConfigs {
   return {
     production: {
       url: BACKEND_URL,
@@ -105,88 +105,88 @@ export function initializeProfiles(): EnvironmentProfiles {
 }
 
 /**
- * Get all environment profiles from storage.
+ * Get all environment configurations from storage.
  * Initializes with defaults on first run.
  */
-export async function getProfiles(): Promise<EnvironmentProfiles> {
+export async function getConfigs(): Promise<EnvironmentConfigs> {
   const result = await browser.storage.local.get(SENSITIVE_STORAGE_KEYS.ENVIRONMENT_PROFILES)
-  const profiles = result[SENSITIVE_STORAGE_KEYS.ENVIRONMENT_PROFILES] as EnvironmentProfiles | undefined
+  const configs = result[SENSITIVE_STORAGE_KEYS.ENVIRONMENT_PROFILES] as EnvironmentConfigs | undefined
 
-  if (!profiles) {
+  if (!configs) {
     // First run - initialize with defaults
-    const defaultProfiles = initializeProfiles()
-    await setProfiles(defaultProfiles)
-    return defaultProfiles
+    const defaultConfigs = initializeConfigs()
+    await setConfigs(defaultConfigs)
+    return defaultConfigs
   }
 
-  return profiles
+  return configs
 }
 
 /**
- * Save all environment profiles to storage.
+ * Save all environment configurations to storage.
  */
-export async function setProfiles(profiles: EnvironmentProfiles): Promise<void> {
-  await browser.storage.local.set({ [SENSITIVE_STORAGE_KEYS.ENVIRONMENT_PROFILES]: profiles })
+export async function setConfigs(configs: EnvironmentConfigs): Promise<void> {
+  await browser.storage.local.set({ [SENSITIVE_STORAGE_KEYS.ENVIRONMENT_PROFILES]: configs })
 }
 
 /**
- * Get the profile for a specific environment.
+ * Get the configuration for a specific environment.
  */
-export async function getProfile(environment: BackendEnvironment): Promise<EnvironmentProfile> {
-  const profiles = await getProfiles()
-  return profiles[environment]
+export async function getConfig(environment: Environment): Promise<EnvironmentConfig> {
+  const configs = await getConfigs()
+  return configs[environment]
 }
 
 /**
- * Get the profile for the currently active environment.
+ * Get the configuration for the currently active environment.
  */
-export async function getActiveProfile(): Promise<EnvironmentProfile> {
-  const environment = await getBackendEnvironment()
-  return getProfile(environment)
+export async function getActiveConfig(): Promise<EnvironmentConfig> {
+  const environment = await getEnvironment()
+  return getConfig(environment)
 }
 
 /**
  * Set the API key for a specific environment.
  */
-export async function setProfileApiKey(environment: BackendEnvironment, apiKey: string): Promise<void> {
-  const profiles = await getProfiles()
-  profiles[environment].apiKey = apiKey
-  await setProfiles(profiles)
+export async function setConfigApiKey(environment: Environment, apiKey: string): Promise<void> {
+  const configs = await getConfigs()
+  configs[environment].apiKey = apiKey
+  await setConfigs(configs)
 }
 
 /**
  * Set the URL for a specific environment.
  * Typically only used for the "custom" environment.
  */
-export async function setProfileUrl(environment: BackendEnvironment, url: string): Promise<void> {
-  const profiles = await getProfiles()
-  profiles[environment].url = url
-  await setProfiles(profiles)
+export async function setConfigUrl(environment: Environment, url: string): Promise<void> {
+  const configs = await getConfigs()
+  configs[environment].url = url
+  await setConfigs(configs)
 }
 
 /**
- * Read the backend environment setting from browser sync storage.
+ * Read the environment setting from browser sync storage.
  * Returns "local" when not configured (default for development).
  */
-export async function getBackendEnvironment(): Promise<BackendEnvironment> {
+export async function getEnvironment(): Promise<Environment> {
   const result = await browser.storage.sync.get(SYNC_STORAGE_KEYS.BACKEND_ENVIRONMENT)
-  return (result[SYNC_STORAGE_KEYS.BACKEND_ENVIRONMENT] as BackendEnvironment) ?? "local"
+  return (result[SYNC_STORAGE_KEYS.BACKEND_ENVIRONMENT] as Environment) ?? "local"
 }
 
 /**
- * Persist the backend environment setting to browser sync storage.
- * @param environment - The backend environment to use
+ * Persist the environment setting to browser sync storage.
+ * @param environment - The environment to use
  */
-export async function setBackendEnvironment(environment: BackendEnvironment): Promise<void> {
+export async function setEnvironment(environment: Environment): Promise<void> {
   await browser.storage.sync.set({ [SYNC_STORAGE_KEYS.BACKEND_ENVIRONMENT]: environment })
 }
 
 /**
- * Get the active backend URL based on the current environment's profile.
+ * Get the active backend URL based on the current environment's configuration.
  */
 export async function getActiveBackendUrl(): Promise<string> {
-  const profile = await getActiveProfile()
-  return profile.url
+  const config = await getActiveConfig()
+  return config.url
 }
 
 /**

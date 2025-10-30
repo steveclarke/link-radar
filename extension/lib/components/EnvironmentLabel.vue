@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { BackendEnvironment } from "../settings"
+import type { Environment } from "../settings"
 import { computed } from "vue"
 import { getEnvironmentConfig } from "../../entrypoints/popup/composables/useEnvironmentConfig"
 import EnvironmentIcon from "./EnvironmentIcon.vue"
@@ -10,8 +10,8 @@ import EnvironmentIcon from "./EnvironmentIcon.vue"
  */
 
 interface Props {
-  /** The backend environment type to display */
-  environment: BackendEnvironment
+  /** The environment type to display */
+  environment: Environment
 }
 
 const props = defineProps<Props>()

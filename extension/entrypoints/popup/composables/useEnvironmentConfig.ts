@@ -1,9 +1,9 @@
-import type { BackendEnvironment } from "../../../lib/settings"
+import type { Environment } from "../../../lib/settings"
 
 /**
  * Configuration object for environment badge styling and display
  */
-export interface EnvironmentConfig {
+export interface EnvironmentBadgeConfig {
   /** Icon name from Material Symbols */
   icon: string
   /** Hex color for the icon */
@@ -19,13 +19,13 @@ export interface EnvironmentConfig {
 }
 
 /**
- * Returns environment configuration based on the backend environment type.
+ * Returns environment configuration based on the environment type.
  * Provides consistent styling across EnvironmentBadge and Options components.
  *
- * @param environment - The backend environment type
+ * @param environment - The environment type
  * @returns Configuration object with icon, colors, and labels
  */
-export function getEnvironmentConfig(environment: BackendEnvironment): EnvironmentConfig {
+export function getEnvironmentConfig(environment: Environment): EnvironmentBadgeConfig {
   switch (environment) {
     case "local":
       return {

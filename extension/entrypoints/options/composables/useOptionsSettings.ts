@@ -3,10 +3,10 @@
  * Centralizes all state management and operations for settings configuration.
  */
 
-import type { BackendEnvironment, EnvironmentProfiles } from "../../../lib/settings"
+import type { Environment, EnvironmentConfigs } from "../../../lib/settings"
 import { ref } from "vue"
 import { useNotification } from "../../../lib/composables/useNotification"
-import { DEFAULT_AUTO_CLOSE_DELAY, getAutoCloseDelay, getBackendEnvironment, getDeveloperMode, getProfiles, setAutoCloseDelay, setBackendEnvironment, setDeveloperMode, setProfiles } from "../../../lib/settings"
+import { DEFAULT_AUTO_CLOSE_DELAY, getAutoCloseDelay, getConfigs, getDeveloperMode, getEnvironment, setAutoCloseDelay, setConfigs, setDeveloperMode, setEnvironment } from "../../../lib/settings"
 
 /**
  * Validates that a URL is safe for use as a backend URL.
@@ -39,8 +39,8 @@ export function useOptionsSettings() {
   const { showSuccess, showError } = useNotification()
 
   // State
-  /** Environment profiles state containing URL and API key for each environment */
-  const profiles = ref<EnvironmentProfiles>({
+  /** Environment configurations state containing URL and API key for each environment */
+  const environmentConfigs = ref<EnvironmentConfigs>({
     production: { url: "", apiKey: "" },
     local: { url: "", apiKey: "" },
     custom: { url: "", apiKey: "" },
@@ -57,10 +57,10 @@ export function useOptionsSettings() {
   const autoCloseDelay = ref(DEFAULT_AUTO_CLOSE_DELAY)
 
   /** Whether developer mode is enabled (shows backend configuration) */
-  const developerMode = ref(false)
+  const isDeveloperMode = ref(false)
 
-  /** Backend environment selection */
-  const backendEnvironment = ref<BackendEnvironment>("local")
+  /** Environment selection */
+  const environment = ref<Environment>("local")
 
   /** Whether a save operation is currently in progress */
   const isSaving = ref(false)
@@ -70,16 +70,16 @@ export function useOptionsSettings() {
 
   // Methods
   /**
-   * Loads saved profiles, auto-close delay, developer mode, and backend environment from browser storage.
+   * Loads saved environment configs, auto-close delay, developer mode, and environment from browser storage.
    * Called automatically on component mount.
    */
   async function loadSettings() {
     isLoading.value = true
     try {
-      profiles.value = await getProfiles()
+      environmentConfigs.value = await getConfigs()
       autoCloseDelay.value = await getAutoCloseDelay()
-      developerMode.value = await getDeveloperMode()
-      backendEnvironment.value = await getBackendEnvironment()
+      isDeveloperMode.value = await getDeveloperMode()
+      environment.value = await getEnvironment()
     }
     catch (error) {
       console.error("Error loading settings:", error)
@@ -93,43 +93,43 @@ export function useOptionsSettings() {
   }
 
   /**
-   * Check if a profile is configured (has required fields).
+   * Check if an environment is configured (has required fields).
    * Custom environments need both URL and API key.
    * Production and local only need API key (URL from env vars).
    *
-   * @param environment - The environment to check
-   * @param profilesData - Optional profiles data to check (defaults to internal profiles state)
-   * @returns true if profile has required fields
+   * @param env - The environment to check
+   * @param configsData - Optional configs data to check (defaults to internal environmentConfigs state)
+   * @returns true if environment has required fields
    */
-  function isProfileConfigured(environment: BackendEnvironment, profilesData?: EnvironmentProfiles): boolean {
-    const profilesToCheck = profilesData || profiles.value
-    const profile = profilesToCheck[environment]
-    if (environment === "custom") {
-      return !!profile.url && !!profile.apiKey
+  function isConfigured(env: Environment, configsData?: EnvironmentConfigs): boolean {
+    const configsToCheck = configsData || environmentConfigs.value
+    const config = configsToCheck[env]
+    if (env === "custom") {
+      return !!config.url && !!config.apiKey
     }
-    return !!profile.apiKey
+    return !!config.apiKey
   }
 
   /**
    * Saves all settings to browser storage.
    */
   async function saveSettings() {
-    // Validate current environment profile
-    const currentProfile = profiles.value[backendEnvironment.value]
+    // Validate current environment config
+    const currentConfig = environmentConfigs.value[environment.value]
 
-    if (!currentProfile.apiKey.trim()) {
-      showError(`Please enter an API key for ${backendEnvironment.value} environment`)
+    if (!currentConfig.apiKey.trim()) {
+      showError(`Please enter an API key for ${environment.value} environment`)
       return
     }
 
-    if (backendEnvironment.value === "custom") {
-      if (!currentProfile.url.trim()) {
+    if (environment.value === "custom") {
+      if (!currentConfig.url.trim()) {
         showError("Please enter a custom backend URL")
         return
       }
 
       // Validate custom URL is safe (blocks dangerous protocols)
-      if (!validateBackendUrl(currentProfile.url)) {
+      if (!validateBackendUrl(currentConfig.url)) {
         showError("Invalid URL. Please use a valid HTTP or HTTPS URL")
         return
       }
@@ -139,13 +139,13 @@ export function useOptionsSettings() {
     try {
       // Convert reactive Proxy object to plain object before saving
       // browser.storage cannot serialize Proxy objects, so we need a plain copy
-      const plainProfiles: EnvironmentProfiles = JSON.parse(JSON.stringify(profiles.value))
-      await setProfiles(plainProfiles)
+      const plainConfigs: EnvironmentConfigs = JSON.parse(JSON.stringify(environmentConfigs.value))
+      await setConfigs(plainConfigs)
 
       // Save other settings
       await setAutoCloseDelay(autoCloseDelay.value)
-      await setDeveloperMode(developerMode.value)
-      await setBackendEnvironment(backendEnvironment.value)
+      await setDeveloperMode(isDeveloperMode.value)
+      await setEnvironment(environment.value)
 
       showSuccess("Settings saved successfully!")
     }
@@ -161,16 +161,16 @@ export function useOptionsSettings() {
 
   return {
     // State
-    profiles,
+    environmentConfigs,
     showApiKeys,
     autoCloseDelay,
-    developerMode,
-    backendEnvironment,
+    isDeveloperMode,
+    environment,
     isSaving,
     isLoading,
     // Methods
     loadSettings,
     saveSettings,
-    isProfileConfigured,
+    isConfigured,
   }
 }

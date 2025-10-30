@@ -1,8 +1,7 @@
 <script lang="ts" setup>
-import type { BackendEnvironment } from "../settings"
-import { computed, onMounted, onUnmounted, ref } from "vue"
+import { computed } from "vue"
 import { getEnvironmentConfig } from "../../entrypoints/popup/composables/useEnvironmentConfig"
-import { getActiveBackendUrl, getBackendEnvironment, SENSITIVE_STORAGE_KEYS, SYNC_STORAGE_KEYS } from "../settings"
+import { useSettings } from "../composables/useSettings"
 import EnvironmentIcon from "./EnvironmentIcon.vue"
 
 // Props
@@ -12,52 +11,19 @@ interface Props {
 
 const { showProduction = false } = defineProps<Props>()
 
-// State
-const backendEnvironment = ref<BackendEnvironment>("production")
-const activeBackendUrl = ref("")
+// Get reactive settings from composable (automatically syncs across tabs)
+const { environment, environmentConfig } = useSettings()
 
-// Computed environment badge properties using composable
-const environmentBadge = computed(() => getEnvironmentConfig(backendEnvironment.value))
+// Computed environment badge properties
+const environmentBadge = computed(() => getEnvironmentConfig(environment.value))
 
-/**
- * Loads the current environment settings from browser storage.
- */
-async function loadEnvironment() {
-  backendEnvironment.value = await getBackendEnvironment()
-  activeBackendUrl.value = await getActiveBackendUrl()
-}
-
-/**
- * Handles browser storage changes to keep the badge in sync.
- * Listens for changes to backend environment and environment profiles (which contain custom URL).
- */
-function handleStorageChange(changes: Record<string, chrome.storage.StorageChange>) {
-  // Check if backend environment or environment profiles changed
-  // Environment profiles contain the custom URL
-  if (changes[SYNC_STORAGE_KEYS.BACKEND_ENVIRONMENT] || changes[SENSITIVE_STORAGE_KEYS.ENVIRONMENT_PROFILES]) {
-    loadEnvironment()
-  }
-}
-
-// Load environment on mount
-onMounted(() => {
-  loadEnvironment()
-  // Listen for storage changes to keep badge reactive
-  // Backend environment is in sync storage, profiles are in local storage
-  browser.storage.sync.onChanged.addListener(handleStorageChange)
-  browser.storage.local.onChanged.addListener(handleStorageChange)
-})
-
-// Clean up listener on unmount
-onUnmounted(() => {
-  browser.storage.sync.onChanged.removeListener(handleStorageChange)
-  browser.storage.local.onChanged.removeListener(handleStorageChange)
-})
+// Computed backend URL from current environment config
+const activeBackendUrl = computed(() => environmentConfig.value?.url || "")
 </script>
 
 <template>
   <div
-    v-if="showProduction || backendEnvironment !== 'production'"
+    v-if="showProduction || environment !== 'production'"
     class="px-2 py-0.5 rounded-full text-xs font-medium border flex items-center gap-1"
     :class="[
       environmentBadge.bgColor,
@@ -66,7 +32,7 @@ onUnmounted(() => {
     ]"
     :title="`Backend: ${activeBackendUrl}`"
   >
-    <EnvironmentIcon :environment="backendEnvironment" />
+    <EnvironmentIcon :environment="environment" />
     {{ environmentBadge.label }}
   </div>
 </template>

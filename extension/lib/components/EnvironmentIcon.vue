@@ -1,17 +1,17 @@
 <script lang="ts" setup>
-import type { BackendEnvironment } from "../settings"
+import type { Environment } from "../settings"
 import { Icon } from "@iconify/vue"
 import { computed } from "vue"
 import { getEnvironmentConfig } from "../../entrypoints/popup/composables/useEnvironmentConfig"
 
 /**
  * Reusable environment icon component that displays a colored circle
- * representing the current backend environment (production, local, custom).
+ * representing the current environment (production, local, custom).
  */
 
 interface Props {
-  /** The backend environment type to display */
-  environment: BackendEnvironment
+  /** The environment type to display */
+  environment: Environment
   /** Icon size classes (Tailwind), defaults to w-3 h-3 */
   size?: string
 }

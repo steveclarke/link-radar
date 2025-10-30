@@ -1,20 +1,20 @@
 <script lang="ts" setup>
 /**
- * Backend environment configuration component.
+ * Environment configuration component.
  * Allows selecting between production, local dev, and custom environments,
  * each with their own URL and API key settings.
  */
-import type { BackendEnvironment, EnvironmentProfiles } from "../../../lib/settings"
+import type { Environment, EnvironmentConfigs } from "../../../lib/settings"
 import { Icon } from "@iconify/vue"
 import { BACKEND_URL, DEV_BACKEND_URL } from "../../../lib/settings"
 import { useOptionsSettings } from "../composables/useOptionsSettings"
 import EnvironmentOption from "./EnvironmentOption.vue"
 
-/** Currently selected backend environment with two-way binding */
-const selectedEnvironment = defineModel<BackendEnvironment>({ required: true })
+/** Currently selected environment with two-way binding */
+const selectedEnvironment = defineModel<Environment>({ required: true })
 
-/** Environment profiles with two-way binding */
-const localProfiles = defineModel<EnvironmentProfiles>("profiles", { required: true })
+/** Environment configurations with two-way binding */
+const configs = defineModel<EnvironmentConfigs>("environmentConfigs", { required: true })
 
 /** Whether to show/hide API keys (v-model) */
 const showApiKeys = defineModel<{
@@ -24,7 +24,7 @@ const showApiKeys = defineModel<{
 }>("showApiKeys", { required: true })
 
 // Get business logic from composable
-const { isProfileConfigured } = useOptionsSettings()
+const { isConfigured } = useOptionsSettings()
 </script>
 
 <template>
@@ -35,20 +35,20 @@ const { isProfileConfigured } = useOptionsSettings()
       </div>
       <div class="flex-1">
         <h3 class="m-0 mb-4 text-lg font-semibold text-brand-900">
-          Backend Environment
+          Environment Configuration
         </h3>
 
         <!-- Environment Selection -->
         <div class="mb-4">
           <label class="block text-sm font-medium text-brand-900 mb-3">
-            Select Backend Environment:
+            Select Environment:
           </label>
           <div class="space-y-4">
             <!-- Production Environment -->
             <EnvironmentOption
               environment="production"
               :is-selected="selectedEnvironment === 'production'"
-              :is-configured="isProfileConfigured('production', localProfiles)"
+              :is-configured="isConfigured('production', configs)"
               :url="BACKEND_URL"
               @select="selectedEnvironment = 'production'"
             >
@@ -64,7 +64,7 @@ const { isProfileConfigured } = useOptionsSettings()
             <EnvironmentOption
               environment="local"
               :is-selected="selectedEnvironment === 'local'"
-              :is-configured="isProfileConfigured('local', localProfiles)"
+              :is-configured="isConfigured('local', configs)"
               :url="DEV_BACKEND_URL"
               @select="selectedEnvironment = 'local'"
             >
@@ -77,7 +77,7 @@ const { isProfileConfigured } = useOptionsSettings()
               <div>
                 <label class="block text-xs font-medium text-brand-800 mb-1">API Key (from .env)</label>
                 <input
-                  v-model="localProfiles.local.apiKey"
+                  v-model="configs.local.apiKey"
                   type="text"
                   readonly
                   class="w-full px-3 py-2 border border-brand-300 bg-brand-50 rounded-md text-sm font-mono text-brand-600"
@@ -89,14 +89,14 @@ const { isProfileConfigured } = useOptionsSettings()
             <EnvironmentOption
               environment="custom"
               :is-selected="selectedEnvironment === 'custom'"
-              :is-configured="isProfileConfigured('custom', localProfiles)"
+              :is-configured="isConfigured('custom', configs)"
               url="Specify your own backend URL (e.g., staging environment)"
               @select="selectedEnvironment = 'custom'"
             >
               <div>
                 <label class="block text-xs font-medium text-brand-800 mb-1">Backend URL</label>
                 <input
-                  v-model="localProfiles.custom.url"
+                  v-model="configs.custom.url"
                   type="url"
                   placeholder="https://api.example.com/api/v1"
                   class="w-full px-3 py-2 border border-brand-300 rounded-md text-sm font-mono transition-colors focus:outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-200"
@@ -106,7 +106,7 @@ const { isProfileConfigured } = useOptionsSettings()
                 <label class="block text-xs font-medium text-brand-800 mb-1">API Key</label>
                 <div class="flex gap-2">
                   <input
-                    v-model="localProfiles.custom.apiKey"
+                    v-model="configs.custom.apiKey"
                     :type="showApiKeys.custom ? 'text' : 'password'"
                     placeholder="Enter custom API key"
                     class="flex-1 px-3 py-2 border border-brand-300 rounded-md text-sm font-mono transition-colors focus:outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-200"
