@@ -30,11 +30,13 @@ const SUCCESS_MESSAGE_TIMEOUT_MS = 3000
  * showError("Failed to save link")
  */
 export const useNotification = createGlobalState(() => {
-  /**
-   * Shared global state for notifications.
-   * This ensures all components access the same notification message.
-   */
   const message = ref<MessageState | null>(null)
+
+  /**
+   * Timeout ID for the active auto-dismiss timer.
+   * Tracked so we can cancel pending timeouts when showing new messages
+   * or when manually clearing the notification.
+   */
   let timeoutId: ReturnType<typeof setTimeout> | null = null
 
   /**
