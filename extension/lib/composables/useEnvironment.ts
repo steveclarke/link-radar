@@ -10,7 +10,8 @@
  */
 
 import type { Environment, EnvironmentConfig, EnvironmentConfigs } from "../settings"
-import { computed, effectScope, ref } from "vue"
+import { createGlobalState } from "@vueuse/core"
+import { computed, ref } from "vue"
 import {
   getEnvironment,
   getEnvironmentConfigs,
@@ -69,124 +70,10 @@ export const ENVIRONMENT_BADGE_CONFIGS: Record<Environment, EnvironmentBadgeConf
   },
 }
 
-// Singleton state - shared across all component instances
-let isInitialized = false
-// Effect scope for managing lifecycle of watchers and listeners
-let scope: ReturnType<typeof effectScope> | null = null
-
-const environment = ref<Environment>("production")
-const environmentConfigs = ref<EnvironmentConfigs>({
-  production: { url: "", apiKey: "" },
-  local: { url: "", apiKey: "" },
-  custom: { url: "", apiKey: "" },
-})
-
-/**
- * Computed property for the currently active environment configuration.
- * Automatically updates when environment or configs change.
- */
-const environmentConfig = computed<EnvironmentConfig | null>(() => {
-  if (!environment.value)
-    return null
-  return environmentConfigs.value[environment.value]
-})
-
-/**
- * Computed property that determines if the app is configured and ready to use.
- * Checks if the active environment has an API key set.
- */
-const isAppConfigured = computed<boolean>(() => {
-  return !!environmentConfig.value?.apiKey
-})
-
-/**
- * Load all environment settings from browser storage.
- * Called once during initialization.
- */
-async function loadAllEnvironmentSettings() {
-  try {
-    environmentConfigs.value = await getEnvironmentConfigs()
-    environment.value = await getEnvironment()
-  }
-  catch (error) {
-    console.error("Error loading environment settings:", error)
-  }
-}
-
-/**
- * Local storage change handler for cross-tab synchronization.
- * Reloads environment configs when they change in another tab.
- * Type-safe handler that only processes known storage keys.
- */
-async function handleLocalStorageChange(changes: Record<string, chrome.storage.StorageChange>) {
-  try {
-    // Type narrowing: only handle known keys
-    const configChange = changes[localStorageKeys.environmentConfigs]
-    if (configChange) {
-      environmentConfigs.value = await getEnvironmentConfigs()
-    }
-  }
-  catch (error) {
-    console.error("Error handling local storage change:", error)
-  }
-}
-
-/**
- * Sync storage change handler for cross-tab synchronization.
- * Reloads environment setting when it changes in another tab.
- * Type-safe handler that only processes known storage keys.
- */
-async function handleSyncStorageChange(changes: Record<string, chrome.storage.StorageChange>) {
-  try {
-    // Type narrowing: only handle known keys
-    const environmentChange = changes[syncedStorageKeys.environment]
-
-    if (environmentChange) {
-      environment.value = await getEnvironment()
-    }
-  }
-  catch (error) {
-    console.error("Error handling sync storage change:", error)
-  }
-}
-
-/**
- * Update environment setting and persist to storage.
- */
-async function updateEnvironment(newEnvironment: Environment) {
-  environment.value = newEnvironment
-  await setEnvironment(newEnvironment)
-}
-
-/**
- * Update environment configurations and persist to storage.
- */
-async function updateEnvironmentConfigs(newConfigs: EnvironmentConfigs) {
-  environmentConfigs.value = newConfigs
-  await setEnvironmentConfigs(newConfigs)
-}
-
-/**
- * Cleanup function to dispose of storage listeners.
- * Useful for testing, HMR, or extension shutdown scenarios.
- */
-export function disposeEnvironment() {
-  if (scope) {
-    scope.stop()
-    scope = null
-  }
-  browser.storage.local.onChanged.removeListener(handleLocalStorageChange)
-  browser.storage.sync.onChanged.removeListener(handleSyncStorageChange)
-  isInitialized = false
-}
-
 /**
  * Reactive environment composable with singleton pattern.
  * Provides shared state across all Vue components with automatic
  * cross-tab synchronization via browser storage events.
- *
- * Storage listeners are managed in an effectScope for proper cleanup.
- * Call disposeEnvironment() to cleanup if needed (e.g., tests, HMR).
  *
  * @example
  * ```typescript
@@ -199,22 +86,106 @@ export function disposeEnvironment() {
  * })
  * ```
  */
-export function useEnvironment() {
-  // Initialize on first use
-  if (!isInitialized) {
-    // Create effect scope for lifecycle management
-    scope = effectScope()
+export const useEnvironment = createGlobalState(() => {
+  // Singleton state - shared across all component instances
+  const environment = ref<Environment>("production")
+  const environmentConfigs = ref<EnvironmentConfigs>({
+    production: { url: "", apiKey: "" },
+    local: { url: "", apiKey: "" },
+    custom: { url: "", apiKey: "" },
+  })
 
-    scope.run(() => {
-      loadAllEnvironmentSettings()
+  /**
+   * Computed property for the currently active environment configuration.
+   * Automatically updates when environment or configs change.
+   */
+  const environmentConfig = computed<EnvironmentConfig | null>(() => {
+    if (!environment.value)
+      return null
+    return environmentConfigs.value[environment.value]
+  })
 
-      // Set up storage listeners for cross-tab sync within the scope
-      browser.storage.local.onChanged.addListener(handleLocalStorageChange)
-      browser.storage.sync.onChanged.addListener(handleSyncStorageChange)
-    })
+  /**
+   * Computed property that determines if the app is configured and ready to use.
+   * Checks if the active environment has an API key set.
+   */
+  const isAppConfigured = computed<boolean>(() => {
+    return !!environmentConfig.value?.apiKey
+  })
 
-    isInitialized = true
+  /**
+   * Load all environment settings from browser storage.
+   * Called once during initialization.
+   */
+  async function loadAllEnvironmentSettings() {
+    try {
+      environmentConfigs.value = await getEnvironmentConfigs()
+      environment.value = await getEnvironment()
+    }
+    catch (error) {
+      console.error("Error loading environment settings:", error)
+    }
   }
+
+  /**
+   * Local storage change handler for cross-tab synchronization.
+   * Reloads environment configs when they change in another tab.
+   * Type-safe handler that only processes known storage keys.
+   */
+  async function handleLocalStorageChange(changes: Record<string, chrome.storage.StorageChange>) {
+    try {
+      // Type narrowing: only handle known keys
+      const configChange = changes[localStorageKeys.environmentConfigs]
+      if (configChange) {
+        environmentConfigs.value = await getEnvironmentConfigs()
+      }
+    }
+    catch (error) {
+      console.error("Error handling local storage change:", error)
+    }
+  }
+
+  /**
+   * Sync storage change handler for cross-tab synchronization.
+   * Reloads environment setting when it changes in another tab.
+   * Type-safe handler that only processes known storage keys.
+   */
+  async function handleSyncStorageChange(changes: Record<string, chrome.storage.StorageChange>) {
+    try {
+      // Type narrowing: only handle known keys
+      const environmentChange = changes[syncedStorageKeys.environment]
+
+      if (environmentChange) {
+        environment.value = await getEnvironment()
+      }
+    }
+    catch (error) {
+      console.error("Error handling sync storage change:", error)
+    }
+  }
+
+  /**
+   * Update environment setting and persist to storage.
+   */
+  async function updateEnvironment(newEnvironment: Environment) {
+    environment.value = newEnvironment
+    await setEnvironment(newEnvironment)
+  }
+
+  /**
+   * Update environment configurations and persist to storage.
+   */
+  async function updateEnvironmentConfigs(newConfigs: EnvironmentConfigs) {
+    environmentConfigs.value = newConfigs
+    await setEnvironmentConfigs(newConfigs)
+  }
+
+  // Initialize on first call
+  loadAllEnvironmentSettings()
+
+  // Set up storage listeners for cross-tab sync
+  browser.storage.local.onChanged.addListener(handleLocalStorageChange)
+  browser.storage.sync.onChanged.addListener(handleSyncStorageChange)
 
   return {
     // Reactive state (read-only for form draft pattern)
@@ -227,4 +198,4 @@ export function useEnvironment() {
     updateEnvironment,
     updateEnvironmentConfigs,
   }
-}
+})

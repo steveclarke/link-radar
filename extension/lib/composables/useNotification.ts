@@ -3,6 +3,7 @@
  * Provides methods to display success/error messages with automatic timeout-based dismissal.
  */
 import type { MessageState } from "../types"
+import { createGlobalState } from "@vueuse/core"
 import { onUnmounted, ref } from "vue"
 
 /**
@@ -18,13 +19,6 @@ const ERROR_MESSAGE_TIMEOUT_MS = 15000
 const SUCCESS_MESSAGE_TIMEOUT_MS = 3000
 
 /**
- * Shared global state for notifications.
- * This ensures all components access the same notification message.
- */
-const message = ref<MessageState | null>(null)
-let timeoutId: ReturnType<typeof setTimeout> | null = null
-
-/**
  * Composable for managing user notifications with automatic timeout-based dismissal.
  * Provides reactive message state and methods to show/hide messages.
  * Uses shared global state so all components see the same notification.
@@ -35,7 +29,14 @@ let timeoutId: ReturnType<typeof setTimeout> | null = null
  * showSuccess("Link saved successfully!")
  * showError("Failed to save link")
  */
-export function useNotification() {
+export const useNotification = createGlobalState(() => {
+  /**
+   * Shared global state for notifications.
+   * This ensures all components access the same notification message.
+   */
+  const message = ref<MessageState | null>(null)
+  let timeoutId: ReturnType<typeof setTimeout> | null = null
+
   /**
    * Displays a message with the specified type and auto-dismissal.
    * Clears any existing message and timeout before showing the new message.
@@ -106,4 +107,4 @@ export function useNotification() {
     showError,
     clearMessage,
   }
-}
+})
