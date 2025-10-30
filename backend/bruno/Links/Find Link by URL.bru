@@ -1,0 +1,33 @@
+meta {
+  name: Find Link by URL
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/v1/links/by_url?url={{url}}
+  body: none
+  auth: inherit
+}
+
+params:query {
+  url: https://example.com
+}
+
+docs {
+  Find a link by its URL.
+
+  Query Parameters:
+  - url (required): The URL to search for
+
+  Returns:
+  {
+    "data": {
+      "link": {link object with id, url, title, note, tags}
+    }
+  }
+
+  Returns 404 if link not found.
+  Returns 400 if url parameter is missing.
+}
+

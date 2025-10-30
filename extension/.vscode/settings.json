@@ -1,0 +1,18 @@
+{
+  "editor.rulers": [80],
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "dbaeumer.vscode-eslint",
+
+  "eslint.useFlatConfig": true,
+  "eslint.format.enable": true,
+
+  // Ensure ESLint formats Vue files
+  "[vue]": {
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+  },
+
+  // Disable Volar's built-in formatter to prevent conflicts
+  "vue.complete.casing.tags": "autoKebab",
+  "vue.server.hybridMode": true,
+  "vue.format.enable": false
+}

@@ -1,9 +1,15 @@
+import tailwindcss from "@tailwindcss/vite"
 import { defineConfig } from "wxt"
 
 // See https://wxt.dev/api/config.html
 export default defineConfig({
   modules: ["@wxt-dev/module-vue"],
   outDir: "dist",
+  vite: () => ({
+    plugins: [
+      tailwindcss(),
+    ],
+  }),
   manifest: {
     name: "Link Radar",
     description: "Save and organize links from your browser",
@@ -14,13 +20,16 @@ export default defineConfig({
       48: "icon/48.png",
       128: "icon/128.png",
     },
-    options_ui: {
-      page: "options/index.html",
-      open_in_tab: true,
+    // Firefox requires an explicit addon ID when using the storage API
+    // This ID must be in email-like format (even if not a real email)
+    browser_specific_settings: {
+      gecko: {
+        id: "linkradar@linkradar.app",
+      },
     },
   },
   // Browser startup configuration for development
-  runner: {
+  webExt: {
     chromiumArgs: ["--user-data-dir=./.wxt/chrome-data"],
   },
   // Use port 9001 for extension dev server (9000 reserved for web app)

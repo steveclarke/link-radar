@@ -7,7 +7,11 @@ Rails.application.routes.draw do
 
   namespace :api, defaults: {format: :json} do
     namespace :v1 do
-      resources :links
+      resources :links do
+        collection do
+          get :by_url
+        end
+      end
       resources :tags
     end
   end
