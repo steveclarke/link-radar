@@ -1,20 +1,23 @@
 /**
- * @fileoverview Composable for accessing current browser tab information.
+ * Composable for managing current browser tab information.
  * Provides reactive access to the active tab's title, URL, and favicon.
  */
-
 import type { TabInfo } from "../../../lib/types"
 import { ref } from "vue"
 
 /**
- * Composable for managing current browser tab information.
- * Provides reactive access to the active tab's title, URL, and favicon.
+ * Shared global state for current tab information.
+ * This ensures all components access the same tab data.
+ */
+const tabInfo = ref<TabInfo | null>(null)
+const isLoading = ref(false)
+const error = ref<string | null>(null)
+
+/**
+ * Composable that returns shared global state for current browser tab.
+ * Uses shared refs so all components see the same tab data.
  */
 export function useCurrentTab() {
-  const tabInfo = ref<TabInfo | null>(null)
-  const isLoading = ref(false)
-  const error = ref<string | null>(null)
-
   /**
    * Loads information about the currently active browser tab.
    * Queries for the active tab and extracts its title, URL, favicon, and meta description.
