@@ -3,8 +3,9 @@
  * Handles all startup logic including API key checking and tab loading.
  */
 
+import type { EnvironmentProfile } from "../../../lib/settings"
 import type { TabInfo } from "../../../lib/types"
-import { ref } from "vue"
+import { computed, ref } from "vue"
 import { getActiveProfile } from "../../../lib/settings"
 import { useCurrentTab } from "./useCurrentTab"
 
@@ -14,8 +15,11 @@ import { useCurrentTab } from "./useCurrentTab"
  */
 export function useAppInit() {
   const isAppLoading = ref(false)
-  const isAppConfigured = ref(false)
+  const profile = ref<EnvironmentProfile | null>(null)
   const currentTabInfo = ref<TabInfo | null>(null)
+
+  // Computed property that derives configuration status from the loaded profile
+  const isAppConfigured = computed(() => !!profile.value?.apiKey)
 
   const { loadCurrentTab } = useCurrentTab()
 
@@ -26,9 +30,8 @@ export function useAppInit() {
   async function initApp() {
     isAppLoading.value = true
     try {
-      // Check if app is properly configured
-      const profile = await getActiveProfile()
-      isAppConfigured.value = !!profile.apiKey
+      // Load the active profile (configuration status is computed from this)
+      profile.value = await getActiveProfile()
 
       // Load current browser tab info
       const tabData = await loadCurrentTab()
