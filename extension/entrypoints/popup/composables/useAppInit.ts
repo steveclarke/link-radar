@@ -16,9 +16,7 @@ export function useAppInit() {
   const isAppLoading = ref(false)
   const currentTabInfo = ref<TabInfo | null>(null)
 
-  // Get reactive settings from composable
   const { isAppConfigured } = useSettings()
-
   const { loadCurrentTab } = useCurrentTab()
 
   /**
