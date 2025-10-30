@@ -49,6 +49,19 @@ const showApiKeys = ref({
 })
 const isSaving = ref(false)
 
+function resetDraftState() {
+  // Don't reset draft while we're actively saving to prevent race condition
+  if (isSaving.value)
+    return
+
+  draftEnvironment.value = savedEnvironment.value
+  // Deep clone prevents aliasing between draft and saved state refs
+  // Without this, editing the draft would immediately update saved state
+  // Use toRaw() to unwrap Vue reactive proxy before serializing
+  draftEnvironmentConfigs.value = JSON.parse(JSON.stringify(toRaw(savedEnvironmentConfigs.value)))
+  draftAutoCloseDelay.value = savedAutoCloseDelay.value
+}
+
 /**
  * Reactively update draft state when saved settings change.
  *
@@ -63,18 +76,7 @@ const isSaving = ref(false)
  */
 watch(
   [savedEnvironment, savedEnvironmentConfigs, savedAutoCloseDelay],
-  () => {
-    // Don't reset draft while we're actively saving to prevent race condition
-    if (isSaving.value)
-      return
-
-    draftEnvironment.value = savedEnvironment.value
-    // Deep clone prevents aliasing between draft and saved state refs
-    // Without this, editing the draft would immediately update saved state
-    // Use toRaw() to unwrap Vue reactive proxy before serializing
-    draftEnvironmentConfigs.value = JSON.parse(JSON.stringify(toRaw(savedEnvironmentConfigs.value)))
-    draftAutoCloseDelay.value = savedAutoCloseDelay.value
-  },
+  resetDraftState,
   { immediate: true }, // Run on mount to initialize draft state
 )
 
