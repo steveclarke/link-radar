@@ -16,7 +16,7 @@ import type {
   TagsApiResponse,
   UpdateLinkParams,
 } from "./types"
-import { getActiveConfig } from "./settings"
+import { getActiveEnvironmentConfig } from "./settings"
 
 /**
  * Internal authenticated fetch wrapper. Automatically adds auth header and
@@ -29,7 +29,7 @@ import { getActiveConfig } from "./settings"
  *                  This ensures type safety and matches the native fetch() API signature.
  */
 async function authenticatedFetch(path: string, options: RequestInit = {}): Promise<any> {
-  const config = await getActiveConfig()
+  const config = await getActiveEnvironmentConfig()
   const fullUrl = `${config.url}${path}`
 
   const response = await fetch(fullUrl, {

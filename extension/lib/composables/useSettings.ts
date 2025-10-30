@@ -18,7 +18,7 @@ import {
   getDeveloperMode,
   setAutoCloseDelay,
   setDeveloperMode,
-  SYNC_STORAGE_KEYS,
+  syncedStorageKeys,
 } from "../settings"
 
 // Singleton state - shared across all component instances
@@ -51,8 +51,8 @@ async function loadAllSettings() {
 async function handleSyncStorageChange(changes: Record<string, chrome.storage.StorageChange>) {
   try {
     // Type narrowing: only handle known keys
-    const delayChange = changes[SYNC_STORAGE_KEYS.AUTO_CLOSE_DELAY]
-    const developerModeChange = changes[SYNC_STORAGE_KEYS.DEVELOPER_MODE]
+    const delayChange = changes[syncedStorageKeys.autoCloseDelay]
+    const developerModeChange = changes[syncedStorageKeys.isDeveloperMode]
 
     if (delayChange) {
       autoCloseDelay.value = await getAutoCloseDelay()

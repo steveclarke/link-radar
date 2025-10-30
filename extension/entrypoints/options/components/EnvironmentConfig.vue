@@ -6,7 +6,7 @@
  */
 import type { Environment, EnvironmentConfigs } from "../../../lib/settings"
 import { Icon } from "@iconify/vue"
-import { BACKEND_URL, DEV_API_KEY, DEV_BACKEND_URL } from "../../../lib/settings"
+import { defaultBackendUrl, defaultDevApiKey, defaultDevBackendUrl } from "../../../lib/settings"
 import EnvironmentOption from "./EnvironmentOption.vue"
 
 /** Currently selected environment with two-way binding */
@@ -64,7 +64,7 @@ function isEnvironmentConfigured(env: Environment, configsData: EnvironmentConfi
               environment="production"
               :is-selected="selectedEnvironment === 'production'"
               :is-configured="isEnvironmentConfigured('production', configs)"
-              :url="BACKEND_URL"
+              :url="defaultBackendUrl"
               @select="selectedEnvironment = 'production'"
             >
               <div class="text-xs text-brand-600 bg-brand-50 p-3 rounded border border-brand-200">
@@ -87,7 +87,7 @@ function isEnvironmentConfigured(env: Environment, configsData: EnvironmentConfi
                 <div>
                   <label class="block text-xs font-medium text-brand-800 mb-1">Backend URL (from .env)</label>
                   <input
-                    :value="DEV_BACKEND_URL"
+                    :value="defaultDevBackendUrl"
                     type="text"
                     readonly
                     class="w-full px-3 py-2 border border-brand-300 bg-brand-50 rounded-md text-sm font-mono text-brand-600"
@@ -97,14 +97,14 @@ function isEnvironmentConfigured(env: Environment, configsData: EnvironmentConfi
                 <div>
                   <label class="block text-xs font-medium text-brand-800 mb-1">API Key (from .env)</label>
                   <input
-                    :value="DEV_API_KEY ? '••••••••••••••••••••••••••••••••' : 'Not configured in .env'"
+                    :value="defaultDevApiKey ? '••••••••••••••••••••••••••••••••' : 'Not configured in .env'"
                     type="text"
                     readonly
                     class="w-full px-3 py-2 border rounded-md text-sm font-mono"
-                    :class="DEV_API_KEY
+                    :class="defaultDevApiKey
                       ? 'border-brand-300 bg-brand-50 text-brand-600'
                       : 'border-orange-300 bg-orange-50 text-orange-700'"
-                    :title="DEV_API_KEY ? 'API key loaded from VITE_DEV_API_KEY environment variable' : 'Set VITE_DEV_API_KEY in your .env file'"
+                    :title="defaultDevApiKey ? 'API key loaded from VITE_DEV_API_KEY environment variable' : 'Set VITE_DEV_API_KEY in your .env file'"
                   >
                 </div>
               </div>

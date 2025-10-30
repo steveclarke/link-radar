@@ -12,12 +12,12 @@
 import type { Environment, EnvironmentConfig, EnvironmentConfigs } from "../settings"
 import { computed, effectScope, ref } from "vue"
 import {
-  getConfigs,
   getEnvironment,
-  SENSITIVE_STORAGE_KEYS,
-  setConfigs,
+  getEnvironmentConfigs,
+  localStorageKeys,
   setEnvironment,
-  SYNC_STORAGE_KEYS,
+  setEnvironmentConfigs,
+  syncedStorageKeys,
 } from "../settings"
 
 /**
@@ -105,7 +105,7 @@ const isAppConfigured = computed<boolean>(() => {
  */
 async function loadAllEnvironmentSettings() {
   try {
-    environmentConfigs.value = await getConfigs()
+    environmentConfigs.value = await getEnvironmentConfigs()
     environment.value = await getEnvironment()
   }
   catch (error) {
@@ -121,9 +121,9 @@ async function loadAllEnvironmentSettings() {
 async function handleLocalStorageChange(changes: Record<string, chrome.storage.StorageChange>) {
   try {
     // Type narrowing: only handle known keys
-    const profileChange = changes[SENSITIVE_STORAGE_KEYS.ENVIRONMENT_PROFILES]
-    if (profileChange) {
-      environmentConfigs.value = await getConfigs()
+    const configChange = changes[localStorageKeys.environmentConfigs]
+    if (configChange) {
+      environmentConfigs.value = await getEnvironmentConfigs()
     }
   }
   catch (error) {
@@ -139,7 +139,7 @@ async function handleLocalStorageChange(changes: Record<string, chrome.storage.S
 async function handleSyncStorageChange(changes: Record<string, chrome.storage.StorageChange>) {
   try {
     // Type narrowing: only handle known keys
-    const environmentChange = changes[SYNC_STORAGE_KEYS.BACKEND_ENVIRONMENT]
+    const environmentChange = changes[syncedStorageKeys.environment]
 
     if (environmentChange) {
       environment.value = await getEnvironment()
@@ -163,7 +163,7 @@ async function updateEnvironment(newEnvironment: Environment) {
  */
 async function updateEnvironmentConfigs(newConfigs: EnvironmentConfigs) {
   environmentConfigs.value = newConfigs
-  await setConfigs(newConfigs)
+  await setEnvironmentConfigs(newConfigs)
 }
 
 /**
