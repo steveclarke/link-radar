@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 /**
- * Self-contained notification toast component for displaying success or error messages.
- * Appears at the top of the screen when a message is present.
- * Includes a close button for manual dismissal.
- * Uses the useNotification composable directly to access message state and clearMessage function.
+ * Self-contained notification toast component for displaying success or error
+ * messages. Appears at the top of the screen when a message is present.
+ * Includes a close button for manual dismissal. Uses the useNotification
+ * composable directly to access message state and clearMessage function.
  *
  * @component
  */
@@ -11,8 +11,9 @@
 import { Icon } from "@iconify/vue"
 import { useNotification } from "../composables/useNotification"
 
-// Access the notification state and clearMessage function directly from the composable
-// This composable shares state across the app, so we see the same message that was set elsewhere
+// Access the notification state and clearMessage function directly from the
+// composable. This composable shares state across the app, so we see the same
+// message that was set elsewhere
 const { message, clearMessage } = useNotification()
 </script>
 

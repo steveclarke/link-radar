@@ -1,16 +1,10 @@
 /**
- * @fileoverview Composable for handling auto-close functionality after operations.
+ * Composable for handling auto-close functionality after operations.
  * Provides a reusable way to close the popup window after a specified delay.
  */
-
 import { useTimeoutFn } from "@vueuse/core"
 import { getAutoCloseDelay } from "../../../lib/settings"
 
-/**
- * Composable for auto-closing the popup window.
- *
- * @returns Function to trigger auto-close
- */
 export function useAutoClose() {
   /**
    * Triggers the auto-close mechanism based on user settings.
