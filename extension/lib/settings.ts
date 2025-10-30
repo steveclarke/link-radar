@@ -1,10 +1,13 @@
 /**
  * Settings management for the Link Radar extension.
- * Provides configuration constants and functions to get/set user preferences
- * stored in browser.storage.sync.
  *
- * Uses environment profiles where each environment (production, local, custom)
- * has its own backend URL and API key configuration.
+ * This module provides functions and constants for managing extension settings
+ * stored in browser storage. Designed to work from both Vue contexts (popup,
+ * options page) and non-Vue contexts (background service workers, content
+ * scripts).
+ *
+ * Vue contexts should use the reactive composables (useEnvironment, useSettings),
+ * while non-Vue contexts use the functions exported from this module directly.
  */
 
 // ============================================================================
@@ -75,9 +78,8 @@ export const defaultDevBackendUrl = import.meta.env.VITE_DEV_BACKEND_URL
 export const defaultDevApiKey = import.meta.env.VITE_DEV_API_KEY
 
 /**
- * Get all environment configurations from storage.
- * Initializes with defaults on first run.
- * Always ensures URLs and keys from env vars take precedence.
+ * Get all environment configurations from storage. Initializes with defaults
+ * on first run. Always ensures URLs and keys from env vars take precedence.
  */
 export async function getEnvironmentConfigs(): Promise<EnvironmentConfigs> {
   const result = await browser.storage.local.get(localStorageKeys.environmentConfigs)
