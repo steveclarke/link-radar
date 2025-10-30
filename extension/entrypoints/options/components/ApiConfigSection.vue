@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 /**
- * API configuration section component for production API key input.
+ * API configuration section component for API key input.
  * Includes visibility toggle for showing/hiding the API key.
  * Uses v-model for two-way binding of API key value.
  *
@@ -26,17 +26,17 @@ const apiKey = defineModel<string>({ default: "" })
       API Configuration
     </h2>
     <p class="m-0 mb-5 text-sm text-slate-600 leading-normal">
-      Enter your production API key to enable link saving. This is used when connecting to your production backend.
+      Enter your API key to enable link saving.
     </p>
 
     <div class="mb-5">
-      <label for="production-api-key" class="block text-sm font-medium text-slate-800 mb-2">Production API Key</label>
+      <label for="api-key" class="block text-sm font-medium text-slate-800 mb-2">API Key</label>
       <div class="flex gap-2 items-stretch">
         <input
-          id="production-api-key"
+          id="api-key"
           v-model="apiKey"
           :type="showApiKey ? 'text' : 'password'"
-          placeholder="Enter your production API key"
+          placeholder="Enter your API key"
           class="flex-1 px-3 py-2.5 border border-slate-300 rounded-md text-sm font-mono transition-colors focus:outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-200"
         >
         <button
