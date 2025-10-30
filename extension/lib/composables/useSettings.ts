@@ -1,10 +1,10 @@
 /**
- * @fileoverview Reactive settings composable for general app behavior settings.
- * Provides singleton state management for popup behavior and developer mode
- * with automatic browser storage synchronization.
+ * Reactive settings composable for general app behavior settings. Provides
+ * singleton state management for popup behavior and developer mode with
+ * automatic browser storage synchronization.
  *
- * For environment-related settings (backend URLs, API keys, environment selection),
- * use the useEnvironment composable instead.
+ * For environment-related settings (backend URLs, API keys, environment
+ * selection), use the useEnvironment composable instead.
  *
  * This composable establishes the architectural pattern for settings management:
  * - Vue contexts use this composable for reactive state
