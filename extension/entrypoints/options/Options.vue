@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 /**
  * Options page orchestrator component for the Link Radar browser extension.
- * Pure layout component with no business logic.
  *
  * @component
  */
