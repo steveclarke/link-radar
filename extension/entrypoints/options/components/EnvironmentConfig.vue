@@ -6,8 +6,7 @@
  */
 import type { Environment, EnvironmentConfigs } from "../../../lib/settings"
 import { Icon } from "@iconify/vue"
-import { BACKEND_URL, DEV_BACKEND_URL } from "../../../lib/settings"
-import { useOptionsSettings } from "../composables/useOptionsSettings"
+import { BACKEND_URL, DEV_API_KEY, DEV_BACKEND_URL } from "../../../lib/settings"
 import EnvironmentOption from "./EnvironmentOption.vue"
 
 /** Currently selected environment with two-way binding */
@@ -23,8 +22,24 @@ const showApiKeys = defineModel<{
   custom: boolean
 }>("showApiKeys", { required: true })
 
-// Get business logic from composable
-const { isConfigured } = useOptionsSettings()
+/**
+ * Check if an environment is configured (has required fields).
+ * Local dev is always configured (uses .env).
+ * Custom environments need both URL and API key.
+ * Production needs API key (URL from env vars).
+ */
+function isEnvironmentConfigured(env: Environment, configsData: EnvironmentConfigs): boolean {
+  // Local dev is always configured from environment variables
+  if (env === "local") {
+    return true
+  }
+
+  const config = configsData[env]
+  if (env === "custom") {
+    return !!config.url && !!config.apiKey
+  }
+  return !!config.apiKey
+}
 </script>
 
 <template>
@@ -48,7 +63,7 @@ const { isConfigured } = useOptionsSettings()
             <EnvironmentOption
               environment="production"
               :is-selected="selectedEnvironment === 'production'"
-              :is-configured="isConfigured('production', configs)"
+              :is-configured="isEnvironmentConfigured('production', configs)"
               :url="BACKEND_URL"
               @select="selectedEnvironment = 'production'"
             >
@@ -64,24 +79,34 @@ const { isConfigured } = useOptionsSettings()
             <EnvironmentOption
               environment="local"
               :is-selected="selectedEnvironment === 'local'"
-              :is-configured="isConfigured('local', configs)"
-              :url="DEV_BACKEND_URL"
+              :is-configured="isEnvironmentConfigured('local', configs)"
+              url="Uses defaults from environment variables"
               @select="selectedEnvironment = 'local'"
             >
-              <div class="text-xs text-brand-600 bg-brand-50 p-3 rounded border border-brand-200">
-                <p class="m-0">
-                  <strong>Local development uses defaults from environment variables.</strong>
-                  URL and API key are configured at build time for zero-config development.
-                </p>
-              </div>
-              <div>
-                <label class="block text-xs font-medium text-brand-800 mb-1">API Key (from .env)</label>
-                <input
-                  v-model="configs.local.apiKey"
-                  type="text"
-                  readonly
-                  class="w-full px-3 py-2 border border-brand-300 bg-brand-50 rounded-md text-sm font-mono text-brand-600"
-                >
+              <div class="space-y-3">
+                <div>
+                  <label class="block text-xs font-medium text-brand-800 mb-1">Backend URL (from .env)</label>
+                  <input
+                    :value="DEV_BACKEND_URL"
+                    type="text"
+                    readonly
+                    class="w-full px-3 py-2 border border-brand-300 bg-brand-50 rounded-md text-sm font-mono text-brand-600"
+                    title="Backend URL loaded from VITE_DEV_BACKEND_URL environment variable"
+                  >
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-brand-800 mb-1">API Key (from .env)</label>
+                  <input
+                    :value="DEV_API_KEY ? '••••••••••••••••••••••••••••••••' : 'Not configured in .env'"
+                    type="text"
+                    readonly
+                    class="w-full px-3 py-2 border rounded-md text-sm font-mono"
+                    :class="DEV_API_KEY
+                      ? 'border-brand-300 bg-brand-50 text-brand-600'
+                      : 'border-orange-300 bg-orange-50 text-orange-700'"
+                    :title="DEV_API_KEY ? 'API key loaded from VITE_DEV_API_KEY environment variable' : 'Set VITE_DEV_API_KEY in your .env file'"
+                  >
+                </div>
               </div>
             </EnvironmentOption>
 
@@ -89,7 +114,7 @@ const { isConfigured } = useOptionsSettings()
             <EnvironmentOption
               environment="custom"
               :is-selected="selectedEnvironment === 'custom'"
-              :is-configured="isConfigured('custom', configs)"
+              :is-configured="isEnvironmentConfigured('custom', configs)"
               url="Specify your own backend URL (e.g., staging environment)"
               @select="selectedEnvironment = 'custom'"
             >

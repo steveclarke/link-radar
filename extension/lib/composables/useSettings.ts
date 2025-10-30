@@ -26,7 +26,8 @@ import {
 
 // Singleton state - shared across all component instances
 let isInitialized = false
-const environment = ref<Environment>("local")
+
+const environment = ref<Environment>("production")
 const environmentConfigs = ref<EnvironmentConfigs>({
   production: { url: "", apiKey: "" },
   local: { url: "", apiKey: "" },
@@ -166,15 +167,18 @@ export function useSettings() {
   }
 
   return {
-    // Reactive state (read-only refs)
+    // Reactive state (read-only for form draft pattern)
     environment: computed(() => environment.value),
     environmentConfig,
     environmentConfigs: computed(() => environmentConfigs.value),
     autoCloseDelay: computed(() => autoCloseDelay.value),
-    isDeveloperMode: computed(() => isDeveloperMode.value),
+    isDeveloperMode: computed({
+      get: () => isDeveloperMode.value,
+      set: (value) => { updateDeveloperMode(value) },
+    }),
     isAppConfigured,
 
-    // Update methods that sync to storage
+    // Update methods for saving form data
     updateEnvironment,
     updateEnvironmentConfigs,
     updateAutoCloseDelay,

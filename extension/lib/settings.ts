@@ -107,10 +107,11 @@ export function initializeConfigs(): EnvironmentConfigs {
 /**
  * Get all environment configurations from storage.
  * Initializes with defaults on first run.
+ * Always ensures URLs come from environment variables.
  */
 export async function getConfigs(): Promise<EnvironmentConfigs> {
   const result = await browser.storage.local.get(SENSITIVE_STORAGE_KEYS.ENVIRONMENT_PROFILES)
-  const configs = result[SENSITIVE_STORAGE_KEYS.ENVIRONMENT_PROFILES] as EnvironmentConfigs | undefined
+  let configs = result[SENSITIVE_STORAGE_KEYS.ENVIRONMENT_PROFILES] as EnvironmentConfigs | undefined
 
   if (!configs) {
     // First run - initialize with defaults
@@ -119,14 +120,48 @@ export async function getConfigs(): Promise<EnvironmentConfigs> {
     return defaultConfigs
   }
 
-  return configs
+  // Always override URLs and keys that come from environment variables
+  // This ensures they're always current with build-time configuration
+  return {
+    production: {
+      url: BACKEND_URL,                    // Always from env var
+      apiKey: configs.production.apiKey,    // From user input (stored)
+    },
+    local: {
+      url: DEV_BACKEND_URL,                // Always from env var
+      apiKey: DEV_API_KEY,                 // Always from env var
+    },
+    custom: {
+      url: configs.custom.url,             // From user input (stored)
+      apiKey: configs.custom.apiKey,        // From user input (stored)
+    },
+  }
 }
 
 /**
  * Save all environment configurations to storage.
+ * Only stores user-provided values (production API key, custom URL/key).
+ * URLs for production/local are never stored (always from env vars).
  */
 export async function setConfigs(configs: EnvironmentConfigs): Promise<void> {
-  await browser.storage.local.set({ [SENSITIVE_STORAGE_KEYS.ENVIRONMENT_PROFILES]: configs })
+  // Only save user-editable fields to storage
+  // Production and local URLs always come from env vars, not storage
+  const configsToStore: EnvironmentConfigs = {
+    production: {
+      url: "", // Not stored - always from BACKEND_URL env var
+      apiKey: configs.production.apiKey, // User input
+    },
+    local: {
+      url: "", // Not stored - always from DEV_BACKEND_URL env var
+      apiKey: "", // Not stored - always from DEV_API_KEY env var
+    },
+    custom: {
+      url: configs.custom.url, // User input
+      apiKey: configs.custom.apiKey, // User input
+    },
+  }
+
+  await browser.storage.local.set({ [SENSITIVE_STORAGE_KEYS.ENVIRONMENT_PROFILES]: configsToStore })
 }
 
 /**
@@ -166,11 +201,11 @@ export async function setConfigUrl(environment: Environment, url: string): Promi
 
 /**
  * Read the environment setting from browser sync storage.
- * Returns "local" when not configured (default for development).
+ * Returns "production" when not configured (default for end users).
  */
 export async function getEnvironment(): Promise<Environment> {
   const result = await browser.storage.sync.get(SYNC_STORAGE_KEYS.BACKEND_ENVIRONMENT)
-  return (result[SYNC_STORAGE_KEYS.BACKEND_ENVIRONMENT] as Environment) ?? "local"
+  return (result[SYNC_STORAGE_KEYS.BACKEND_ENVIRONMENT] as Environment) ?? "production"
 }
 
 /**

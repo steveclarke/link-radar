@@ -30,8 +30,9 @@ import { getActiveConfig } from "./settings"
  */
 async function authenticatedFetch(path: string, options: RequestInit = {}): Promise<any> {
   const config = await getActiveConfig()
+  const fullUrl = `${config.url}${path}`
 
-  const response = await fetch(`${config.url}${path}`, {
+  const response = await fetch(fullUrl, {
     ...options,
     headers: {
       "Content-Type": "application/json",

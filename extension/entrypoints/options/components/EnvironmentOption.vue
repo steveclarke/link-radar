@@ -47,6 +47,7 @@ const statusBadge = computed(() => {
     <label class="flex items-start gap-3 cursor-pointer group mb-3">
       <input
         type="radio"
+        name="environment"
         :checked="isSelected"
         class="mt-1 w-4 h-4 accent-brand-600 cursor-pointer"
         @change="emit('select')"

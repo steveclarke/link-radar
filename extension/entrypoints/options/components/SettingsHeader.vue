@@ -1,17 +1,16 @@
 <script lang="ts" setup>
 /**
  * Settings page header component with title, environment badge, and developer mode toggle.
- * Uses v-model for two-way binding of developer mode state.
+ * Accesses global isDeveloperMode state from useSettings.
  *
  * @component
  */
 
+import { useSettings } from "../../../lib/composables/useSettings"
 import EnvironmentBadge from "../../../lib/components/EnvironmentBadge.vue"
 
-/**
- * v-model for developer mode boolean state
- */
-const isDeveloperMode = defineModel<boolean>({ default: false })
+// Access global isDeveloperMode state (writable computed ref)
+const { isDeveloperMode } = useSettings()
 </script>
 
 <template>
