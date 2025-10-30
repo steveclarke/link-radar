@@ -4,7 +4,7 @@
  */
 import type { MessageState } from "../types"
 import { createGlobalState } from "@vueuse/core"
-import { onUnmounted, ref } from "vue"
+import { ref } from "vue"
 
 /**
  * Duration in milliseconds for error messages to display before auto-dismissal.
@@ -90,15 +90,6 @@ export const useNotification = createGlobalState(() => {
     }
     message.value = null
   }
-
-  // Automatically clear timeout on component unmount to prevent memory leaks
-  // and avoid updating refs after the component has unmounted
-  onUnmounted(() => {
-    if (timeoutId !== null) {
-      clearTimeout(timeoutId)
-      timeoutId = null
-    }
-  })
 
   return {
     message,

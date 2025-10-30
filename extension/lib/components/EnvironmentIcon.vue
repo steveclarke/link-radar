@@ -2,7 +2,7 @@
 import type { Environment } from "../settings"
 import { Icon } from "@iconify/vue"
 import { computed } from "vue"
-import { ENVIRONMENT_BADGE_CONFIGS } from "../composables/useEnvironment"
+import { environmentBadgeConfigs } from "../composables/useEnvironment"
 
 /**
  * Reusable environment icon component that displays a colored circle
@@ -19,7 +19,7 @@ interface Props {
 const { size = "w-3 h-3", environment } = defineProps<Props>()
 
 // Get configuration for the current environment
-const config = computed(() => ENVIRONMENT_BADGE_CONFIGS[environment])
+const config = computed(() => environmentBadgeConfigs[environment])
 </script>
 
 <template>

@@ -13,7 +13,7 @@
  */
 
 import { createGlobalState } from "@vueuse/core"
-import { computed, ref } from "vue"
+import { ref } from "vue"
 import {
   getAutoCloseDelay,
   getDeveloperMode,
@@ -106,14 +106,8 @@ export const useSettings = createGlobalState(() => {
   browser.storage.sync.onChanged.addListener(handleSyncStorageChange)
 
   return {
-    // Reactive state
-    autoCloseDelay: computed(() => autoCloseDelay.value),
-    isDeveloperMode: computed({
-      get: () => isDeveloperMode.value,
-      set: (value) => { updateDeveloperMode(value) },
-    }),
-
-    // Update methods for saving form data
+    autoCloseDelay,
+    isDeveloperMode,
     updateAutoCloseDelay,
     updateDeveloperMode,
   }

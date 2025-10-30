@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { computed } from "vue"
-import { ENVIRONMENT_BADGE_CONFIGS, useEnvironment } from "../composables/useEnvironment"
+import { environmentBadgeConfigs, useEnvironment } from "../composables/useEnvironment"
 import EnvironmentIcon from "./EnvironmentIcon.vue"
 
 // Props
@@ -14,7 +14,7 @@ const { showProduction = false } = defineProps<Props>()
 const { environment, environmentConfig } = useEnvironment()
 
 // Computed environment badge properties
-const environmentBadge = computed(() => ENVIRONMENT_BADGE_CONFIGS[environment.value])
+const environmentBadge = computed(() => environmentBadgeConfigs[environment.value])
 
 // Computed backend URL from current environment config
 const activeBackendUrl = computed(() => environmentConfig.value?.url || "")

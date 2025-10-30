@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { Environment } from "../settings"
 import { computed } from "vue"
-import { ENVIRONMENT_BADGE_CONFIGS } from "../composables/useEnvironment"
+import { environmentBadgeConfigs } from "../composables/useEnvironment"
 import EnvironmentIcon from "./EnvironmentIcon.vue"
 
 /**
@@ -17,7 +17,7 @@ interface Props {
 const props = defineProps<Props>()
 
 // Get configuration for the current environment
-const config = computed(() => ENVIRONMENT_BADGE_CONFIGS[props.environment])
+const config = computed(() => environmentBadgeConfigs[props.environment])
 </script>
 
 <template>

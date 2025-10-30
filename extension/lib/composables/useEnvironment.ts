@@ -43,7 +43,7 @@ export interface EnvironmentBadgeConfig {
  * Environment badge configuration lookup.
  * Provides consistent styling across all environment-related UI components.
  */
-export const ENVIRONMENT_BADGE_CONFIGS: Record<Environment, EnvironmentBadgeConfig> = {
+export const environmentBadgeConfigs: Record<Environment, EnvironmentBadgeConfig> = {
   production: {
     icon: "material-symbols:circle",
     iconColor: "#22c55e", // green-500
@@ -87,7 +87,6 @@ export const ENVIRONMENT_BADGE_CONFIGS: Record<Environment, EnvironmentBadgeConf
  * ```
  */
 export const useEnvironment = createGlobalState(() => {
-  // Singleton state - shared across all component instances
   const environment = ref<Environment>("production")
   const environmentConfigs = ref<EnvironmentConfigs>({
     production: { url: "", apiKey: "" },
@@ -188,13 +187,10 @@ export const useEnvironment = createGlobalState(() => {
   browser.storage.sync.onChanged.addListener(handleSyncStorageChange)
 
   return {
-    // Reactive state (read-only for form draft pattern)
-    environment: computed(() => environment.value),
+    environment,
     environmentConfig,
-    environmentConfigs: computed(() => environmentConfigs.value),
+    environmentConfigs,
     isAppConfigured,
-
-    // Update methods for saving form data
     updateEnvironment,
     updateEnvironmentConfigs,
   }
