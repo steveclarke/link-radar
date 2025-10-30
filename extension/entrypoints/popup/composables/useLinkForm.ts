@@ -1,22 +1,17 @@
 /**
- * @fileoverview Composable for managing link form state and operations.
- * Provides form state and CRUD operations for links.
+ * Composable that manages link form state and operations.
+ * Handles form state (url, notes, tags) and CRUD operations.
  */
-
 import type { LinkParams } from "../../../lib/types"
 import { ref } from "vue"
 import { useNotification } from "../../../lib/composables/useNotification"
 import { useAutoClose } from "./useAutoClose"
 import { useLink } from "./useLink"
 
-/**
- * Composable that manages link form state and operations.
- * Handles form state (url, notes, tags) and CRUD operations.
- */
 export function useLinkForm() {
   // Composables
   const { showSuccess, showError } = useNotification()
-  const { isLinked, linkId, isFetching, isUpdating, isDeleting, createLink, updateLink, deleteLink, resetLinkState, setLinked, fetchLink } = useLink()
+  const { isLinked, linkId, isFetching, isUpdating, isDeleting, createLink, updateLink, deleteLink, resetLinkState, fetchLink } = useLink()
   const { triggerAutoClose } = useAutoClose()
 
   // Local form state
@@ -74,7 +69,12 @@ export function useLinkForm() {
     if (result.success) {
       showSuccess("Link updated successfully!")
       // Re-fetch to keep state in sync
-      await fetchLink(url.value)
+      const updatedLink = await fetchLink(url.value)
+      if (updatedLink) {
+        // Update form with the saved link data
+        notes.value = updatedLink.note
+        tagNames.value = updatedLink.tags.map(t => t.name)
+      }
       await triggerAutoClose()
     }
     else {
@@ -120,7 +120,6 @@ export function useLinkForm() {
     handleDeleteLink,
     // Helpers
     fetchLink,
-    setLinked,
     resetLinkState,
   }
 }

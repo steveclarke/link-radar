@@ -4,7 +4,7 @@
  */
 
 import type { Link, LinkParams, LinkResult, UpdateLinkParams } from "../../../lib/types"
-import { ref } from "vue"
+import { computed, ref } from "vue"
 import {
   createLink as apiCreateLink,
   deleteLink as apiDeleteLink,
@@ -16,17 +16,19 @@ import {
  * Composable for managing link CRUD operations.
  * Provides reactive state tracking for link existence, loading states,
  * and methods to perform operations via the API.
+ * Uses a single source of truth (link ref) with computed convenience properties.
  */
 export function useLink() {
-  // State
-  /** Whether the current URL exists as a saved link */
-  const isLinked = ref(false)
-
-  /** ID of the current link (null if not linked) */
-  const linkId = ref<string | null>(null)
-
+  // State - Single source of truth
   /** Full link data from the API (null if not fetched or doesn't exist) */
   const link = ref<Link | null>(null)
+
+  // Computed convenience properties derived from link
+  /** Whether the current URL exists as a saved link (computed from link) */
+  const isLinked = computed(() => !!link.value)
+
+  /** ID of the current link (null if not linked, computed from link) */
+  const linkId = computed(() => link.value?.id ?? null)
 
   // Loading states
   /** Whether a fetch operation is in progress */
@@ -41,6 +43,7 @@ export function useLink() {
   /**
    * Fetches a link by URL from the API.
    * Updates the link state if found, or resets state if not found.
+   * The isLinked and linkId computed properties will automatically update.
    *
    * @param url - The URL to search for
    * @returns Promise resolving to Link if found, null otherwise
@@ -50,15 +53,11 @@ export function useLink() {
     try {
       const result = await fetchLinkByUrl(url)
       link.value = result
-      isLinked.value = !!result
-      linkId.value = result?.id || null
       return result
     }
     catch (error) {
       console.error("Error fetching link:", error)
       link.value = null
-      isLinked.value = false
-      linkId.value = null
       return null
     }
     finally {
@@ -132,29 +131,17 @@ export function useLink() {
   /**
    * Resets all link state to initial values.
    * Useful after deleting a link or navigating to a new URL.
+   * The isLinked and linkId computed properties will automatically reset.
    */
   function resetLinkState() {
-    isLinked.value = false
-    linkId.value = null
     link.value = null
   }
 
-  /**
-   * Sets the link state to linked with the given ID.
-   * Useful after successfully creating a link.
-   *
-   * @param id - The ID of the newly created link
-   */
-  function setLinked(id: string) {
-    isLinked.value = true
-    linkId.value = id
-  }
-
   return {
-    // State
+    // State (single source of truth + computed conveniences)
+    link,
     isLinked,
     linkId,
-    link,
     // Loading
     isFetching,
     isUpdating,
@@ -166,6 +153,5 @@ export function useLink() {
     deleteLink,
     // Helpers
     resetLinkState,
-    setLinked,
   }
 }
