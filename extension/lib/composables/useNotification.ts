@@ -3,7 +3,7 @@
  * Provides methods to display success/error messages with automatic timeout-based dismissal.
  */
 import type { MessageState } from "../types"
-import { ref } from "vue"
+import { onUnmounted, ref } from "vue"
 
 /**
  * Duration in milliseconds for error messages to display before auto-dismissal.
@@ -28,6 +28,7 @@ let timeoutId: ReturnType<typeof setTimeout> | null = null
  * Composable for managing user notifications with automatic timeout-based dismissal.
  * Provides reactive message state and methods to show/hide messages.
  * Uses shared global state so all components see the same notification.
+ * Automatically cleans up timeouts on component unmount.
  *
  * @example
  * const { message, showSuccess, showError } = useNotification()
@@ -88,6 +89,15 @@ export function useNotification() {
     }
     message.value = null
   }
+
+  // Automatically clear timeout on component unmount to prevent memory leaks
+  // and avoid updating refs after the component has unmounted
+  onUnmounted(() => {
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId)
+      timeoutId = null
+    }
+  })
 
   return {
     message,
