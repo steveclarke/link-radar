@@ -10,7 +10,7 @@
  */
 
 import type { Environment, EnvironmentConfig, EnvironmentConfigs } from "../settings"
-import { computed, ref } from "vue"
+import { computed, effectScope, ref } from "vue"
 import {
   getAutoCloseDelay,
   getConfigs,
@@ -26,6 +26,8 @@ import {
 
 // Singleton state - shared across all component instances
 let isInitialized = false
+// Effect scope for managing lifecycle of watchers and listeners
+let scope: ReturnType<typeof effectScope> | null = null
 
 const environment = ref<Environment>("production")
 const environmentConfigs = ref<EnvironmentConfigs>({
@@ -73,36 +75,47 @@ async function loadAllSettings() {
 /**
  * Local storage change handler for cross-tab synchronization.
  * Reloads environment configs when they change in another tab.
+ * Type-safe handler that only processes known storage keys.
  */
-function handleLocalStorageChange(changes: Record<string, chrome.storage.StorageChange>) {
-  if (changes[SENSITIVE_STORAGE_KEYS.ENVIRONMENT_PROFILES]) {
-    getConfigs().then((configs) => {
-      environmentConfigs.value = configs
-    })
+async function handleLocalStorageChange(changes: Record<string, chrome.storage.StorageChange>) {
+  try {
+    // Type narrowing: only handle known keys
+    const profileChange = changes[SENSITIVE_STORAGE_KEYS.ENVIRONMENT_PROFILES]
+    if (profileChange) {
+      environmentConfigs.value = await getConfigs()
+    }
+  }
+  catch (error) {
+    console.error("Error handling local storage change:", error)
   }
 }
 
 /**
  * Sync storage change handler for cross-tab synchronization.
  * Reloads settings when they change in another tab.
+ * Type-safe handler that only processes known storage keys.
  */
-function handleSyncStorageChange(changes: Record<string, chrome.storage.StorageChange>) {
-  if (changes[SYNC_STORAGE_KEYS.BACKEND_ENVIRONMENT]) {
-    getEnvironment().then((env) => {
-      environment.value = env
-    })
-  }
+async function handleSyncStorageChange(changes: Record<string, chrome.storage.StorageChange>) {
+  try {
+    // Type narrowing: only handle known keys
+    const environmentChange = changes[SYNC_STORAGE_KEYS.BACKEND_ENVIRONMENT]
+    const delayChange = changes[SYNC_STORAGE_KEYS.AUTO_CLOSE_DELAY]
+    const developerModeChange = changes[SYNC_STORAGE_KEYS.DEVELOPER_MODE]
 
-  if (changes[SYNC_STORAGE_KEYS.AUTO_CLOSE_DELAY]) {
-    getAutoCloseDelay().then((delay) => {
-      autoCloseDelay.value = delay
-    })
-  }
+    if (environmentChange) {
+      environment.value = await getEnvironment()
+    }
 
-  if (changes[SYNC_STORAGE_KEYS.DEVELOPER_MODE]) {
-    getDeveloperMode().then((mode) => {
-      isDeveloperMode.value = mode
-    })
+    if (delayChange) {
+      autoCloseDelay.value = await getAutoCloseDelay()
+    }
+
+    if (developerModeChange) {
+      isDeveloperMode.value = await getDeveloperMode()
+    }
+  }
+  catch (error) {
+    console.error("Error handling sync storage change:", error)
   }
 }
 
@@ -139,9 +152,26 @@ async function updateDeveloperMode(newMode: boolean) {
 }
 
 /**
+ * Cleanup function to dispose of storage listeners.
+ * Useful for testing, HMR, or extension shutdown scenarios.
+ */
+export function disposeSettings() {
+  if (scope) {
+    scope.stop()
+    scope = null
+  }
+  browser.storage.local.onChanged.removeListener(handleLocalStorageChange)
+  browser.storage.sync.onChanged.removeListener(handleSyncStorageChange)
+  isInitialized = false
+}
+
+/**
  * Reactive settings composable with singleton pattern.
  * Provides shared state across all Vue components with automatic
  * cross-tab synchronization via browser storage events.
+ *
+ * Storage listeners are managed in an effectScope for proper cleanup.
+ * Call disposeSettings() to cleanup if needed (e.g., tests, HMR).
  *
  * @example
  * ```typescript
@@ -157,11 +187,16 @@ async function updateDeveloperMode(newMode: boolean) {
 export function useSettings() {
   // Initialize on first use
   if (!isInitialized) {
-    loadAllSettings()
+    // Create effect scope for lifecycle management
+    scope = effectScope()
 
-    // Set up storage listeners for cross-tab sync
-    browser.storage.local.onChanged.addListener(handleLocalStorageChange)
-    browser.storage.sync.onChanged.addListener(handleSyncStorageChange)
+    scope.run(() => {
+      loadAllSettings()
+
+      // Set up storage listeners for cross-tab sync within the scope
+      browser.storage.local.onChanged.addListener(handleLocalStorageChange)
+      browser.storage.sync.onChanged.addListener(handleSyncStorageChange)
+    })
 
     isInitialized = true
   }

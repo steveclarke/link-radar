@@ -84,6 +84,17 @@ export const DEV_BACKEND_URL = import.meta.env.VITE_DEV_BACKEND_URL || "http://l
 export const DEV_API_KEY = import.meta.env.VITE_DEV_API_KEY || "dev_api_key_change_in_production"
 
 /**
+ * Cached environment-based configuration values.
+ * These are build-time constants from Vite and never change at runtime.
+ * Caching them avoids repeated property access on every getConfigs() call,
+ * which happens on every API request (hot path for normal user operations).
+ */
+const ENV_BASED_CONFIGS = {
+  production: { url: BACKEND_URL },
+  local: { url: DEV_BACKEND_URL, apiKey: DEV_API_KEY },
+} as const
+
+/**
  * Initialize default environment configurations from environment variables.
  * Called on first run or when configs don't exist in storage.
  */
@@ -111,7 +122,7 @@ export function initializeConfigs(): EnvironmentConfigs {
  */
 export async function getConfigs(): Promise<EnvironmentConfigs> {
   const result = await browser.storage.local.get(SENSITIVE_STORAGE_KEYS.ENVIRONMENT_PROFILES)
-  let configs = result[SENSITIVE_STORAGE_KEYS.ENVIRONMENT_PROFILES] as EnvironmentConfigs | undefined
+  const configs = result[SENSITIVE_STORAGE_KEYS.ENVIRONMENT_PROFILES] as EnvironmentConfigs | undefined
 
   if (!configs) {
     // First run - initialize with defaults
@@ -122,18 +133,19 @@ export async function getConfigs(): Promise<EnvironmentConfigs> {
 
   // Always override URLs and keys that come from environment variables
   // This ensures they're always current with build-time configuration
+  // Uses cached constants for performance (hot path on every API request)
   return {
     production: {
-      url: BACKEND_URL,                    // Always from env var
-      apiKey: configs.production.apiKey,    // From user input (stored)
+      url: ENV_BASED_CONFIGS.production.url, // Always from env var (cached)
+      apiKey: configs.production.apiKey, // From user input (stored)
     },
     local: {
-      url: DEV_BACKEND_URL,                // Always from env var
-      apiKey: DEV_API_KEY,                 // Always from env var
+      url: ENV_BASED_CONFIGS.local.url, // Always from env var (cached)
+      apiKey: ENV_BASED_CONFIGS.local.apiKey, // Always from env var (cached)
     },
     custom: {
-      url: configs.custom.url,             // From user input (stored)
-      apiKey: configs.custom.apiKey,        // From user input (stored)
+      url: configs.custom.url, // From user input (stored)
+      apiKey: configs.custom.apiKey, // From user input (stored)
     },
   }
 }

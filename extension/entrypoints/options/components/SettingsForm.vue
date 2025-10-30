@@ -7,7 +7,7 @@
  */
 
 import type { Environment, EnvironmentConfigs } from "../../../lib/settings"
-import { ref, watch } from "vue"
+import { ref, toRaw, watch } from "vue"
 import { useNotification } from "../../../lib/composables/useNotification"
 import { useSettings } from "../../../lib/composables/useSettings"
 import ApiConfigSection from "./ApiConfigSection.vue"
@@ -44,18 +44,30 @@ const showApiKeys = ref({
 })
 const isSaving = ref(false)
 
-// Reactively update draft state when saved settings change (load from storage)
-// Skip updates during save to prevent race conditions
+/**
+ * Reactively update draft state when saved settings change.
+ *
+ * Why we need the isSaving guard:
+ * 1. User clicks "Save All Settings"
+ * 2. We save configs → savedEnvironmentConfigs changes → this watch fires
+ * 3. Watch would reset draft to old savedEnvironment (still "production")
+ * 4. Then we save environment to "local" (too late - draft is reset!)
+ *
+ * The guard prevents watch from resetting draft during the multi-step save.
+ * Once save completes, the watch will fire again and sync correctly.
+ */
 watch(
   [savedEnvironment, savedEnvironmentConfigs, savedAutoCloseDelay],
   () => {
-    // Don't reset draft while we're actively saving
+    // Don't reset draft while we're actively saving to prevent race condition
     if (isSaving.value)
       return
 
     draftEnvironment.value = savedEnvironment.value
-    // Deep clone to avoid mutating reactive state
-    draftEnvironmentConfigs.value = JSON.parse(JSON.stringify(savedEnvironmentConfigs.value))
+    // Deep clone prevents aliasing between draft and saved state refs
+    // Without this, editing the draft would immediately update saved state
+    // Use toRaw() to unwrap Vue reactive proxy before serializing
+    draftEnvironmentConfigs.value = JSON.parse(JSON.stringify(toRaw(savedEnvironmentConfigs.value)))
     draftAutoCloseDelay.value = savedAutoCloseDelay.value
   },
   { immediate: true }, // Run on mount to initialize draft state
@@ -88,8 +100,10 @@ async function saveAllSettings() {
 
   isSaving.value = true
   try {
-    // Deep clone to avoid mutating reactive state
-    const configsToSave: EnvironmentConfigs = JSON.parse(JSON.stringify(draftEnvironmentConfigs.value))
+    // Deep clone to avoid aliasing (draftEnvironmentConfigs and environmentConfigs
+    // would become the same object reference without this)
+    // Use toRaw() to unwrap Vue reactive proxy before serializing
+    const configsToSave: EnvironmentConfigs = JSON.parse(JSON.stringify(toRaw(draftEnvironmentConfigs.value)))
 
     await updateEnvironmentConfigs(configsToSave)
     await updateAutoCloseDelay(draftAutoCloseDelay.value)

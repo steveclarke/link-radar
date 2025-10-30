@@ -6,8 +6,8 @@
  * @component
  */
 
-import { useSettings } from "../../../lib/composables/useSettings"
 import EnvironmentBadge from "../../../lib/components/EnvironmentBadge.vue"
+import { useSettings } from "../../../lib/composables/useSettings"
 
 // Access global isDeveloperMode state (writable computed ref)
 const { isDeveloperMode } = useSettings()
