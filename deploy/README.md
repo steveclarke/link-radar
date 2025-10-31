@@ -14,8 +14,11 @@ This directory contains the Docker Compose configuration and utilities for deplo
     - [Main Configuration (.env)](#main-configuration-env)
     - [Backend Configuration (env/backend.env)](#backend-configuration-envbackendenv)
     - [Database Configuration (env/postgres.env)](#database-configuration-envpostgresenv)
+  - [Building Backend Images](#building-backend-images)
+    - [Version Management](#version-management)
+    - [Building the Image](#building-the-image)
+    - [Pushing to GitHub Container Registry](#pushing-to-github-container-registry)
   - [Deployment](#deployment)
-    - [Building the Backend Image](#building-the-backend-image)
     - [Starting Services](#starting-services)
   - [Operations](#operations)
     - [Utility Scripts](#utility-scripts)
@@ -144,18 +147,64 @@ POSTGRES_DB=linkradar_production
 
 **Security Note**: The password in `env/postgres.env` must match the password in `env/backend.env` DATABASE_URL.
 
-## Deployment
+## Building Backend Images
 
-### Building the Backend Image
+Before deploying, you need to build the backend Docker image and push it to GitHub Container Registry (GHCR).
 
-Before deploying, build and push your backend image:
+### Version Management
+
+The backend uses a `VERSION` file to track releases. The current version is in `backend/VERSION`:
 
 ```bash
-# From the backend directory
-cd ../backend
-docker build -t ghcr.io/your-username/link-radar-backend:latest .
-docker push ghcr.io/your-username/link-radar-backend:latest
+cat backend/VERSION
+# 0.1.0
 ```
+
+This version is used to tag Docker images. Update this file when releasing new versions.
+
+### Building the Image
+
+From the repository root:
+
+```bash
+cd backend
+bin/docker-build
+```
+
+This builds a Docker image tagged as `lr-backend:VERSION` (e.g., `lr-backend:0.1.0`).
+
+**Build options:**
+
+Pass additional Docker build arguments using `--`:
+```bash
+bin/docker-build -- --no-cache
+bin/docker-build -- --platform linux/amd64
+```
+
+### Pushing to GitHub Container Registry
+
+First, authenticate with GHCR (one-time setup):
+
+```bash
+echo $GITHUB_TOKEN | docker login ghcr.io -u YOUR_USERNAME --password-stdin
+```
+
+You'll need a GitHub Personal Access Token with `write:packages` permission.
+
+Then push the image:
+
+```bash
+cd backend
+bin/docker-push
+```
+
+This pushes two tags to GHCR:
+- `ghcr.io/YOUR_USERNAME/lr-backend:VERSION`
+- `ghcr.io/YOUR_USERNAME/lr-backend:latest`
+
+View your images at: `https://github.com/YOUR_USERNAME/link-radar/pkgs/container/lr-backend`
+
+## Deployment
 
 ### Starting Services
 

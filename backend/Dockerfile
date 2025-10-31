@@ -56,14 +56,32 @@ RUN bundle exec bootsnap precompile -j 1 app/ lib/
 # Final stage for app image
 FROM base
 
+# Install packages needed for deployment
+RUN apt-get update -qq && \
+    apt-get install --no-install-recommends -y \
+      imagemagick \
+      vim \
+      less \
+      file \
+      htop \
+      libyaml-dev && \
+    rm -rf /var/lib/apt/lists /var/cache/apt/archives
+
 # Run and own only the runtime files as a non-root user for security
-RUN groupadd --system --gid 1000 rails && \
-    useradd rails --uid 1000 --gid 1000 --create-home --shell /bin/bash
-USER 1000:1000
+ARG UID=1000
+ARG GID=1000
+
+RUN groupadd --system --gid ${GID} rails && \
+    useradd rails --uid ${UID} --gid ${GID} --create-home --shell /bin/bash
 
 # Copy built artifacts: gems, application
-COPY --chown=rails:rails --from=build "${BUNDLE_PATH}" "${BUNDLE_PATH}"
-COPY --chown=rails:rails --from=build /rails /rails
+COPY --chown=${UID}:${GID} --from=build "${BUNDLE_PATH}" "${BUNDLE_PATH}"
+COPY --chown=${UID}:${GID} --from=build /rails /rails
+
+USER ${UID}:${GID}
+
+# Enable YJIT for better performance
+ENV RUBY_YJIT_ENABLE=1
 
 # Entrypoint prepares the database.
 ENTRYPOINT ["/rails/bin/docker-entrypoint"]

@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+# Docker push script for Link Radar backend
+#
+# Usage:
+#   bin/docker-push
+#
+# This script tags and pushes the backend Docker image to GitHub Container Registry.
+# You must be authenticated with GHCR first:
+#   echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
+#
+# The script pushes two tags:
+#   - ghcr.io/USERNAME/link-radar-backend:VERSION
+#   - ghcr.io/USERNAME/link-radar-backend:latest
+
+dirname=$(dirname -- "${0}")
+script_dir=$(cd -- "${dirname}" >/dev/null 2>&1 && pwd)
+
+source "${script_dir}/docker-helpers.sh"
+
+# Get version from VERSION file
+get_version "${script_dir}"
+
+# Get GHCR repository
+get_repo
+
+base_tag="lr-backend"
+base_tag_with_version="${base_tag}:${version}"
+repo_tag_with_version="${repo}:${version}"
+repo_tag_latest="${repo}:latest"
+
+# Check if local image exists
+if ! docker image inspect "${base_tag_with_version}" >/dev/null 2>&1; then
+  error "Image ${base_tag_with_version} not found. Run bin/docker-build first."
+fi
+
+log "Tagging ${base_tag_with_version} for GHCR"
+docker tag "${base_tag_with_version}" "${repo_tag_with_version}"
+docker tag "${base_tag_with_version}" "${repo_tag_latest}"
+
+log "Pushing ${repo_tag_with_version}"
+docker push "${repo_tag_with_version}"
+
+log "Pushing ${repo_tag_latest}"
+docker push "${repo_tag_latest}"
+
+log "Push complete!"
+echo ""
+echo "Images pushed:"
+echo "  - ${repo_tag_with_version}"
+echo "  - ${repo_tag_latest}"
+echo ""
+echo "View on GitHub:"
+echo "  https://github.com/steveclarke/link-radar/pkgs/container/lr-backend"
+

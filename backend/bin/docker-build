@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+# Docker build script for Link Radar backend
+#
+# Usage:
+#   bin/docker-build
+#   bin/docker-build -- --no-cache
+#   bin/docker-build -- --platform linux/amd64
+#
+# This script builds the backend Docker image using the VERSION file
+# to tag the image. Extra arguments can be passed to docker build
+# using -- as a separator.
+
+dirname=$(dirname -- "${0}")
+script_dir=$(cd -- "${dirname}" >/dev/null 2>&1 && pwd)
+
+source "${script_dir}/docker-helpers.sh"
+
+# Get version from VERSION file
+get_version "${script_dir}"
+
+###
+# Allow passing extra params through to the build command by using --
+###
+# Shift until we find --
+while [ "$1" != "--" ] && [ -n "$1" ]; do
+  shift
+done
+
+# Remove the --
+if [ "$1" == "--" ]; then
+  shift
+fi
+
+base_tag="lr-backend"
+base_tag_with_version="${base_tag}:${version}"
+
+log "Building ${base_tag_with_version}"
+info "Build context: ${script_dir}/.."
+
+# Change to backend directory for build
+cd "${script_dir}/.."
+
+# Build the image
+docker build -t "${base_tag_with_version}" "$@" .
+
+log "Build complete!"
+info "Image: ${base_tag_with_version}"
+echo ""
+echo "Next steps:"
+echo "  - Test the image: docker run --rm ${base_tag_with_version} bin/rails --version"
+echo "  - Push to registry: bin/docker-push"
+
