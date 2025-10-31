@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -e
+
+echo "🚀 Starting Link Radar services..."
+docker compose up -d
+
+echo ""
+echo "✓ Services started!"
+echo ""
+echo "View logs with: bin/logs"
+echo "Check status with: docker compose ps"
+

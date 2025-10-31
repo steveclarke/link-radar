@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+echo "🚀 Link Radar Deployment Setup"
+echo "================================"
+echo ""
+
+# Check if docker is installed
+if ! command -v docker &> /dev/null; then
+    echo -e "${RED}Error: Docker is not installed${NC}"
+    echo "Please install Docker from https://docs.docker.com/get-docker/"
+    exit 1
+fi
+
+# Check if docker compose is available
+if ! docker compose version &> /dev/null; then
+    echo -e "${RED}Error: Docker Compose is not available${NC}"
+    echo "Please ensure Docker Compose v2 is installed"
+    exit 1
+fi
+
+echo -e "${GREEN}✓${NC} Docker is installed"
+echo -e "${GREEN}✓${NC} Docker Compose is available"
+echo ""
+
+# Create env directory if it doesn't exist
+mkdir -p env
+
+# Copy env.template to .env if it doesn't exist
+if [ ! -f .env ]; then
+    if [ -f env.template ]; then
+        cp env.template .env
+        echo -e "${GREEN}✓${NC} Created .env from env.template"
+    else
+        echo -e "${YELLOW}⚠${NC} Warning: env.template not found, skipping .env creation"
+    fi
+else
+    echo -e "${YELLOW}⚠${NC} .env already exists, skipping"
+fi
+
+# Copy environment templates to actual env files
+for template in env/*.env.template; do
+    if [ -f "$template" ]; then
+        envfile="${template%.template}"
+        if [ ! -f "$envfile" ]; then
+            cp "$template" "$envfile"
+            echo -e "${GREEN}✓${NC} Created $(basename $envfile) from $(basename $template)"
+        else
+            echo -e "${YELLOW}⚠${NC} $(basename $envfile) already exists, skipping"
+        fi
+    fi
+done
+
+echo ""
+echo -e "${GREEN}Setup complete!${NC}"
+echo ""
+echo "📝 Next steps:"
+echo "1. Edit .env and update BACKEND_IMAGE with your GitHub Container Registry image"
+echo "2. Edit env/backend.env and update:"
+echo "   - RAILS_MASTER_KEY (from backend/config/master.key)"
+echo "   - DATABASE_URL password"
+echo "   - REDIS_URL if needed"
+echo "3. Edit env/postgres.env and set a secure POSTGRES_PASSWORD"
+echo "4. Authenticate with GitHub Container Registry:"
+echo "   echo \$GITHUB_TOKEN | docker login ghcr.io -u YOUR_USERNAME --password-stdin"
+echo "5. Pull the backend image: docker compose pull"
+echo "6. Start the services: bin/up"
+echo ""
+

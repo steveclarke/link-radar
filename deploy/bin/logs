@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+# Follow logs for all services or a specific service
+# Usage: bin/logs [service_name]
+# Example: bin/logs backend
+
+docker compose logs -f "${@}"
+

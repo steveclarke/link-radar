@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -e
+
+# Run arbitrary commands in the runner container
+# Usage: bin/runner [command]
+# Example: bin/runner bin/rails db:migrate
+# Example: bin/runner bin/rails db:seed
+#
+# The runner service is a dedicated container for running one-off commands
+# It has access to the database and Redis just like the backend service
+
+if [ $# -eq 0 ]; then
+    echo "Usage: bin/runner [command]"
+    echo ""
+    echo "Examples:"
+    echo "  bin/runner bin/rails db:migrate"
+    echo "  bin/runner bin/rails db:seed"
+    echo "  bin/runner bin/rails db:migrate:status"
+    exit 1
+fi
+
+docker compose run --rm runner "${@}"
+
