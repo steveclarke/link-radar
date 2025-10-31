@@ -333,14 +333,12 @@ DEPENDENCIES
   bundler-audit
   debug
   dotenv-rails
-  erubi
   faker
   image_processing (~> 1.2)
   jbuilder
   pg (~> 1.1)
   puma (>= 5.0)
   rack-cors
-  rack-session
   rails (~> 8.1.0)
   standard
   standard-rails!
