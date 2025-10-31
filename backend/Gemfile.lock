@@ -339,6 +339,7 @@ DEPENDENCIES
   pg (~> 1.1)
   puma (>= 5.0)
   rack-cors
+  rack-session
   rails (~> 8.1.0.rc1)
   standard
   standard-rails!
