@@ -2,14 +2,23 @@
 
 This directory contains the Docker Compose configuration and utilities for deploying Link Radar in production.
 
+## Quick Deploy
+
+**🚀 Automated deployment (recommended):** [DEPLOY-QUICKSTART.md](./DEPLOY-QUICKSTART.md) - Deploy in one command via `bin/deploy`
+
+**📋 Manual deployment:** [DEPLOYMENT-CHECKLIST.md](./DEPLOYMENT-CHECKLIST.md) - Step-by-step checklist for manual deployment
+
 ## Table of Contents
 
 - [Link Radar Production Deployment](#link-radar-production-deployment)
+  - [Quick Deploy](#quick-deploy)
   - [Table of Contents](#table-of-contents)
   - [Overview](#overview)
     - [Understanding .env vs env/\*.env](#understanding-env-vs-envenv)
   - [Prerequisites](#prerequisites)
   - [Initial Setup](#initial-setup)
+    - [Sparse Checkout (Recommended for Production)](#sparse-checkout-recommended-for-production)
+    - [Full Repository Clone (Development/Testing)](#full-repository-clone-developmenttesting)
   - [Configuration](#configuration)
     - [Main Configuration (.env)](#main-configuration-env)
     - [Backend Configuration (env/backend.env)](#backend-configuration-envbackendenv)
@@ -35,6 +44,7 @@ This directory contains the Docker Compose configuration and utilities for deplo
     - [Database connection errors](#database-connection-errors)
     - [Cannot pull backend image](#cannot-pull-backend-image)
     - [Services keep restarting](#services-keep-restarting)
+  - [Reverse Proxy / SSL](#reverse-proxy--ssl)
   - [Additional Resources](#additional-resources)
 
 ## Overview
@@ -67,7 +77,24 @@ In other words:
 
 ## Initial Setup
 
-1. **Clone this repository** to your deployment server:
+### Sparse Checkout (Recommended for Production)
+
+For production servers, clone **only** the deploy directory to avoid having source code on the server:
+
+```bash
+mkdir -p ~/docker
+cd ~/docker
+git clone --filter=blob:none --sparse https://github.com/steveclarke/link-radar.git
+cd link-radar
+git sparse-checkout set deploy
+cd deploy
+```
+
+This gives you only the deployment configurations - no source code on production!
+
+### Full Repository Clone (Development/Testing)
+
+For local testing or development:
 
 ```bash
 git clone <repository-url>
@@ -403,9 +430,20 @@ bin/logs [service-name]
 curl http://localhost:3000/up
 ```
 
+## Reverse Proxy / SSL
+
+Currently, the backend is exposed directly on port 3000. For production use with a domain name and SSL:
+
+- **Reverse Proxy Options:** See [REVERSE-PROXY-OPTIONS.md](./REVERSE-PROXY-OPTIONS.md) for three modern approaches:
+  - **Cloudflare Tunnel** (recommended) - Zero SSL management, no open ports
+  - **Caddy** - Dead simple self-hosted with automatic HTTPS
+  - **Traefik** - Advanced features, Docker labels
+- Current deployment works perfectly without these - add when ready
+
 ## Additional Resources
 
 - [Docker Compose documentation](https://docs.docker.com/compose/)
 - [GitHub Container Registry authentication](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
 - [Rails deployment guide](https://guides.rubyonrails.org/configuring.html#rails-general-configuration)
+- [Traefik documentation](https://doc.traefik.io/traefik/)
 

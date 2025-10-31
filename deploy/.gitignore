@@ -6,3 +6,6 @@ env/*.env
 !env/*.env.template
 !env.template
 
+# Deployment environment file (if using sourcing pattern)
+.env.deploy
+
