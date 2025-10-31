@@ -1,7 +1,7 @@
 source "https://rubygems.org"
 
 # Bundle edge Rails instead: gem "rails", github: "rails/rails", branch: "main"
-gem "rails", "~> 8.1.0"
+gem "rails", "~> 8.1.0.rc1"
 
 # Use postgresql as the database for Active Record
 gem "pg", "~> 1.1"
@@ -58,9 +58,3 @@ end
 
 # Configuration library for Ruby gems and applications
 gem "anyway_config"
-
-# Ruby 3.4 workaround: explicitly require bundled gems that Rails needs
-# Ruby 3.4's bundled_gems.rb interferes with Rails' autoloading of these gems
-# See: https://bugs.ruby-lang.org/issues/20060
-gem "rack-session"
-gem "erubi"
