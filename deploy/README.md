@@ -4,9 +4,7 @@ This directory contains the Docker Compose configuration and utilities for deplo
 
 ## Quick Deploy
 
-**🚀 Automated:** [DEPLOY.md](./DEPLOY.md) - One command deployment: `bin/deploy prod`
-
-**📋 Manual:** [DEPLOYMENT-CHECKLIST.md](./DEPLOYMENT-CHECKLIST.md) - Step-by-step manual process
+See [DEPLOY.md](./DEPLOY.md) for one-command deployment: `bin/deploy prod`
 
 ## Table of Contents
 

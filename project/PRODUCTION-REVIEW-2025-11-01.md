@@ -22,9 +22,9 @@ This document provides a comprehensive checklist for reviewing the Link Radar pr
   - Verify tags both `:version` and `:latest`
   - Check GHCR repository naming: `ghcr.io/steveclarke/lr-backend`
 
-- [ ] Review `backend/bin/docker-helpers.sh` (shared functions)
-  - Verify `get_version` function reads VERSION file correctly
-  - Check `get_repo` function returns correct GHCR path
+- [ ] Review `backend/bin/docker-config.sh` (centralized configuration)
+  - Verify centralized constants: IMAGE_NAME, GHCR_REGISTRY, GHCR_REPO
+  - Check `get_version` function reads VERSION file correctly
   - Review color output functions (log, info, warn, error)
 
 - [ ] Verify `backend/VERSION` file (0.1.0)
@@ -158,22 +158,12 @@ This document provides a comprehensive checklist for reviewing the Link Radar pr
   - Operations and maintenance tasks
   - Troubleshooting guide
 
-- [ ] Review `deploy/DEPLOY-QUICKSTART.md` (automated deployment)
-  - Environment variable requirements
-  - One-command deployment instructions
-  - Post-deployment verification steps
+- [ ] Review `deploy/DEPLOY.md` (automated deployment)
+  - 1Password integration for credentials
+  - Multi-environment support (prod, staging, test)
+  - Install vs update modes explained
+  - One-command deployment workflow
 
-- [ ] Review `deploy/DEPLOYMENT-CHECKLIST.md` (manual steps)
-  - Step-by-step checklist for manual deployment
-  - Server preparation tasks
-  - Configuration setup
-  - Service startup and verification
-
-- [ ] Review `deploy/REVERSE-PROXY-OPTIONS.md` (Caddy vs Traefik vs Cloudflare)
-  - Comparison of three reverse proxy options
-  - Pros/cons of each approach
-  - Setup instructions for Caddy (what we chose)
-  - Decision guide for choosing a proxy solution
 
 ---
 
@@ -208,13 +198,14 @@ This document provides a comprehensive checklist for reviewing the Link Radar pr
 ## Files Changed/Created Today
 
 ### New Files
-- `backend/bin/docker-build` - Cross-platform build script
-- `backend/bin/docker-push` - GHCR push script  
-- `backend/bin/docker-helpers.sh` - Shared functions
+- `backend/bin/docker-build` - Modular build script with cross-platform support
+- `backend/bin/docker-push` - Modular push script for GHCR
+- `backend/bin/docker-config.sh` - Centralized Docker configuration
 - `backend/VERSION` - Version tracking (0.1.0)
-- `deploy/bin/deploy` - Automated deployment script
-- `deploy/DEPLOY-QUICKSTART.md` - Quick start guide
-- `deploy/REVERSE-PROXY-OPTIONS.md` - Reverse proxy comparison
+- `deploy/bin/deploy` - Modular, idempotent deployment script (install/update modes)
+- `deploy/DEPLOY.md` - Automated deployment guide
+- `deploy/.config/environment.env.template` - Environment config template
+- `deploy/.config/prod.env` - Production environment config
 - `backend/bruno/environments/Production.bru` - Production API config
 
 ### Modified Files
