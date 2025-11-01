@@ -5,13 +5,12 @@ set -eo pipefail
 # Docker build script for Link Radar backend
 #
 # Usage:
-#   bin/docker-build
-#   bin/docker-build -- --no-cache
-#   bin/docker-build -- --platform linux/amd64
+#   bin/docker-build                      # Builds for linux/amd64 (production)
+#   bin/docker-build --local              # Builds for local platform (Mac/Linux dev)
+#   bin/docker-build -- --no-cache        # Pass extra args to docker build
 #
-# This script builds the backend Docker image using the VERSION file
-# to tag the image. Extra arguments can be passed to docker build
-# using -- as a separator.
+# By default, builds for linux/amd64 using buildx for production deployment.
+# Use --local flag to build for your local platform (faster for local testing).
 
 dirname=$(dirname -- "${0}")
 script_dir=$(cd -- "${dirname}" >/dev/null 2>&1 && pwd)
@@ -20,6 +19,13 @@ source "${script_dir}/docker-helpers.sh"
 
 # Get version from VERSION file
 get_version "${script_dir}"
+
+# Check for --local flag
+local_build=false
+if [ "$1" == "--local" ]; then
+  local_build=true
+  shift
+fi
 
 ###
 # Allow passing extra params through to the build command by using --
@@ -44,7 +50,13 @@ info "Build context: ${script_dir}/.."
 cd "${script_dir}/.."
 
 # Build the image
-docker build -t "${base_tag_with_version}" "$@" .
+if [ "$local_build" = true ]; then
+  info "Building for local platform (faster, but won't work on linux/amd64 servers)"
+  docker build -t "${base_tag_with_version}" "$@" .
+else
+  info "Building for linux/amd64 (production-ready)"
+  docker buildx build --platform linux/amd64 --load -t "${base_tag_with_version}" "$@" .
+fi
 
 log "Build complete!"
 info "Image: ${base_tag_with_version}"

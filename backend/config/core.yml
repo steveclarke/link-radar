@@ -7,6 +7,7 @@ default: &default
   #   - "/https://.*\.example\.com/"      # Regex: any subdomain of example.com
   cors_origins:
     - "http://linkradar.localhost:9000"
+    - "https://linkradar.app"
     - "/chrome-extension://.*/"
     - "/moz-extension://.*/"
   log_level: "debug"
@@ -20,7 +21,11 @@ test:
 
 production:
   <<: *default
-  cors_origins:
-    - "https://linkradar.app"
+  # Inherits cors_origins from default (includes chrome/moz extensions)
+  # To override, uncomment and add production-specific origins:
+  # cors_origins:
+  #   - "https://linkradar.app"
+  #   - "/chrome-extension://.*/"
+  #   - "/moz-extension://.*/"
   log_level: info
   frontend_url: "https://linkradar.app"

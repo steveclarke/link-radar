@@ -200,12 +200,19 @@ bin/docker-build
 
 This builds a Docker image tagged as `lr-backend:VERSION` (e.g., `lr-backend:0.1.0`).
 
+**By default**, the image is built for `linux/amd64` (production servers) using Docker buildx. This ensures the image will work on your production Linux servers even if you're building on a Mac.
+
 **Build options:**
 
-Pass additional Docker build arguments using `--`:
 ```bash
+# Default: Build for linux/amd64 (production-ready)
+bin/docker-build
+
+# Build for local platform only (faster for local testing, Mac ARM or Linux)
+bin/docker-build --local
+
+# Pass additional Docker build arguments using --
 bin/docker-build -- --no-cache
-bin/docker-build -- --platform linux/amd64
 ```
 
 ### Pushing to GitHub Container Registry
