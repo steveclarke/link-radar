@@ -237,7 +237,7 @@ if [ ! -d "link-radar" ]; then
   echo "Cloning repository..."
   git clone --filter=blob:none --sparse https://github.com/steveclarke/link-radar.git
   cd link-radar
-  git sparse-checkout set deploy
+  git sparse-checkout set --no-cone deploy/
 else
   echo "Updating existing repository..."
   cd link-radar
@@ -417,9 +417,9 @@ cd ~/docker/link-radar/deploy
 docker compose ps
 ENDSSH
 
-  # Test health endpoint
+  # Test health endpoint (from inside container - port not exposed)
   info "Testing health endpoint..."
-  if ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "curl -f http://localhost:3000/up" &>/dev/null; then
+  if ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "docker exec linkradar-backend curl -f http://localhost:3000/up" &>/dev/null; then
     log "Health check passed!"
   else
     warn "Health check failed - backend may still be starting..."
@@ -427,14 +427,7 @@ ENDSSH
 
   # Test database connection
   info "Testing database connection..."
-  local db_status
-  db_status=$(ssh "${DEPLOY_USER}@${DEPLOY_HOST}" bash << 'ENDSSH' 2>/dev/null || echo "Failed"
-cd ~/docker/link-radar/deploy
-./bin/runner bin/rails runner "puts (ActiveRecord::Base.connection.active? ? 'Connected' : 'Failed')" 2>/dev/null
-ENDSSH
-)
-
-  if [[ "$db_status" == *"Connected"* ]]; then
+  if ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "docker exec linkradar-backend bin/rails runner 'Link.count'" &>/dev/null; then
     log "Database connection verified"
   else
     warn "Database check failed - backend may still be starting..."
