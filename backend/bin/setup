@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 require "optparse"
-require_relative "../lib/link_radar/tooling"
+require_relative "../lib/dev/tooling"
 
 # Setup script for preparing the development environment
 #

@@ -2,14 +2,6 @@
 
 # rubocop:disable Rails/Output, Rails/Exit
 
-require "fileutils"
-require "bundler/inline"
-
-gemfile do
-  source "https://rubygems.org"
-  gem "dotenv"
-end
-
 module LinkRadar
   module Tooling
     # Shared utilities for bin runner scripts
@@ -28,6 +20,8 @@ module LinkRadar
       # @example
       #   RunnerSupport.create_env_file("/path/to/app")
       def self.create_env_file(app_root)
+        require "fileutils"
+
         env_file = File.join(app_root, ".env")
         sample_file = File.join(app_root, ".env.sample")
 
@@ -50,6 +44,8 @@ module LinkRadar
       # @example
       #   RunnerSupport.create_bruno_env_file("/path/to/app")
       def self.create_bruno_env_file(app_root)
+        require "fileutils"
+
         bruno_dir = File.join(app_root, "bruno")
         return unless File.directory?(bruno_dir)
 
@@ -66,6 +62,9 @@ module LinkRadar
 
       # Load environment variables from .env file using dotenv gem
       #
+      # Ensures dotenv gem is available before loading the .env file.
+      # Uses Bundler.inline to bootstrap dotenv if needed (e.g., during initial setup).
+      #
       # Parses the .env file and makes environment variables available in the
       # current process.
       #
@@ -76,6 +75,17 @@ module LinkRadar
       #   RunnerSupport.load_env_file("/path/to/app")
       #   ENV["RAILS_PORT"] #=> "3000"
       def self.load_env_file(app_root)
+        # Ensure dotenv is available (for bootstrap scripts that run before bundle install)
+        begin
+          require "dotenv"
+        rescue LoadError
+          require "bundler/inline"
+          gemfile do
+            source "https://rubygems.org"
+            gem "dotenv"
+          end
+        end
+
         env_file = File.join(app_root, ".env")
         Dotenv.load(env_file) if File.exist?(env_file)
       end

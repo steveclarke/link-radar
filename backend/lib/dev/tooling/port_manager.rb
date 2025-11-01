@@ -2,7 +2,6 @@
 
 # rubocop:disable Rails/Output, Rails/Exit
 
-require "socket"
 require_relative "runner_support"
 
 module LinkRadar
@@ -49,6 +48,8 @@ module LinkRadar
       #   PortManager.port_in_use?(3000)  #=> false
       #   PortManager.port_in_use?(5432)  #=> true
       def self.port_in_use?(port)
+        require "socket"
+
         server = nil
         server = TCPServer.new("0.0.0.0", port)
         false

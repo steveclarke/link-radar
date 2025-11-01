@@ -2,11 +2,24 @@
 
 **Date:** November 1, 2025  
 **Reporter:** Steve  
-**Status:** UNRESOLVED - Workaround in place
+**Status:** ✅ RESOLVED
+
+## Resolution Summary
+
+**Root Cause:** Developer tooling code in `lib/link_radar/tooling/` and `lib/link_radar/sample_data/` was being eager-loaded in production, triggering the Ruby 3.4 + Zeitwerk + `bundled_gems.rb` conflict.
+
+**Fix:** Reorganized lib/ directory structure:
+- Moved tooling code to `lib/dev/tooling/`
+- Moved sample data to `lib/dev/sample_data/`
+- Updated `config.autoload_lib(ignore: %w[assets tasks dev])`
+
+**Result:** Production boots successfully with default settings (eager_load=true, Bootsnap enabled).
+
+---
 
 ## Executive Summary
 
-Rails 8.1 application fails to start in production mode (`RAILS_ENV=production`) with Ruby 3.4.6/3.4.7 due to a conflict between Ruby's `bundled_gems.rb` require wrapper and Zeitwerk's require patching during eager loading. The error manifests as `LoadError: cannot load such file` for gems that ARE installed and ARE in `$LOAD_PATH`.
+Rails 8.1 application was failing to start in production mode (`RAILS_ENV=production`) with Ruby 3.4.7. The error manifested as `LoadError: cannot load such file -- rack/session/abstract/id` for gems that WERE installed and WERE in `$LOAD_PATH`.
 
 ## Environment
 
@@ -418,4 +431,236 @@ end
         from /Users/steve/.local/share/mise/installs/ruby/3.4.7/lib/ruby/gems/3.4.0/gems/railties-8.1.1/lib/rails/initializable.rb:102:in 'Rails::Initializable#run_initializers'
         from /Users/steve/.local/share/mise/installs/ruby/3.4.7/lib/ruby/gems/3.4.0/gems/railties-8.1.1/lib/rails/application.rb:442:in 'Rails::Application#initialize!'
 ```
+
+---
+
+## Actual Root Cause (RESOLVED)
+
+After systematic debugging through bisection, the actual root cause was identified:
+
+### The Real Problem
+
+**Developer tooling code in `lib/link_radar/` was being eager-loaded in production.**
+
+The application had:
+```
+lib/
+└── link_radar/
+    ├── tooling/           # ❌ Being eager-loaded
+    │   ├── setup_runner.rb
+    │   ├── runner_support.rb
+    │   ├── one_password_client.rb
+    │   └── port_manager.rb
+    └── sample_data/       # ❌ Being eager-loaded
+        └── links.rb
+```
+
+With configuration:
+```ruby
+# config/application.rb
+config.autoload_lib(ignore: %w[assets tasks])  # link_radar NOT ignored!
+```
+
+When production mode enabled `eager_load = true`, Rails/Zeitwerk attempted to autoload the tooling and sample_data code, which contained code patterns that triggered the Ruby 3.4 `bundled_gems.rb` + Zeitwerk conflict.
+
+### The Technical Trigger
+
+The specific code pattern that triggered the bug was **`Bundler.inline`** in `runner_support.rb`:
+
+```ruby
+# lib/link_radar/tooling/runner_support.rb (lines 6-11)
+require "bundler/inline"
+
+gemfile do
+  source "https://rubygems.org"
+  gem "dotenv"
+end
+```
+
+**What happened during eager loading:**
+
+1. **Zeitwerk eager-loads the file** → executes all top-level code
+2. **`Bundler.inline` runs immediately** → creates a second, nested Bundler context
+3. **The inline gemfile tries to load dotenv** → triggers `require`
+4. **Triple-wrapped require resolution:**
+   - Ruby 3.4's `bundled_gems.rb` wrapper (layer 1)
+   - Zeitwerk's `Kernel#require` patch (layer 2)  
+   - Bundler's inline context (layer 3)
+5. **Require resolution chain breaks** → `LoadError` for gems that ARE installed
+
+**Why it worked in development:** `eager_load = false` means Zeitwerk never loaded these files, so the `Bundler.inline` code never executed.
+
+**Other problematic patterns found:**
+- Top-level `require` statements (`require "fileutils"`, `require "open3"`)
+- `require_relative` chains creating circular dependencies
+- Side effects during file load (the inline gemfile execution)
+
+These patterns are **fine for standalone scripts** but violate Zeitwerk's expectations:
+- No top-level code execution in autoloaded files
+- No manual `require` statements (Zeitwerk handles loading)
+- No side effects during file load
+
+### Why Fresh Rails 8.1 Apps Worked
+
+Fresh Rails apps don't have custom lib/ code, so eager loading doesn't encounter problematic code patterns. This was specific to applications with developer tooling in the lib/ directory being inadvertently autoloaded.
+
+### The Solution
+
+Reorganized the lib/ directory structure to properly separate development utilities from runtime code:
+
+**Before:**
+```
+lib/
+└── link_radar/
+    ├── tooling/           # Wrongly autoloaded
+    └── sample_data/       # Wrongly autoloaded
+```
+
+**After:**
+```
+lib/
+├── dev/                   # Properly ignored
+│   ├── tooling.rb        # Loader for bin scripts
+│   ├── tooling/
+│   │   ├── setup_runner.rb
+│   │   ├── runner_support.rb
+│   │   ├── one_password_client.rb
+│   │   └── port_manager.rb
+│   └── sample_data/
+│       └── links.rb
+└── link_radar/           # Clean, ready for runtime code
+    └── .keep
+```
+
+**Configuration change:**
+```ruby
+# config/application.rb line 33
+config.autoload_lib(ignore: %w[assets tasks dev])
+```
+
+**Bin scripts updated:**
+```ruby
+# bin/dev, bin/setup, bin/services
+require_relative "../lib/dev/tooling"  # Updated path
+```
+
+### Final Result
+
+✅ Production boots successfully with:
+- `config.eager_load = true` (production default)
+- Bootsnap enabled (production default)
+- All gems intact (jbuilder, anyway_config, rack-cors, etc.)
+- Ruby 3.4.7
+- Rails 8.1.1
+
+### Key Takeaway
+
+**This was NOT a Ruby 3.4 or Rails 8.1 bug.** It was an application configuration issue where developer tooling was incorrectly being included in the autoload/eager-load paths. The solution is proper lib/ directory organization with appropriate autoload ignore rules.
+
+### Best Practice
+
+Keep developer tooling separate from runtime code:
+- Use `lib/dev/` or similar for scripts, generators, and development utilities
+- Add to autoload ignore list: `config.autoload_lib(ignore: %w[assets tasks dev])`
+- Reserve `lib/your_app_name/` for actual runtime modules and classes
+
+### Refactoring: From Script-Style to Proper Modules
+
+After identifying the issue, the dev tooling code was refactored to eliminate top-level execution:
+
+**Changes made:**
+1. **runner_support.rb** - Moved `Bundler.inline` gemfile block into `load_env_file` method with try/rescue fallback
+2. **setup_runner.rb** - Moved `require "fileutils"` and `require "io/console"` into methods that use them
+3. **one_password_client.rb** - Moved `require "open3"` into the `fetch` method
+4. **port_manager.rb** - Moved `require "socket"` into the `port_in_use?` method
+
+**Result:** All files now define pure modules/classes with no top-level execution. Bootstrap functionality is preserved (dependencies are loaded when methods are called), and the code would be safe to autoload (though it remains in the ignored `lib/dev/` directory).
+
+### Lessons Learned: Scripts vs Modules
+
+**The Problem:** These tooling files were "scripts disguised as modules" - they contained:
+- Top-level executable code (`Bundler.inline` gemfile blocks)
+- Script-like `require` statements for stdlib gems
+- Side effects during file load
+- Code meant to be directly executed, not autoloaded
+
+**Zeitwerk-Compatible Modules:**
+```ruby
+# ✅ Good: Pure module/class definition, no top-level execution
+module MyApp
+  class MyService
+    def call
+      # All logic is in methods, executed only when called
+      require_something if needed  # Conditional requires inside methods are OK
+    end
+  end
+end
+```
+
+**Script-Style Code (Don't Autoload):**
+```ruby
+# ❌ Bad for autoloading: Top-level execution, Bundler.inline
+require "bundler/inline"
+
+gemfile do
+  gem "dotenv"  # This EXECUTES when file is loaded!
+end
+
+module MyApp
+  module Tooling
+    # Even if wrapped in modules, the top-level code executes
+  end
+end
+```
+
+**Key Insight:** If your file has top-level `require` statements or executable code outside of method definitions, it's a script and should NOT be in Zeitwerk's autoload paths. These belong in `lib/dev/`, `lib/tasks/`, or potentially outside `lib/` entirely (e.g., `scripts/`, `bin/support/`).
+
+**Warning Signs Your Code Shouldn't Be Autoloaded:**
+- Uses `Bundler.inline` 
+- Has top-level `require` for stdlib gems (`fileutils`, `open3`, etc.)
+- Executes code during file load (not just defining classes/modules)
+- Designed to be run by bin scripts, not loaded by Rails
+- Uses `$stdout.puts` or other direct I/O (typical of scripts, not modules)
+
+---
+
+## Reproduction Proof
+
+To definitively prove the root cause, the bug was successfully reproduced in a fresh Rails 8.1 app:
+
+### Test Setup
+1. Created fresh Rails 8.1.1 API-only app with Ruby 3.4.7
+2. Added file `lib/test_rails_bug/bad_pattern.rb` with top-level `Bundler.inline`:
+```ruby
+require "bundler/inline"
+
+gemfile do
+  source "https://rubygems.org"
+  gem "dotenv"
+end
+
+module TestRailsBug
+  module BadPattern
+    # ...
+  end
+end
+```
+
+### Results
+
+| Scenario | File Location | Pattern | Production Boot | Development Boot |
+|----------|--------------|---------|-----------------|------------------|
+| **BAD** | `lib/test_rails_bug/bad_pattern.rb` (autoloaded) | Top-level `Bundler.inline` | ❌ **FAILS** - `LoadError: rack/session/abstract/id` | ✅ Works |
+| **FIXED** | `lib/dev/bad_pattern.rb` (ignored from autoload) | Same code, not autoloaded | ✅ Works | ✅ Works |
+| **GOOD** | `lib/test_rails_bug/good_pattern.rb` (autoloaded) | `Bundler.inline` inside method | ✅ Works | ✅ Works |
+
+### Conclusion
+
+**The bug was perfectly reproduced** in a fresh app, confirming:
+1. Top-level `Bundler.inline` in autoloaded files triggers the exact same `LoadError`
+2. Moving to ignored directory (`lib/dev/`) fixes the issue
+3. Refactoring to move `Bundler.inline` inside methods fixes the issue
+4. The problem is **not** a Ruby 3.4 or Rails 8.1 bug, but a code organization issue
+
+**Root cause confirmed:** Top-level executable code (particularly `Bundler.inline`) in Zeitwerk-autoloaded files creates nested require contexts that break Ruby 3.4's `bundled_gems.rb` require wrapper during eager loading.
 

@@ -2,8 +2,6 @@
 
 # rubocop:disable Rails/Output
 
-require "open3"
-
 module LinkRadar
   module Tooling
     # Client for interacting with 1Password CLI to fetch secrets
@@ -34,6 +32,8 @@ module LinkRadar
       # @param vault [String] The vault name
       # @return [String, nil] The secret value or nil if not found/failed
       def fetch(item:, field:, vault:)
+        require "open3"
+
         return nil unless available?
 
         # Use Open3.capture3 with array args to prevent shell injection

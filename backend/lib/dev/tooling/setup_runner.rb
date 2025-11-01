@@ -2,8 +2,6 @@
 
 # rubocop:disable Rails/Output, Rails/Exit
 
-require "fileutils"
-require "io/console"
 require_relative "runner_support"
 require_relative "one_password_client"
 
@@ -78,6 +76,8 @@ module LinkRadar
       # @example Reset database during setup
       #   runner.run(reset: true)
       def run(reset: false)
+        require "fileutils"
+
         FileUtils.chdir(app_root) do
           puts "== Setting up #{app_name} =="
 
@@ -116,6 +116,9 @@ module LinkRadar
       end
 
       def check_master_key
+        require "fileutils"
+        require "io/console"
+
         puts "\n== Checking for Rails credential keys =="
         master_key_path = File.join(app_root, "config/master.key")
 
