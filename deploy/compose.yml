@@ -6,8 +6,11 @@ services:
     container_name: linkradar-backend
     env_file:
       - env/backend.env
-    ports:
-      - "${BACKEND_PORT:-3000}:3000"
+    # Port exposure handled by Caddy reverse proxy
+    # Uncomment for direct access: ports: ["${BACKEND_PORT:-3000}:3000"]
+    networks:
+      - default      # For postgres/redis
+      - caddy_net    # For Caddy reverse proxy
     depends_on:
       postgres:
         condition: service_healthy
@@ -68,4 +71,11 @@ volumes:
     name: linkradar_postgres_data
   redis_data:
     name: linkradar_redis_data
+
+networks:
+  default:
+    driver: bridge
+  caddy_net:
+    external: true
+    name: caddy_net
 

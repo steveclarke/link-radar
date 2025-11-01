@@ -20,18 +20,27 @@ error() { echo -e "${RED}Error:${NC} ${1}" >&2; exit 1; }
 # Usage
 usage() {
   cat << EOF
-Usage: bin/deploy [OPTIONS]
+Usage: bin/deploy ENVIRONMENT [OPTIONS]
 
-Automated deployment of Link Radar to a production server.
+Automated deployment of Link Radar to a remote server.
 
-Required Environment Variables:
-  DEPLOY_HOST          Server hostname or IP
-  DEPLOY_USER          SSH user (default: deploy)
-  RAILS_MASTER_KEY     Rails master key from backend/config/master.key
+Arguments:
+  ENVIRONMENT          Environment name (required: prod, staging, test, etc.)
+                      Loads .config/ENVIRONMENT.env
+
+Configuration File (.config/ENV.env):
+  DEPLOY_HOST           Server hostname or IP
+  ONEPASSWORD_ITEM_ID   1Password item ID containing credentials
+
+Credentials (auto-sourced from 1Password if available):
+  - username (from 1Password, defaults to "deploy")
+  - Database Password (from 1Password, required for first deploy only)
+  - Rails Master Key (from backend/config/master.key)
+
+Optional Environment Variables (can override auto-sourced values):
+  DEPLOY_USER          SSH user
+  RAILS_MASTER_KEY     Rails master key
   DB_PASSWORD          PostgreSQL password
-  GITHUB_TOKEN         GitHub token for GHCR access
-
-Optional Environment Variables:
   BACKEND_IMAGE        Backend image (default: ghcr.io/steveclarke/lr-backend:latest)
   BACKEND_PORT         Backend port (default: 3000)
 
@@ -40,25 +49,36 @@ Options:
   -c, --check         Check prerequisites only, don't deploy
 
 Examples:
-  # Set environment variables and deploy
-  export DEPLOY_HOST=123.45.67.89
-  export RAILS_MASTER_KEY=\$(cat ../backend/config/master.key)
-  export DB_PASSWORD=\$(openssl rand -base64 32)
-  export GITHUB_TOKEN=ghp_xxxxx
-  bin/deploy
-
-  # Or inline
-  DEPLOY_HOST=123.45.67.89 \\
-    RAILS_MASTER_KEY=xxx \\
-    DB_PASSWORD=yyy \\
-    GITHUB_TOKEN=zzz \\
-    bin/deploy
+  bin/deploy prod               # Deploy to production
+  bin/deploy staging            # Deploy to staging
+  bin/deploy test               # Deploy to test server
+  bin/deploy myenv --check      # Check prerequisites for custom environment
 
 EOF
   exit 0
 }
 
-# Parse arguments
+# Parse environment argument (required)
+if [ "$1" == "-h" ] || [ "$1" == "--help" ] || [ -z "$1" ]; then
+  usage
+fi
+
+DEPLOY_ENV="$1"
+shift
+
+# Load environment config
+CONFIG_FILE="$(dirname "$0")/../.config/${DEPLOY_ENV}.env"
+if [ ! -f "$CONFIG_FILE" ]; then
+  error "Config not found: .config/${DEPLOY_ENV}.env
+
+Create from template:
+  cp .config/environment.env.template .config/${DEPLOY_ENV}.env"
+fi
+
+source "$CONFIG_FILE"
+info "Environment: ${DEPLOY_ENV}"
+
+# Parse remaining arguments
 CHECK_ONLY=false
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -68,20 +88,37 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# Warn if 1Password CLI is not available but config expects it
+if [ -n "$ONEPASSWORD_ITEM_ID" ] && ! command -v op &> /dev/null; then
+  warn "1Password CLI not found - install it or set credentials via environment variables"
+  warn "Install: https://developer.1password.com/docs/cli/get-started/"
+fi
+
+# Auto-fetch credentials from 1Password
+if command -v op &> /dev/null && [ -n "$ONEPASSWORD_ITEM_ID" ]; then
+  if op item get "$ONEPASSWORD_ITEM_ID" &> /dev/null 2>&1; then
+    info "Loading credentials from 1Password..."
+
+    export DEPLOY_USER="${DEPLOY_USER:-$(op item get "$ONEPASSWORD_ITEM_ID" --fields label="username" 2>/dev/null || echo "deploy")}"
+    export RAILS_MASTER_KEY="${RAILS_MASTER_KEY:-$(cat "$(dirname "$0")/../../backend/config/master.key" 2>/dev/null)}"
+    export DB_PASSWORD="${DB_PASSWORD:-$(op item get "$ONEPASSWORD_ITEM_ID" --fields label="Database Password" --reveal 2>/dev/null)}"
+
+    log "Credentials loaded from 1Password"
+  fi
+fi
+
+export DEPLOY_USER="${DEPLOY_USER:-deploy}"
+
 # Check prerequisites
 log "Checking prerequisites..."
 
 # Required variables
 [[ -z "${DEPLOY_HOST}" ]] && error "DEPLOY_HOST not set"
 [[ -z "${RAILS_MASTER_KEY}" ]] && error "RAILS_MASTER_KEY not set"
-[[ -z "${DB_PASSWORD}" ]] && error "DB_PASSWORD not set"
-[[ -z "${GITHUB_TOKEN}" ]] && error "GITHUB_TOKEN not set"
 
 # Optional with defaults
-DEPLOY_USER="${DEPLOY_USER:-deploy}"
 BACKEND_IMAGE="${BACKEND_IMAGE:-ghcr.io/steveclarke/lr-backend:latest}"
 BACKEND_PORT="${BACKEND_PORT:-3000}"
-GITHUB_USER="${GITHUB_USER:-steveclarke}"
 
 info "Deploy host: ${DEPLOY_HOST}"
 info "Deploy user: ${DEPLOY_USER}"
@@ -93,6 +130,23 @@ if ! ssh -o ConnectTimeout=5 -o BatchMode=yes "${DEPLOY_USER}@${DEPLOY_HOST}" "e
   error "Cannot connect to ${DEPLOY_USER}@${DEPLOY_HOST}. Check SSH access."
 fi
 log "SSH connection successful"
+
+# Check if postgres volume exists (DB_PASSWORD only needed for first deploy)
+if ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "docker volume ls 2>/dev/null | grep -q postgres_data"; then
+  info "PostgreSQL volume exists, skipping DB_PASSWORD requirement"
+  DB_PASSWORD_REQUIRED=false
+else
+  info "First deploy detected, DB_PASSWORD required"
+  if [ -z "$DB_PASSWORD" ]; then
+    DB_PASSWORD=$(openssl rand -base64 32)
+    warn "Generated new DB_PASSWORD - save to 1Password!"
+    echo ""
+    echo "  Database Password: $DB_PASSWORD"
+    echo ""
+    warn "Add this to your 1Password item: $ONEPASSWORD_ITEM_ID"
+  fi
+  DB_PASSWORD_REQUIRED=true
+fi
 
 if [ "$CHECK_ONLY" = true ]; then
   log "Prerequisites check passed!"
@@ -187,21 +241,15 @@ EOF
 
 log "Environment files configured"
 
-# Step 4: Authenticate with GHCR
-log "Step 4/7: Authenticating with GitHub Container Registry..."
-ssh "${DEPLOY_USER}@${DEPLOY_HOST}" bash << ENDSSH
-echo "${GITHUB_TOKEN}" | docker login ghcr.io -u ${GITHUB_USER} --password-stdin
-ENDSSH
-
-# Step 5: Pull images
-log "Step 5/7: Pulling Docker images..."
+# Step 4: Pull images (GHCR auth not needed - repo is public)
+log "Step 4/6: Pulling Docker images..."
 ssh "${DEPLOY_USER}@${DEPLOY_HOST}" bash << 'ENDSSH'
 cd ~/docker/link-radar/deploy
 docker compose pull
 ENDSSH
 
-# Step 6: Start services
-log "Step 6/7: Starting services..."
+# Step 5: Start services
+log "Step 5/6: Starting services..."
 ssh "${DEPLOY_USER}@${DEPLOY_HOST}" bash << 'ENDSSH'
 cd ~/docker/link-radar/deploy
 ./bin/up
@@ -211,8 +259,8 @@ ENDSSH
 log "Waiting for services to become healthy..."
 sleep 10
 
-# Step 7: Verify deployment
-log "Step 7/7: Verifying deployment..."
+# Step 6: Verify deployment
+log "Step 6/6: Verifying deployment..."
 
 # Check container status
 info "Checking container status..."

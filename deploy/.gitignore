@@ -6,6 +6,7 @@ env/*.env
 !env/*.env.template
 !env.template
 
-# Deployment environment file (if using sourcing pattern)
-.env.deploy
+# Deployment configs (gitignored - contain server info)
+.config/
+!.config/environment.env.template
 
