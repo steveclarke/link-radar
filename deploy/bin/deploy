@@ -1,23 +1,70 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-set -e
+################################################################################
+# Link Radar Deployment Script
+################################################################################
+#
+# OVERVIEW
+# --------
+# Automated deployment of Link Radar to remote servers via SSH. Supports
+# multiple environments (prod, staging, test, etc.) with state tracking for
+# truly idempotent deploys.
+#
+# MODES
+# -----
+# Install Mode (DEPLOYED=false):
+#   - Full deployment setup
+#   - Generates environment files
+#   - Starts services
+#   - Marks as deployed
+#
+# Update Mode (DEPLOYED=true):
+#   - Pulls latest code and images
+#   - Restarts services
+#   - Preserves existing configuration
+#
+# CONFIGURATION
+# -------------
+# Environment config file: .config/{ENVIRONMENT}.env
+#
+# Required fields:
+#   DEPLOY_HOST           Server hostname or IP
+#   ONEPASSWORD_ITEM_ID   1Password item ID for credentials
+#   DEPLOYED              false (first deploy) or true (updates)
+#
+# CREDENTIALS
+# -----------
+# Auto-sourced from 1Password (primary method):
+#   - username (defaults to "deploy")
+#   - Database Password (only for first deploy)
+#   - API Key (preserved across updates)
+#   - Rails Master Key (from local backend/config/master.key)
+#
+# USAGE
+# -----
+#   bin/deploy prod              Deploy to production
+#   bin/deploy staging           Deploy to staging
+#   bin/deploy test --check      Check prerequisites only
+#
+################################################################################
 
-# Link Radar Production Deployment Script
-# Automates deployment to a remote server via SSH
-
-# Colors
+# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
+################################################################################
+# Helper Functions
+################################################################################
+
 log() { echo -e "${GREEN}==>${NC} ${1}"; }
 info() { echo -e "${BLUE}Info:${NC} ${1}"; }
 warn() { echo -e "${YELLOW}Warning:${NC} ${1}"; }
 error() { echo -e "${RED}Error:${NC} ${1}" >&2; exit 1; }
 
-# Usage
 usage() {
   cat << EOF
 Usage: bin/deploy ENVIRONMENT [OPTIONS]
@@ -31,18 +78,7 @@ Arguments:
 Configuration File (.config/ENV.env):
   DEPLOY_HOST           Server hostname or IP
   ONEPASSWORD_ITEM_ID   1Password item ID containing credentials
-
-Credentials (auto-sourced from 1Password if available):
-  - username (from 1Password, defaults to "deploy")
-  - Database Password (from 1Password, required for first deploy only)
-  - Rails Master Key (from backend/config/master.key)
-
-Optional Environment Variables (can override auto-sourced values):
-  DEPLOY_USER          SSH user
-  RAILS_MASTER_KEY     Rails master key
-  DB_PASSWORD          PostgreSQL password
-  BACKEND_IMAGE        Backend image (default: ghcr.io/steveclarke/lr-backend:latest)
-  BACKEND_PORT         Backend port (default: 3000)
+  DEPLOYED              State tracking (false=install, true=update)
 
 Options:
   -h, --help          Show this help message
@@ -51,115 +87,147 @@ Options:
 Examples:
   bin/deploy prod               # Deploy to production
   bin/deploy staging            # Deploy to staging
-  bin/deploy test               # Deploy to test server
-  bin/deploy myenv --check      # Check prerequisites for custom environment
+  bin/deploy test --check       # Check prerequisites for custom environment
 
 EOF
   exit 0
 }
 
-# Parse environment argument (required)
-if [ "$1" == "-h" ] || [ "$1" == "--help" ] || [ -z "$1" ]; then
-  usage
-fi
+################################################################################
+# Configuration Functions
+################################################################################
 
-DEPLOY_ENV="$1"
-shift
+parse_arguments() {
+  # Parse environment argument (required)
+  if [ "${1:-}" == "-h" ] || [ "${1:-}" == "--help" ] || [ -z "${1:-}" ]; then
+    usage
+  fi
 
-# Load environment config
-CONFIG_FILE="$(dirname "$0")/../.config/${DEPLOY_ENV}.env"
-if [ ! -f "$CONFIG_FILE" ]; then
-  error "Config not found: .config/${DEPLOY_ENV}.env
+  DEPLOY_ENV="$1"
+  shift
+
+  # Parse remaining arguments
+  CHECK_ONLY=false
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -h|--help) usage ;;
+      -c|--check) CHECK_ONLY=true; shift ;;
+      *) error "Unknown option: $1" ;;
+    esac
+  done
+}
+
+load_environment_config() {
+  CONFIG_FILE="$(dirname "$0")/../.config/${DEPLOY_ENV}.env"
+
+  if [ ! -f "$CONFIG_FILE" ]; then
+    error "Config not found: .config/${DEPLOY_ENV}.env
 
 Create from template:
   cp .config/environment.env.template .config/${DEPLOY_ENV}.env"
-fi
-
-source "$CONFIG_FILE"
-info "Environment: ${DEPLOY_ENV}"
-
-# Parse remaining arguments
-CHECK_ONLY=false
-while [[ $# -gt 0 ]]; do
-  case $1 in
-    -h|--help) usage ;;
-    -c|--check) CHECK_ONLY=true; shift ;;
-    *) error "Unknown option: $1" ;;
-  esac
-done
-
-# Warn if 1Password CLI is not available but config expects it
-if [ -n "$ONEPASSWORD_ITEM_ID" ] && ! command -v op &> /dev/null; then
-  warn "1Password CLI not found - install it or set credentials via environment variables"
-  warn "Install: https://developer.1password.com/docs/cli/get-started/"
-fi
-
-# Auto-fetch credentials from 1Password
-if command -v op &> /dev/null && [ -n "$ONEPASSWORD_ITEM_ID" ]; then
-  if op item get "$ONEPASSWORD_ITEM_ID" &> /dev/null 2>&1; then
-    info "Loading credentials from 1Password..."
-
-    export DEPLOY_USER="${DEPLOY_USER:-$(op item get "$ONEPASSWORD_ITEM_ID" --fields label="username" 2>/dev/null || echo "deploy")}"
-    export RAILS_MASTER_KEY="${RAILS_MASTER_KEY:-$(cat "$(dirname "$0")/../../backend/config/master.key" 2>/dev/null)}"
-    export DB_PASSWORD="${DB_PASSWORD:-$(op item get "$ONEPASSWORD_ITEM_ID" --fields label="Database Password" --reveal 2>/dev/null)}"
-
-    log "Credentials loaded from 1Password"
   fi
-fi
 
-export DEPLOY_USER="${DEPLOY_USER:-deploy}"
+  source "$CONFIG_FILE"
+  info "Environment: ${DEPLOY_ENV}"
 
-# Check prerequisites
-log "Checking prerequisites..."
+  # Set defaults
+  DEPLOYED="${DEPLOYED:-false}"
+  export DEPLOY_USER="${DEPLOY_USER:-deploy}"
+  BACKEND_IMAGE="${BACKEND_IMAGE:-ghcr.io/steveclarke/lr-backend:latest}"
+  BACKEND_PORT="${BACKEND_PORT:-3000}"
+}
 
-# Required variables
-[[ -z "${DEPLOY_HOST}" ]] && error "DEPLOY_HOST not set"
-[[ -z "${RAILS_MASTER_KEY}" ]] && error "RAILS_MASTER_KEY not set"
-
-# Optional with defaults
-BACKEND_IMAGE="${BACKEND_IMAGE:-ghcr.io/steveclarke/lr-backend:latest}"
-BACKEND_PORT="${BACKEND_PORT:-3000}"
-
-info "Deploy host: ${DEPLOY_HOST}"
-info "Deploy user: ${DEPLOY_USER}"
-info "Backend image: ${BACKEND_IMAGE}"
-
-# Test SSH connection
-log "Testing SSH connection..."
-if ! ssh -o ConnectTimeout=5 -o BatchMode=yes "${DEPLOY_USER}@${DEPLOY_HOST}" "echo 'SSH OK'" &>/dev/null; then
-  error "Cannot connect to ${DEPLOY_USER}@${DEPLOY_HOST}. Check SSH access."
-fi
-log "SSH connection successful"
-
-# Check if postgres volume exists (DB_PASSWORD only needed for first deploy)
-if ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "docker volume ls 2>/dev/null | grep -q postgres_data"; then
-  info "PostgreSQL volume exists, skipping DB_PASSWORD requirement"
-  DB_PASSWORD_REQUIRED=false
-else
-  info "First deploy detected, DB_PASSWORD required"
-  if [ -z "$DB_PASSWORD" ]; then
-    DB_PASSWORD=$(openssl rand -base64 32)
-    warn "Generated new DB_PASSWORD - save to 1Password!"
-    echo ""
-    echo "  Database Password: $DB_PASSWORD"
-    echo ""
-    warn "Add this to your 1Password item: $ONEPASSWORD_ITEM_ID"
+load_credentials() {
+  # Warn if 1Password CLI is not available but config expects it
+  if [ -n "${ONEPASSWORD_ITEM_ID:-}" ] && ! command -v op &> /dev/null; then
+    warn "1Password CLI not found - install it or set credentials via environment variables"
+    warn "Install: https://developer.1password.com/docs/cli/get-started/"
   fi
-  DB_PASSWORD_REQUIRED=true
-fi
 
-if [ "$CHECK_ONLY" = true ]; then
-  log "Prerequisites check passed!"
-  exit 0
-fi
+  # Auto-fetch credentials from 1Password
+  if command -v op &> /dev/null && [ -n "${ONEPASSWORD_ITEM_ID:-}" ]; then
+    if op item get "$ONEPASSWORD_ITEM_ID" &> /dev/null 2>&1; then
+      info "Loading credentials from 1Password..."
 
-# Start deployment
-log "Starting deployment to ${DEPLOY_HOST}..."
-echo ""
+      export DEPLOY_USER="${DEPLOY_USER:-$(op item get "$ONEPASSWORD_ITEM_ID" --fields label="username" 2>/dev/null || echo "deploy")}"
+      export RAILS_MASTER_KEY="${RAILS_MASTER_KEY:-$(cat "$(dirname "$0")/../../backend/config/master.key" 2>/dev/null || echo "")}"
+      export DB_PASSWORD="${DB_PASSWORD:-$(op item get "$ONEPASSWORD_ITEM_ID" --fields label="Database Password" --reveal 2>/dev/null || echo "")}"
 
-# Step 1: Clone repository with sparse checkout
-log "Step 1/7: Setting up deploy directory on server..."
-ssh "${DEPLOY_USER}@${DEPLOY_HOST}" bash << 'ENDSSH'
+      log "Credentials loaded from 1Password"
+    fi
+  fi
+}
+
+################################################################################
+# Validation Functions
+################################################################################
+
+check_prerequisites() {
+  log "Checking prerequisites..."
+
+  # Required variables
+  [[ -z "${DEPLOY_HOST:-}" ]] && error "DEPLOY_HOST not set"
+  [[ -z "${RAILS_MASTER_KEY:-}" ]] && error "RAILS_MASTER_KEY not set"
+
+  info "Deploy host: ${DEPLOY_HOST}"
+  info "Deploy user: ${DEPLOY_USER}"
+  info "Backend image: ${BACKEND_IMAGE}"
+  info "Mode: $([ "$DEPLOYED" == "true" ] && echo "UPDATE" || echo "INSTALL")"
+
+  test_ssh_connection
+  check_database_password_requirement
+
+  if [ "$CHECK_ONLY" = true ]; then
+    log "Prerequisites check passed!"
+    exit 0
+  fi
+}
+
+test_ssh_connection() {
+  log "Testing SSH connection..."
+  if ! ssh -o ConnectTimeout=5 -o BatchMode=yes "${DEPLOY_USER}@${DEPLOY_HOST}" "echo 'SSH OK'" &>/dev/null; then
+    error "Cannot connect to ${DEPLOY_USER}@${DEPLOY_HOST}. Check SSH access."
+  fi
+  log "SSH connection successful"
+}
+
+check_database_password_requirement() {
+  # Only check if in install mode
+  if [ "$DEPLOYED" != "true" ]; then
+    if ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "docker volume ls 2>/dev/null | grep -q postgres_data" 2>/dev/null; then
+      info "PostgreSQL volume exists, skipping DB_PASSWORD requirement"
+    else
+      info "First deploy detected, DB_PASSWORD required"
+      if [ -z "${DB_PASSWORD:-}" ]; then
+        DB_PASSWORD=$(openssl rand -base64 32)
+        warn "Generated new DB_PASSWORD - save to 1Password!"
+        echo ""
+        echo "  Database Password: $DB_PASSWORD"
+        echo ""
+        warn "Add this to your 1Password item: $ONEPASSWORD_ITEM_ID"
+      fi
+    fi
+  fi
+}
+
+################################################################################
+# Install Mode Functions
+################################################################################
+
+install_deployment() {
+  log "Starting full installation to ${DEPLOY_HOST}..."
+  echo ""
+
+  setup_deploy_directory
+  run_setup_script
+  generate_env_files
+  pull_images
+  start_services
+}
+
+setup_deploy_directory() {
+  log "Setting up deploy directory on server..."
+  ssh "${DEPLOY_USER}@${DEPLOY_HOST}" bash << 'ENDSSH'
 set -e
 mkdir -p ~/docker
 cd ~/docker
@@ -181,18 +249,24 @@ cd deploy
 echo "Deploy directory ready: $(pwd)"
 ENDSSH
 
-# Step 2: Run setup script
-log "Step 2/7: Running setup script..."
-ssh "${DEPLOY_USER}@${DEPLOY_HOST}" bash << 'ENDSSH'
+  log "Deploy directory ready"
+}
+
+run_setup_script() {
+  log "Running setup script..."
+  ssh "${DEPLOY_USER}@${DEPLOY_HOST}" bash << 'ENDSSH'
 cd ~/docker/link-radar/deploy
 ./bin/setup
 ENDSSH
 
-# Step 3: Configure environment files
-log "Step 3/7: Configuring environment files..."
+  log "Setup complete"
+}
 
-# Create .env
-ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "cat > ~/docker/link-radar/deploy/.env" << EOF
+generate_env_files() {
+  log "Generating environment files..."
+
+  # Create .env
+  ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "cat > ~/docker/link-radar/deploy/.env" << EOF
 # Link Radar Production Deployment Configuration
 # Generated by automated deployment script
 
@@ -203,34 +277,14 @@ BACKEND_IMAGE=${BACKEND_IMAGE}
 BACKEND_PORT=${BACKEND_PORT}
 EOF
 
-# Create backend.env
-# URL-encode the password for use in DATABASE_URL
-DB_PASSWORD_ENCODED=$(printf '%s' "${DB_PASSWORD}" | jq -sRr @uri)
+  # Get API key (1Password → existing → generate)
+  get_api_key
 
-# Get API key from 1Password or preserve existing
-if [ -n "$ONEPASSWORD_ITEM_ID" ] && command -v op &> /dev/null; then
-  API_KEY=$(op item get "$ONEPASSWORD_ITEM_ID" --fields label="API Key" --reveal 2>/dev/null || echo "")
-  if [ -n "$API_KEY" ]; then
-    info "API key loaded from 1Password"
-  fi
-fi
+  # URL-encode the password for use in DATABASE_URL
+  DB_PASSWORD_ENCODED=$(printf '%s' "${DB_PASSWORD}" | jq -sRr @uri)
 
-# If not in 1Password, try to preserve existing from server
-if [ -z "$API_KEY" ]; then
-  API_KEY=$(ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "grep CORE_API_KEY ~/docker/link-radar/deploy/env/backend.env 2>/dev/null | cut -d= -f2" || echo "")
-  if [ -n "$API_KEY" ]; then
-    info "Preserved existing API key from server"
-  fi
-fi
-
-# If still no API key, generate new one
-if [ -z "$API_KEY" ]; then
-  API_KEY=$(openssl rand -base64 32)
-  warn "Generated new API key - save to 1Password!"
-  echo "  API Key: $API_KEY"
-fi
-
-ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "cat > ~/docker/link-radar/deploy/env/backend.env" << EOF
+  # Create backend.env
+  ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "cat > ~/docker/link-radar/deploy/env/backend.env" << EOF
 # Link Radar Backend Configuration
 # Generated by automated deployment script
 
@@ -255,8 +309,8 @@ CORE_API_KEY=${API_KEY}
 RAILS_MAX_THREADS=5
 EOF
 
-# Create postgres.env
-ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "cat > ~/docker/link-radar/deploy/env/postgres.env" << EOF
+  # Create postgres.env
+  ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "cat > ~/docker/link-radar/deploy/env/postgres.env" << EOF
 # PostgreSQL Database Configuration
 # Generated by automated deployment script
 
@@ -265,60 +319,180 @@ POSTGRES_PASSWORD=${DB_PASSWORD}
 POSTGRES_DB=linkradar_production
 EOF
 
-log "Environment files configured"
+  log "Environment files generated"
+}
 
-# Step 4: Pull images (GHCR auth not needed - repo is public)
-log "Step 4/6: Pulling Docker images..."
-ssh "${DEPLOY_USER}@${DEPLOY_HOST}" bash << 'ENDSSH'
+get_api_key() {
+  # Try 1Password first
+  if [ -n "${ONEPASSWORD_ITEM_ID:-}" ] && command -v op &> /dev/null; then
+    API_KEY=$(op item get "$ONEPASSWORD_ITEM_ID" --fields label="API Key" --reveal 2>/dev/null || echo "")
+    if [ -n "$API_KEY" ]; then
+      info "API key loaded from 1Password"
+      return
+    fi
+  fi
+
+  # Try to preserve existing from server
+  API_KEY=$(ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "grep CORE_API_KEY ~/docker/link-radar/deploy/env/backend.env 2>/dev/null | cut -d= -f2" || echo "")
+  if [ -n "$API_KEY" ]; then
+    info "Preserved existing API key from server"
+    return
+  fi
+
+  # Generate new one
+  API_KEY=$(openssl rand -base64 32)
+  warn "Generated new API key - save to 1Password!"
+  echo "  API Key: $API_KEY"
+}
+
+pull_images() {
+  log "Pulling Docker images..."
+  ssh "${DEPLOY_USER}@${DEPLOY_HOST}" bash << 'ENDSSH'
 cd ~/docker/link-radar/deploy
 docker compose pull
 ENDSSH
 
-# Step 5: Start services
-log "Step 5/6: Starting services..."
-ssh "${DEPLOY_USER}@${DEPLOY_HOST}" bash << 'ENDSSH'
+  log "Images pulled"
+}
+
+start_services() {
+  log "Starting services..."
+  ssh "${DEPLOY_USER}@${DEPLOY_HOST}" bash << 'ENDSSH'
 cd ~/docker/link-radar/deploy
 ./bin/up
 ENDSSH
 
-# Wait for services to be healthy
-log "Waiting for services to become healthy..."
-sleep 10
+  log "Waiting for services to become healthy..."
+  sleep 15
+}
 
-# Step 6: Verify deployment
-log "Step 6/6: Verifying deployment..."
+################################################################################
+# Update Mode Functions
+################################################################################
 
-# Check container status
-info "Checking container status..."
-ssh "${DEPLOY_USER}@${DEPLOY_HOST}" bash << 'ENDSSH'
+update_deployment() {
+  log "Starting update to ${DEPLOY_HOST}..."
+  echo ""
+
+  update_code
+  pull_images
+  restart_services
+}
+
+update_code() {
+  log "Updating code on server..."
+  ssh "${DEPLOY_USER}@${DEPLOY_HOST}" bash << 'ENDSSH'
+set -e
+cd ~/docker/link-radar
+git fetch origin
+git reset --hard origin/master
+echo "Code updated to latest commit"
+ENDSSH
+
+  log "Code updated"
+}
+
+restart_services() {
+  log "Restarting services..."
+  ssh "${DEPLOY_USER}@${DEPLOY_HOST}" bash << 'ENDSSH'
+cd ~/docker/link-radar/deploy
+docker compose up -d
+ENDSSH
+
+  log "Waiting for services to become healthy..."
+  sleep 15
+}
+
+################################################################################
+# Shared Functions
+################################################################################
+
+verify_deployment() {
+  log "Verifying deployment..."
+
+  # Check container status
+  info "Checking container status..."
+  ssh "${DEPLOY_USER}@${DEPLOY_HOST}" bash << 'ENDSSH'
 cd ~/docker/link-radar/deploy
 docker compose ps
 ENDSSH
 
-# Test health endpoint
-info "Testing health endpoint..."
-if ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "curl -f http://localhost:${BACKEND_PORT}/up" &>/dev/null; then
-  log "Health check passed!"
-else
-  warn "Health check failed, but services may still be starting..."
-fi
+  # Test health endpoint
+  info "Testing health endpoint..."
+  if ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "curl -f http://localhost:3000/up" &>/dev/null; then
+    log "Health check passed!"
+  else
+    warn "Health check failed - backend may still be starting..."
+  fi
 
-# Test database connection
-info "Testing database connection..."
-ssh "${DEPLOY_USER}@${DEPLOY_HOST}" bash << 'ENDSSH'
+  # Test database connection
+  info "Testing database connection..."
+  local db_status
+  db_status=$(ssh "${DEPLOY_USER}@${DEPLOY_HOST}" bash << 'ENDSSH' 2>/dev/null || echo "Failed"
 cd ~/docker/link-radar/deploy
-./bin/runner bin/rails runner "puts 'DB: ' + (ActiveRecord::Base.connection.active? ? 'Connected' : 'Failed')"
+./bin/runner bin/rails runner "puts (ActiveRecord::Base.connection.active? ? 'Connected' : 'Failed')" 2>/dev/null
 ENDSSH
+)
 
-echo ""
-log "🎉 Deployment complete!"
-echo ""
-echo "Your Link Radar backend is now running on ${DEPLOY_HOST}"
-echo ""
-echo "Next steps:"
-echo "  - View logs: ssh ${DEPLOY_USER}@${DEPLOY_HOST} 'cd ~/docker/link-radar/deploy && ./bin/logs'"
-echo "  - Check status: ssh ${DEPLOY_USER}@${DEPLOY_HOST} 'cd ~/docker/link-radar/deploy && docker compose ps'"
-echo "  - Rails console: ssh ${DEPLOY_USER}@${DEPLOY_HOST} 'cd ~/docker/link-radar/deploy && ./bin/console'"
-echo "  - Test: curl http://${DEPLOY_HOST}:${BACKEND_PORT}/up"
-echo ""
+  if [[ "$db_status" == *"Connected"* ]]; then
+    log "Database connection verified"
+  else
+    warn "Database check failed - backend may still be starting..."
+  fi
+}
 
+mark_as_deployed() {
+  if [ "$DEPLOYED" != "true" ]; then
+    # Update local config file
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+      sed -i '' 's/DEPLOYED=false/DEPLOYED=true/' "$CONFIG_FILE"
+    else
+      sed -i 's/DEPLOYED=false/DEPLOYED=true/' "$CONFIG_FILE"
+    fi
+    log "Marked as deployed in .config/${DEPLOY_ENV}.env"
+    warn "Future deploys will use update mode (faster, preserves config)"
+  fi
+}
+
+################################################################################
+# Main Orchestration
+################################################################################
+
+main() {
+  parse_arguments "$@"
+  load_environment_config
+  load_credentials
+  check_prerequisites
+
+  if [ "$DEPLOYED" == "true" ]; then
+    info "Update mode: pulling latest and restarting"
+    update_deployment
+  else
+    info "Install mode: full deployment"
+    install_deployment
+    mark_as_deployed
+  fi
+
+  verify_deployment
+
+  echo ""
+  log "🎉 Deployment complete!"
+  echo ""
+  echo "Your Link Radar backend is running on ${DEPLOY_HOST}"
+  echo ""
+  echo "Next steps:"
+  echo "  - View logs: ssh ${DEPLOY_USER}@${DEPLOY_HOST} 'cd ~/docker/link-radar/deploy && ./bin/logs'"
+  echo "  - Check status: ssh ${DEPLOY_USER}@${DEPLOY_HOST} 'cd ~/docker/link-radar/deploy && docker compose ps'"
+  echo "  - Rails console: ssh ${DEPLOY_USER}@${DEPLOY_HOST} 'cd ~/docker/link-radar/deploy && ./bin/console'"
+  if [ "$DEPLOYED" != "true" ]; then
+    echo ""
+    warn "Save credentials to 1Password if not already saved!"
+  fi
+  echo ""
+}
+
+################################################################################
+# Script Execution
+################################################################################
+
+main "$@"

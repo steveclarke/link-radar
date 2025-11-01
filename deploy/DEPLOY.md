@@ -37,13 +37,25 @@ bin/deploy --help       # Show all options
 
 ## How It Works
 
+**First Deploy** (DEPLOYED=false in config):
 1. Loads config from `.config/{environment}.env`
-2. Fetches credentials from 1Password item
-3. SSHs to server and sets up deployment directory
-4. Generates environment files on server
-5. Pulls latest Docker images
-6. Starts/restarts services
+2. Fetches credentials from 1Password
+3. Sets up deployment directory on server
+4. Generates environment files
+5. Pulls Docker images
+6. Starts services
 7. Verifies deployment
+8. Marks as deployed (sets DEPLOYED=true)
+
+**Subsequent Deploys** (DEPLOYED=true):
+1. Loads config
+2. Pulls latest code on server (git pull)
+3. Pulls latest Docker images
+4. Restarts services
+5. Verifies deployment
+6. Preserves all configuration (no env file regeneration)
+
+**Force Reinstall**: Set `DEPLOYED=false` in `.config/{env}.env`
 
 ## Creating New Environments
 

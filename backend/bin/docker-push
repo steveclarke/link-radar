@@ -1,57 +1,106 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-set -eo pipefail
-
-# Docker push script for Link Radar backend
+################################################################################
+# Docker Push Script
+################################################################################
 #
-# Usage:
+# OVERVIEW
+# --------
+# Pushes Link Radar backend image to GitHub Container Registry (GHCR).
+#
+# USAGE
+# -----
 #   bin/docker-push
 #
-# This script tags and pushes the backend Docker image to GitHub Container Registry.
-# You must be authenticated with GHCR first:
-#   echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
+# PREREQUISITES
+# -------------
+# - Local image must exist (run bin/docker-build first)
+# - Authenticated with GHCR (repo is public, no auth needed for pull)
 #
-# The script pushes two tags:
-#   - ghcr.io/USERNAME/link-radar-backend:VERSION
-#   - ghcr.io/USERNAME/link-radar-backend:latest
+# PUSHES
+# ------
+# - ghcr.io/steveclarke/lr-backend:VERSION
+# - ghcr.io/steveclarke/lr-backend:latest
+#
+################################################################################
 
-dirname=$(dirname -- "${0}")
-script_dir=$(cd -- "${dirname}" >/dev/null 2>&1 && pwd)
+script_dir=$(cd "$(dirname "$0")" && pwd)
+source "${script_dir}/docker-config.sh"
 
-source "${script_dir}/docker-helpers.sh"
+################################################################################
+# Core Functions
+################################################################################
 
-# Get version from VERSION file
-get_version "${script_dir}"
+load_version() {
+  get_version "${script_dir}"
+}
 
-# Get GHCR repository
-get_repo
+verify_local_image() {
+  local local_image="${IMAGE_NAME}:${version}"
 
-base_tag="lr-backend"
-base_tag_with_version="${base_tag}:${version}"
-repo_tag_with_version="${repo}:${version}"
-repo_tag_latest="${repo}:latest"
+  if ! docker image inspect "${local_image}" >/dev/null 2>&1; then
+    error "Image ${local_image} not found. Run bin/docker-build first."
+  fi
 
-# Check if local image exists
-if ! docker image inspect "${base_tag_with_version}" >/dev/null 2>&1; then
-  error "Image ${base_tag_with_version} not found. Run bin/docker-build first."
-fi
+  info "Local image verified: ${local_image}"
+}
 
-log "Tagging ${base_tag_with_version} for GHCR"
-docker tag "${base_tag_with_version}" "${repo_tag_with_version}"
-docker tag "${base_tag_with_version}" "${repo_tag_latest}"
+tag_for_registry() {
+  local local_image="${IMAGE_NAME}:${version}"
+  local repo_version="${GHCR_REPO}:${version}"
+  local repo_latest="${GHCR_REPO}:latest"
 
-log "Pushing ${repo_tag_with_version}"
-docker push "${repo_tag_with_version}"
+  log "Tagging ${local_image} for GHCR"
 
-log "Pushing ${repo_tag_latest}"
-docker push "${repo_tag_latest}"
+  docker tag "${local_image}" "${repo_version}"
+  docker tag "${local_image}" "${repo_latest}"
 
-log "Push complete!"
-echo ""
-echo "Images pushed:"
-echo "  - ${repo_tag_with_version}"
-echo "  - ${repo_tag_latest}"
-echo ""
-echo "View on GitHub:"
-echo "  https://github.com/steveclarke/link-radar/pkgs/container/lr-backend"
+  info "Tagged: ${repo_version}"
+  info "Tagged: ${repo_latest}"
+}
 
+push_to_registry() {
+  local repo_version="${GHCR_REPO}:${version}"
+  local repo_latest="${GHCR_REPO}:latest"
+
+  log "Pushing ${repo_version}"
+  docker push "${repo_version}"
+
+  log "Pushing ${repo_latest}"
+  docker push "${repo_latest}"
+
+  log "Push complete!"
+}
+
+show_success() {
+  local repo_version="${GHCR_REPO}:${version}"
+  local repo_latest="${GHCR_REPO}:latest"
+
+  echo ""
+  echo "Images pushed:"
+  echo "  - ${repo_version}"
+  echo "  - ${repo_latest}"
+  echo ""
+  echo "View on GitHub:"
+  echo "  https://github.com/steveclarke/link-radar/pkgs/container/${IMAGE_NAME}"
+  echo ""
+}
+
+################################################################################
+# Main Orchestration
+################################################################################
+
+main() {
+  load_version
+  verify_local_image
+  tag_for_registry
+  push_to_registry
+  show_success
+}
+
+################################################################################
+# Script Execution
+################################################################################
+
+main "$@"

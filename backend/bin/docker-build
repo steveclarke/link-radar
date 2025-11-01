@@ -1,67 +1,106 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-set -eo pipefail
-
-# Docker build script for Link Radar backend
+################################################################################
+# Docker Build Script
+################################################################################
 #
-# Usage:
-#   bin/docker-build                      # Builds for linux/amd64 (production)
-#   bin/docker-build --local              # Builds for local platform (Mac/Linux dev)
-#   bin/docker-build -- --no-cache        # Pass extra args to docker build
+# OVERVIEW
+# --------
+# Builds Link Radar backend Docker image for deployment.
 #
-# By default, builds for linux/amd64 using buildx for production deployment.
-# Use --local flag to build for your local platform (faster for local testing).
+# USAGE
+# -----
+#   bin/docker-build                # Build for linux/amd64 (production)
+#   bin/docker-build --local        # Build for local platform (faster)
+#   bin/docker-build -- --no-cache  # Pass extra args to Docker
+#
+# CONFIGURATION
+# -------------
+# Defaults to linux/amd64 using buildx for production deployment.
+# Use --local flag for faster local-only builds (Mac ARM or Linux dev).
+#
+################################################################################
 
-dirname=$(dirname -- "${0}")
-script_dir=$(cd -- "${dirname}" >/dev/null 2>&1 && pwd)
+script_dir=$(cd "$(dirname "$0")" && pwd)
+source "${script_dir}/docker-config.sh"
 
-source "${script_dir}/docker-helpers.sh"
+# Build options
+LOCAL_BUILD=false
+EXTRA_ARGS=()
 
-# Get version from VERSION file
-get_version "${script_dir}"
+################################################################################
+# Core Functions
+################################################################################
 
-# Check for --local flag
-local_build=false
-if [ "$1" == "--local" ]; then
-  local_build=true
-  shift
-fi
+parse_build_options() {
+  # Check for --local flag
+  if [ "${1:-}" == "--local" ]; then
+    LOCAL_BUILD=true
+    shift
+  fi
+  
+  # Parse -- separator for extra docker args
+  while [ "${1:-}" != "--" ] && [ -n "${1:-}" ]; do
+    shift || break
+  done
+  
+  # Remove the -- and capture remaining args
+  if [ "${1:-}" == "--" ]; then
+    shift
+    EXTRA_ARGS=("$@")
+  fi
+}
 
-###
-# Allow passing extra params through to the build command by using --
-###
-# Shift until we find --
-while [ "$1" != "--" ] && [ -n "$1" ]; do
-  shift
-done
+load_version() {
+  get_version "${script_dir}"
+}
 
-# Remove the --
-if [ "$1" == "--" ]; then
-  shift
-fi
+build_image() {
+  local image_tag="${IMAGE_NAME}:${version}"
+  local build_context
+  build_context=$(get_build_context "${script_dir}")
+  
+  log "Building ${image_tag}"
+  info "Build context: ${build_context}"
+  
+  cd "${build_context}"
+  
+  if [ "$LOCAL_BUILD" = true ]; then
+    info "Building for local platform (faster, but won't work on linux/amd64 servers)"
+    docker build -t "${image_tag}" "${EXTRA_ARGS[@]}" .
+  else
+    info "Building for ${DEFAULT_PLATFORM} (production-ready)"
+    docker buildx build --platform "${DEFAULT_PLATFORM}" --load -t "${image_tag}" "${EXTRA_ARGS[@]}" .
+  fi
+  
+  log "Build complete!"
+  info "Image: ${image_tag}"
+}
 
-base_tag="lr-backend"
-base_tag_with_version="${base_tag}:${version}"
+show_next_steps() {
+  local image_tag="${IMAGE_NAME}:${version}"
+  
+  echo ""
+  echo "Next steps:"
+  echo "  - Test the image: docker run --rm ${image_tag} bin/rails --version"
+  echo "  - Push to registry: bin/docker-push"
+  echo ""
+}
 
-log "Building ${base_tag_with_version}"
-info "Build context: ${script_dir}/.."
+################################################################################
+# Main Orchestration
+################################################################################
 
-# Change to backend directory for build
-cd "${script_dir}/.."
+main() {
+  parse_build_options "$@"
+  load_version
+  build_image
+  show_next_steps
+}
 
-# Build the image
-if [ "$local_build" = true ]; then
-  info "Building for local platform (faster, but won't work on linux/amd64 servers)"
-  docker build -t "${base_tag_with_version}" "$@" .
-else
-  info "Building for linux/amd64 (production-ready)"
-  docker buildx build --platform linux/amd64 --load -t "${base_tag_with_version}" "$@" .
-fi
+################################################################################
+# Script Execution
+################################################################################
 
-log "Build complete!"
-info "Image: ${base_tag_with_version}"
-echo ""
-echo "Next steps:"
-echo "  - Test the image: docker run --rm ${base_tag_with_version} bin/rails --version"
-echo "  - Push to registry: bin/docker-push"
-
+main "$@"
