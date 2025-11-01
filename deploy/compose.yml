@@ -48,7 +48,7 @@ services:
       - postgres_data:/var/lib/postgresql
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-linkradar}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-linkradar} -d ${POSTGRES_DB:-linkradar_production}"]
       interval: 10s
       timeout: 5s
       retries: 5
