@@ -1,0 +1,170 @@
+#!/usr/bin/env ruby
+require "fileutils"
+require "io/console"
+require_relative "../lib/dev/tooling"
+
+# Interactive port configuration tool
+#
+# This script provides a user-friendly CLI interface for configuring ports
+# when conflicts occur. It delegates all business logic to PortManager and
+# focuses on presentation and user interaction.
+#
+# The script:
+# - Shows current port configuration and conflicts
+# - Suggests available alternative ports
+# - Only updates .env after explicit user confirmation
+class PortConfigurator
+  include LinkRadar::Tooling
+
+  # ANSI color codes for terminal output
+  COLORS = {
+    red: "\e[31m",
+    green: "\e[32m",
+    yellow: "\e[33m",
+    blue: "\e[34m",
+    cyan: "\e[36m",
+    bold: "\e[1m",
+    reset: "\e[0m"
+  }.freeze
+
+  attr_reader :app_root, :port_manager
+
+  def initialize(app_root)
+    @app_root = app_root
+    # Create a PortManager instance
+    # Note: The services parameter doesn't affect load_current_config which
+    # returns all services. It only affects check_for_port_conflicts.
+    @port_manager = PortManager.new(app_root, services: :backend_services)
+  end
+
+  def run
+    FileUtils.chdir(app_root) do
+      print_header
+
+      # Ensure .env file exists
+      RunnerSupport.create_env_file(app_root)
+
+      # Load current configuration from PortManager
+      current_config = port_manager.load_current_config
+
+      # Check for conflicts using PortManager
+      conflicts = port_manager.get_conflicts(current_config)
+
+      # Display current status
+      display_current_status(current_config, conflicts)
+
+      # If no conflicts, we're done
+      if conflicts.empty?
+        puts "\n#{color(:green)}✓ All ports are available! No configuration needed.#{color(:reset)}"
+        return
+      end
+
+      # Show menu and handle user choice
+      handle_user_choice(current_config, conflicts)
+    end
+  end
+
+  private
+
+  def print_header
+    puts "\n#{color(:bold)}#{color(:cyan)}Port Configuration Tool#{color(:reset)}"
+    puts "#{color(:cyan)}#{'=' * 50}#{color(:reset)}\n\n"
+  end
+
+  def display_current_status(config, conflicts)
+    puts "#{color(:bold)}Current Port Configuration:#{color(:reset)}\n\n"
+
+    config.each do |env_var, data|
+      has_conflict = conflicts.include?(env_var)
+      status = has_conflict ?
+        "#{color(:red)}✗ IN USE#{color(:reset)}" :
+        "#{color(:green)}✓ Available#{color(:reset)}"
+
+      source = data[:from_env] ? ".env" : "default"
+
+      puts "  #{color(:bold)}#{data[:name].ljust(20)}#{color(:reset)} " \
+           "Port #{data[:port].to_s.ljust(5)} [#{source.ljust(7)}] #{status}"
+    end
+  end
+
+  def handle_user_choice(current_config, conflicts)
+    puts "\n#{color(:bold)}What would you like to do?#{color(:reset)}\n\n"
+    puts "  1. #{color(:cyan)}Configure alternative ports#{color(:reset)} (update .env)"
+    puts "  2. #{color(:cyan)}Show suggested ports#{color(:reset)} (don't update .env)"
+    puts "  3. #{color(:cyan)}Exit#{color(:reset)}\n\n"
+
+    print "Enter your choice (1-3): "
+    choice = $stdin.gets.chomp
+
+    case choice
+    when "1"
+      configure_ports(current_config, conflicts)
+    when "2"
+      show_suggestions(current_config, conflicts)
+    when "3"
+      puts "\nExiting without changes."
+    else
+      puts "\n#{color(:yellow)}Invalid choice. Exiting.#{color(:reset)}"
+    end
+  end
+
+  def configure_ports(current_config, conflicts)
+    puts "\n#{color(:bold)}Finding available ports...#{color(:reset)}\n"
+
+    # Get port suggestions from PortManager
+    new_config = port_manager.suggest_ports(conflicts, current_config)
+
+    # Display the suggested changes
+    conflicts.each do |env_var|
+      data = current_config[env_var]
+      available_port = new_config[env_var]
+      puts "  #{data[:name]}: #{data[:port]} → #{color(:green)}#{available_port}#{color(:reset)}"
+    end
+
+    # Confirm before updating
+    puts "\n#{color(:yellow)}This will update your .env file with the new ports.#{color(:reset)}"
+    print "Proceed? (y/N): "
+    confirm = $stdin.gets.chomp.downcase
+
+    if confirm == "y" || confirm == "yes"
+      RunnerSupport.update_env_file(app_root, new_config)
+      puts "\n#{color(:green)}✓ Configuration updated!#{color(:reset)}"
+      puts "\nYou can now start your services with the new ports."
+    else
+      puts "\n#{color(:yellow)}Configuration not updated.#{color(:reset)}"
+    end
+  end
+
+  def show_suggestions(current_config, conflicts)
+    puts "\n#{color(:bold)}Suggested Available Ports:#{color(:reset)}\n"
+
+    # Get port suggestions from PortManager
+    suggestions = port_manager.suggest_ports(conflicts, current_config)
+
+    conflicts.each do |env_var|
+      data = current_config[env_var]
+      available_port = suggestions[env_var]
+
+      puts "  #{color(:bold)}#{data[:name]}#{color(:reset)}"
+      puts "    Current:  #{data[:port]} #{color(:red)}(in use)#{color(:reset)}"
+      puts "    Suggested: #{color(:green)}#{available_port}#{color(:reset)}"
+      puts ""
+    end
+
+    puts "To use these ports, add them to your .env file:"
+    puts ""
+    conflicts.each do |env_var|
+      available_port = suggestions[env_var]
+      puts "  #{color(:cyan)}#{env_var}=#{available_port}#{color(:reset)}"
+    end
+    puts ""
+  end
+
+  def color(name)
+    COLORS[name] || ""
+  end
+end
+
+# Run the port configurator
+APP_ROOT = File.expand_path("..", __dir__)
+PortConfigurator.new(APP_ROOT).run if __FILE__ == $0

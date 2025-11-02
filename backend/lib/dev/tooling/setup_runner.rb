@@ -68,6 +68,8 @@ module LinkRadar
       # The process is idempotent and safe to run multiple times.
       #
       # @param reset [Boolean] If true, resets the database before preparing
+      # @param check_postgres [Boolean] If true, checks PostgreSQL is running before setup
+      #                                  Set to false for parallel startup scenarios (default: true)
       # @return [void]
       #
       # @example Run normal setup
@@ -75,16 +77,22 @@ module LinkRadar
       #
       # @example Reset database during setup
       #   runner.run(reset: true)
-      def run(reset: false)
+      #
+      # @example Skip PostgreSQL check for parallel startup
+      #   runner.run(check_postgres: false)
+      def run(reset: false, check_postgres: true)
         require "fileutils"
 
         FileUtils.chdir(app_root) do
           puts "== Setting up #{app_name} =="
 
           # Check PostgreSQL is running (needed for migrations)
-          unless RunnerSupport.postgres_running?
-            RunnerSupport.warn_postgres_not_running
-            exit 1
+          # Skip check if explicitly disabled (e.g., during parallel startup)
+          if check_postgres
+            unless RunnerSupport.postgres_running?
+              RunnerSupport.warn_postgres_not_running
+              exit 1
+            end
           end
 
           install_dependencies

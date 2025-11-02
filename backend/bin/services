@@ -36,12 +36,6 @@ class ServicesRunner
 
       # Configure and validate ports (only when starting services)
       if options[:command] == "up"
-        # Auto-discover available ports if requested
-        # This updates .env with ports that aren't in use
-        if options[:auto_ports]
-          auto_discover_and_set_ports
-        end
-
         # Check for port conflicts before starting
         # Warns if any configured ports are already in use
         check_for_port_conflicts
@@ -57,8 +51,7 @@ class ServicesRunner
   def parse_arguments(argv)
     options = {
       daemon_mode: [],
-      command: "up",
-      auto_ports: false
+      command: "up"
     }
 
     parser = OptionParser.new do |opts|
@@ -70,10 +63,6 @@ class ServicesRunner
 
       opts.on("-d", "--daemon", "Run in daemon mode (detached)") do
         options[:daemon_mode] = ["-d"]
-      end
-
-      opts.on("-a", "--auto-ports", "Automatically find and assign available ports") do
-        options[:auto_ports] = true
       end
 
       opts.on("-h", "--help", "Show this help message") do
@@ -113,14 +102,6 @@ class ServicesRunner
     LinkRadar::Tooling::RunnerSupport.create_env_file(app_root)
   end
 
-  def auto_discover_and_set_ports
-    port_manager = LinkRadar::Tooling::PortManager.new(
-      app_root,
-      services: :backend_services
-    )
-    port_manager.auto_discover_and_set_ports
-  end
-
   def check_for_port_conflicts
     port_manager = LinkRadar::Tooling::PortManager.new(
       app_root,
@@ -148,21 +129,23 @@ class ServicesRunner
           MAILDEV_WEB_PORT (default: 1080)
           MAILDEV_SMTP_PORT (default: 1025)
 
-        To run multiple dev environments (e.g., git worktrees), you can:
-          1. Use --auto-ports to automatically find and assign available ports
-          2. Manually set ports in your .env file
+        If you encounter port conflicts, run:
+          bin/configure-ports   # Interactive port configuration tool
+
+        This will:
+          1. Show which ports are in use
+          2. Suggest available alternative ports
+          3. Optionally update your .env file
 
       Examples:
         #{File.basename($0)}            # Start services in interactive mode
-        #{File.basename($0)} -a         # Auto-discover available ports and update .env
         #{File.basename($0)} -d         # Start services in daemon mode
-        #{File.basename($0)} -a -d      # Auto-discover ports and run in daemon mode
         #{File.basename($0)} down       # Stop and remove services
         #{File.basename($0)} logs -f    # Follow service logs
 
       Git Worktrees:
-        When working with multiple worktrees, use --auto-ports in each worktree
-        to automatically get a unique set of ports without conflicts.
+        When working with multiple worktrees, run bin/configure-ports in each
+        worktree to set unique ports and avoid conflicts.
     HELP
   end
 end
