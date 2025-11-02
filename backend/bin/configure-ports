@@ -13,7 +13,7 @@ require_relative "../lib/dev/tooling"
 # - Shows current port configuration and conflicts
 # - Suggests available alternative ports
 # - Only updates .env after explicit user confirmation
-class PortConfigurator
+class ConfigurePortsRunner
   include LinkRadar::Tooling
 
   # ANSI color codes for terminal output
@@ -43,6 +43,9 @@ class PortConfigurator
 
       # Ensure .env file exists
       RunnerSupport.create_env_file(app_root)
+
+      # Load environment variables
+      RunnerSupport.load_env_file(app_root)
 
       # Load current configuration from PortManager
       current_config = port_manager.load_current_config
@@ -167,4 +170,4 @@ end
 
 # Run the port configurator
 APP_ROOT = File.expand_path("..", __dir__)
-PortConfigurator.new(APP_ROOT).run if __FILE__ == $0
+ConfigurePortsRunner.new(APP_ROOT).run if __FILE__ == $0

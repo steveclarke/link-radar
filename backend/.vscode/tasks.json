@@ -24,9 +24,9 @@
     },
     {
       "label": "Rails Server",
-      "detail": "Start the development server",
+      "detail": "Start the development server (skips setup for faster parallel startup)",
       "type": "shell",
-      "command": "${workspaceFolder}/bin/dev",
+      "command": "${workspaceFolder}/bin/dev --skip-setup",
       "problemMatcher": []
     }
   ]

@@ -74,19 +74,18 @@ module LinkRadar
 
       # Check for port conflicts and exit if any are found
       #
-      # Loads current port configuration from environment, checks each port
-      # for conflicts, and displays an error message with resolution options
-      # if conflicts are detected.
+      # Expects environment variables to already be loaded.
+      # Checks each configured port for conflicts and displays an error message
+      # with resolution options if conflicts are detected.
       #
       # @return [void]
       # @raise [SystemExit] If any configured ports are already in use
       #
       # @example
+      #   RunnerSupport.load_env_file(app_root)
       #   manager = PortManager.new(app_root, services: :rails_server)
       #   manager.check_for_port_conflicts # exits with error if port 3000 is in use
       def check_for_port_conflicts
-        RunnerSupport.load_env_file(app_root)
-
         conflicts = []
         services.each do |env_var, default_port|
           port = ENV[env_var] || default_port.to_s
@@ -130,12 +129,14 @@ module LinkRadar
 
       # Load current port configuration from environment
       #
+      # Expects environment variables to already be loaded.
       # Returns a hash with detailed information about each port including
       # current value, default value, source (.env or default), and metadata.
       #
       # @return [Hash<String, Hash>] Hash mapping env var names to port configuration
       #
       # @example
+      #   RunnerSupport.load_env_file(app_root)
       #   manager = PortManager.new(app_root, services: :backend_services)
       #   config = manager.load_current_config
       #   #=> {
@@ -148,8 +149,6 @@ module LinkRadar
       #     ...
       #   }
       def load_current_config
-        RunnerSupport.load_env_file(app_root)
-
         config = {}
         SERVICES.each do |env_var, meta|
           current_port = ENV[env_var] || meta[:port].to_s
@@ -157,7 +156,7 @@ module LinkRadar
             name: meta[:name],
             port: current_port.to_i,
             default: meta[:port],
-            from_env: ENV[env_var] != nil
+            from_env: !ENV[env_var].nil?
           }
         end
         config

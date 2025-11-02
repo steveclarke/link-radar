@@ -103,6 +103,9 @@ class ServicesRunner
   end
 
   def check_for_port_conflicts
+    # Load environment variables before checking ports
+    LinkRadar::Tooling::RunnerSupport.load_env_file(app_root)
+
     port_manager = LinkRadar::Tooling::PortManager.new(
       app_root,
       services: :backend_services
