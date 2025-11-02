@@ -6,25 +6,17 @@ require_relative "runner_support"
 
 module LinkRadar
   module Tooling
-    # Custom exception for port discovery failures
-    class PortDiscoveryError < StandardError; end
-
     # Port management for development services
     #
-    # Handles port conflict detection, auto-discovery of available ports,
-    # and port configuration management for development services. Used by
+    # Handles port conflict detection for development services. Used by
     # bin/services and bin/dev to ensure services can start without conflicts.
+    # For interactive port configuration, use bin/configure-ports instead.
     #
     # @example Check if a port is in use
     #   PortManager.port_in_use?(3000) #=> true or false
     #
-    # @example Auto-discover ports for backend services
-    #   manager = PortManager.new(app_root, services: :backend_services)
-    #   ports = manager.auto_discover_and_set_ports
-    #   #=> { "POSTGRES_PORT" => 5432, "REDIS_PORT" => 6379, ... }
-    #
     # @example Check for port conflicts
-    #   manager = PortManager.new(app_root, services: :rails_server)
+    #   manager = PortManager.new(app_root, services: :backend_services)
     #   manager.check_for_port_conflicts #=> exits if conflicts found
     class PortManager
       # Service configurations with all metadata
@@ -80,46 +72,20 @@ module LinkRadar
         @services = resolve_services(services)
       end
 
-      # Auto-discover available ports and assign them
-      #
-      # Finds an available set of ports (where all ports in the set are free),
-      # updates the .env file with the discovered ports, and returns the port
-      # configuration.
-      #
-      # @return [Hash<String, Integer>] Hash of environment variable names to assigned ports
-      # @raise [SystemExit] If no available port set can be found after 50 attempts
-      #
-      # @example
-      #   manager = PortManager.new(app_root, services: :backend_services)
-      #   ports = manager.auto_discover_and_set_ports
-      #   #=> { "POSTGRES_PORT" => 5433, "REDIS_PORT" => 6380, ... }
-      def auto_discover_and_set_ports
-        puts "🔍 Discovering available ports..."
-        discovered_ports = find_available_port_set!(services)
-        RunnerSupport.update_env_file(app_root, discovered_ports)
-        display_assigned_ports(discovered_ports)
-        discovered_ports
-      rescue PortDiscoveryError => e
-        puts "❌ #{e.message}"
-        puts "Please manually configure ports in your .env file."
-        exit 1
-      end
-
       # Check for port conflicts and exit if any are found
       #
-      # Loads current port configuration from environment, checks each port
-      # for conflicts, and displays an error message with resolution options
-      # if conflicts are detected.
+      # Expects environment variables to already be loaded.
+      # Checks each configured port for conflicts and displays an error message
+      # with resolution options if conflicts are detected.
       #
       # @return [void]
       # @raise [SystemExit] If any configured ports are already in use
       #
       # @example
+      #   RunnerSupport.load_env_file(app_root)
       #   manager = PortManager.new(app_root, services: :rails_server)
       #   manager.check_for_port_conflicts # exits with error if port 3000 is in use
       def check_for_port_conflicts
-        RunnerSupport.load_env_file(app_root)
-
         conflicts = []
         services.each do |env_var, default_port|
           port = ENV[env_var] || default_port.to_s
@@ -131,6 +97,118 @@ module LinkRadar
 
         display_port_conflict_error(conflicts)
         exit 1
+      end
+
+      # Find the next available port starting from a base port
+      #
+      # Uses a simple linear search to find the next port that is not in use.
+      # If no port is found in the initial range, tries the next thousand boundary.
+      #
+      # @param starting_port [Integer] The port to start searching from
+      # @param max_attempts [Integer] Maximum number of ports to try (default: 100)
+      # @return [Integer] The next available port number
+      #
+      # @example
+      #   manager = PortManager.new(app_root, services: :backend_services)
+      #   available_port = manager.find_next_available_port(5432)
+      #   #=> 5433 (if 5432 is in use)
+      def find_next_available_port(starting_port, max_attempts: 100)
+        # Simple linear search starting from the base port
+        (starting_port...(starting_port + max_attempts)).each do |port|
+          return port unless self.class.port_in_use?(port)
+        end
+
+        # Fallback: start from next thousand boundary
+        next_boundary = ((starting_port / 1000) + 1) * 1000
+        (next_boundary...(next_boundary + max_attempts)).each do |port|
+          return port unless self.class.port_in_use?(port)
+        end
+
+        starting_port # Give up and return original
+      end
+
+      # Load current port configuration from environment
+      #
+      # Expects environment variables to already be loaded.
+      # Returns a hash with detailed information about each port including
+      # current value, default value, source (.env or default), and metadata.
+      #
+      # @return [Hash<String, Hash>] Hash mapping env var names to port configuration
+      #
+      # @example
+      #   RunnerSupport.load_env_file(app_root)
+      #   manager = PortManager.new(app_root, services: :backend_services)
+      #   config = manager.load_current_config
+      #   #=> {
+      #     "POSTGRES_PORT" => {
+      #       name: "PostgreSQL",
+      #       port: 5432,
+      #       default: 5432,
+      #       from_env: false
+      #     },
+      #     ...
+      #   }
+      def load_current_config
+        config = {}
+        SERVICES.each do |env_var, meta|
+          current_port = ENV[env_var] || meta[:port].to_s
+          config[env_var] = {
+            name: meta[:name],
+            port: current_port.to_i,
+            default: meta[:port],
+            from_env: !ENV[env_var].nil?
+          }
+        end
+        config
+      end
+
+      # Get list of environment variables with port conflicts
+      #
+      # Checks the current configuration and returns a list of environment
+      # variable names where the configured port is already in use.
+      #
+      # @param config [Hash] Optional configuration hash from load_current_config.
+      #                      If not provided, loads current config automatically.
+      # @return [Array<String>] Array of environment variable names with conflicts
+      #
+      # @example
+      #   manager = PortManager.new(app_root, services: :backend_services)
+      #   conflicts = manager.get_conflicts
+      #   #=> ["POSTGRES_PORT", "REDIS_PORT"]
+      def get_conflicts(config = nil)
+        config ||= load_current_config
+
+        conflicts = []
+        config.each do |env_var, data|
+          conflicts << env_var if self.class.port_in_use?(data[:port])
+        end
+        conflicts
+      end
+
+      # Generate port suggestions for conflicting ports
+      #
+      # For each conflicting port, finds the next available port and returns
+      # a hash suitable for updating the .env file.
+      #
+      # @param conflicts [Array<String>] Array of env var names with conflicts
+      # @param config [Hash] Optional configuration hash from load_current_config.
+      #                      If not provided, loads current config automatically.
+      # @return [Hash<String, Integer>] Hash mapping env var names to suggested ports
+      #
+      # @example
+      #   manager = PortManager.new(app_root, services: :backend_services)
+      #   conflicts = ["POSTGRES_PORT"]
+      #   suggestions = manager.suggest_ports(conflicts)
+      #   #=> { "POSTGRES_PORT" => 5433 }
+      def suggest_ports(conflicts, config = nil)
+        config ||= load_current_config
+
+        suggestions = {}
+        conflicts.each do |env_var|
+          data = config[env_var]
+          suggestions[env_var] = find_next_available_port(data[:port])
+        end
+        suggestions
       end
 
       private
@@ -151,40 +229,6 @@ module LinkRadar
           .transform_values { |meta| meta[:port] }
       end
 
-      # Find an available set of ports by trying offsets from base ports
-      #
-      # This method finds ALL ports as a cohesive set - they must all be available together.
-      # It does NOT find ports individually. This ensures that when running multiple dev
-      # environments (e.g., git worktrees), each environment gets a consistent port offset.
-      #
-      # Algorithm:
-      # - Try offset 0: If ALL base ports are free, use them
-      # - Try offset 1: Add 1 to ALL ports, check if ALL are free
-      # - Try offset 2: Add 2 to ALL ports, check if ALL are free
-      # - Continue up to max_attempts
-      #
-      # Example: For {POSTGRES_PORT: 5432, REDIS_PORT: 6379}
-      # - Offset 0: 5432, 6379 (both must be free)
-      # - Offset 1: 5433, 6380 (both must be free)
-      # - Offset 2: 5434, 6381 (both must be free)
-      #
-      # @param base_ports [Hash<String, Integer>] Hash of env var names to base port numbers
-      # @param max_attempts [Integer] Maximum number of offsets to try (default: 50)
-      # @return [Hash<String, Integer>] Hash of available ports (all with same offset applied)
-      # @raise [PortDiscoveryError] If no available port set can be found
-      def find_available_port_set!(base_ports, max_attempts: 50)
-        (0...max_attempts).each do |offset|
-          candidate_ports = base_ports.transform_values { |port| port + offset }
-
-          # Check if all ports in this set are available
-          all_available = candidate_ports.values.all? { |port| !self.class.port_in_use?(port) }
-
-          return candidate_ports if all_available
-        end
-
-        raise PortDiscoveryError, "Could not find available ports after checking #{max_attempts} offsets."
-      end
-
       # Format environment variable name to human-readable service name
       #
       # @param env_var [String] Environment variable name (e.g., "POSTGRES_PORT")
@@ -192,19 +236,6 @@ module LinkRadar
       def format_service_name(env_var)
         SERVICES.dig(env_var, :name) ||
           env_var.sub("_PORT", "").split("_").map(&:capitalize).join(" ")
-      end
-
-      # Display assigned ports
-      #
-      # @param ports [Hash<String, Integer>] Hash of environment variable names to assigned ports
-      # @return [void]
-      def display_assigned_ports(ports)
-        puts "📍 Assigned ports:"
-        ports.each do |env_var, port|
-          service_name = format_service_name(env_var)
-          puts "   #{service_name}: #{port}"
-        end
-        puts ""
       end
 
       # Display port conflict error message with resolution options
@@ -217,9 +248,9 @@ module LinkRadar
         conflicts.each { |c| puts c }
         puts "\nOptions:"
         puts "  1. Stop the service using those ports"
-        puts "  2. Change the ports in your .env file"
+        puts "  2. Run 'bin/configure-ports' to find and configure available ports"
         puts "  3. Run 'bin/services down' if you have containers from a previous run"
-        puts "  4. Use --auto-ports (bin/services) or --auto-port (bin/dev) to find available ports"
+        puts "  4. Manually change the ports in your .env file"
         puts ""
       end
     end

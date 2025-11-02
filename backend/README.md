@@ -85,10 +85,17 @@ The services include:
 
 **Options:**
 - `bin/services -d` - Start in detached mode (background)
-- `bin/services --auto-ports` or `-a` - Auto-discover and use available ports
 - `bin/services down` - Stop all services
 - `bin/services logs -f` - Follow logs in real-time
 - `bin/services --help` - See all available options
+
+**Port Conflicts:**
+If you encounter port conflicts (another app using the default ports), run:
+```bash
+bin/configure-ports
+```
+
+This interactive tool will show you which ports are in use and help you configure available alternatives.
 
 #### 3. Start Development Server
 
@@ -108,9 +115,10 @@ This single command will:
 - `bin/dev --skip-setup` or `-s` - Start server without running setup first
 - `bin/dev --debug` or `-d` - Start with rdbg debugger
 - `bin/dev --port 3001` or `-p 3001` - Start on a specific port
-- `bin/dev --auto-port` or `-a` - Auto-discover and assign available port
 - `bin/dev --bind 127.0.0.1` or `-b 127.0.0.1` - Bind to a specific address
 - `bin/dev --help` - See all available options
+
+If port 3000 is in use, run `bin/configure-ports` to find an available port.
 
 #### 4. Verify Health Check
 
@@ -186,12 +194,6 @@ bin/services
 # Start in detached mode (background)
 bin/services -d
 
-# Auto-discover and use available ports
-bin/services --auto-ports
-
-# Combine auto-ports with daemon mode
-bin/services -a -d
-
 # Stop all services
 bin/services down
 
@@ -202,23 +204,31 @@ bin/services logs
 bin/services logs -f
 ```
 
-**Port Conflict Resolution:**
+**Port Configuration:**
 
-If you encounter port conflicts (e.g., another app using PostgreSQL on 5432), use the `--auto-ports` flag:
+All service ports can be configured via the `.env` file:
+- `POSTGRES_PORT` (default: 5432)
+- `REDIS_PORT` (default: 6379)
+- `MAILDEV_WEB_PORT` (default: 1080)
+- `MAILDEV_SMTP_PORT` (default: 1025)
+
+**Handling Port Conflicts:**
+
+If you encounter port conflicts (e.g., another app using PostgreSQL on 5432), use the interactive port configuration tool:
 
 ```bash
-bin/services --auto-ports
+bin/configure-ports
 ```
 
-This will:
-- Automatically find available ports for all services
-- Update your `.env` file with the discovered ports
-- Remember these ports for future runs
+This tool will:
+- Show your current port configuration and which ports are in use
+- Suggest available alternative ports
+- Optionally update your `.env` file with the new ports (with confirmation)
 
 This is especially useful when:
 - Running multiple projects that use the same default ports
 - Working with git worktrees (each worktree can have unique ports)
-- Port 5432, 6379, 1080, or 1025 are already in use
+- Any default ports (5432, 6379, 1080, 1025, 3000) are already in use
 
 See `bin/services --help` for all options.
 
@@ -283,7 +293,7 @@ Bruno automatically reads variables from the `.env` file and makes them availabl
   apiKey: {{process.env.API_KEY}}
 ```
 
-**Note:** The `.env` file is gitignored so each developer can configure their own local port. This is especially useful when using `bin/services --auto-ports` which may assign different ports on different machines.
+**Note:** The `.env` file is gitignored so each developer can configure their own local port. This is especially useful when using `bin/configure-ports` which may suggest different ports on different machines.
 
 **Available Collections:**
 - `bruno/Links/` - Link management endpoints

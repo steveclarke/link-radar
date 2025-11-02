@@ -23,9 +23,6 @@ class DevServerRunner
     options = parse_arguments(argv)
 
     FileUtils.chdir(app_root) do
-      # Verify required services are running
-      verify_services
-
       # Run setup to prepare the application
       run_setup(options)
 
@@ -44,43 +41,22 @@ class DevServerRunner
 
   private
 
-  def verify_services
-    # Verify PostgreSQL is running
-    # Rails needs a database connection, so we check early and provide
-    # helpful instructions if the service isn't available
-    unless RunnerSupport.postgres_running?
-      RunnerSupport.warn_postgres_not_running
-      exit 1
-    end
-  end
-
   def run_setup(options)
     # Run setup to prepare the application
     # This installs gems, prepares the database, and ensures the app is ready.
     # Can be skipped with --skip-setup for faster restarts
     unless options[:skip_setup]
       puts "== Running setup ==\n"
-      SetupRunner.new(app_root).run
+      SetupRunner.new(app_root).run(check_postgres: false)
       puts ""
     end
   end
 
   def determine_port(options)
     # Determine which port to use for the Rails server
-    if options[:auto_port]
-      # Auto-discovery: find an available port and update .env
-      # Useful for running multiple dev environments (e.g., git worktrees)
-      port_manager = PortManager.new(
-        app_root,
-        services: :rails_server
-      )
-      ports = port_manager.auto_discover_and_set_ports
-      ports["RAILS_PORT"].to_s
-    else
-      # Manual: use --port flag, .env RAILS_PORT variable, or default to 3000
-      RunnerSupport.load_env_file(app_root)
-      options[:port] || ENV["RAILS_PORT"] || "3000"
-    end
+    # Priority: --port flag, .env RAILS_PORT variable, or default to 3000
+    RunnerSupport.load_env_file(app_root)
+    options[:port] || ENV["RAILS_PORT"] || "3000"
   end
 
   def parse_arguments(argv)
@@ -88,8 +64,7 @@ class DevServerRunner
       debug: false,
       bind: "0.0.0.0",
       port: nil,
-      skip_setup: false,
-      auto_port: false
+      skip_setup: false
     }
 
     parser = OptionParser.new do |opts|
@@ -111,10 +86,6 @@ class DevServerRunner
         options[:port] = port
       end
 
-      opts.on("-a", "--auto-port", "Auto-discover and assign available port") do
-        options[:auto_port] = true
-      end
-
       opts.on("-s", "--skip-setup", "Skip running bin/setup first") do
         options[:skip_setup] = true
       end
@@ -127,8 +98,9 @@ class DevServerRunner
         puts "  #{File.basename($0)} -s      # Start server without setup"
         puts "  #{File.basename($0)} -d      # Start with debugger"
         puts "  #{File.basename($0)} -p 3001 # Start on port 3001"
-        puts "  #{File.basename($0)} -a      # Auto-discover available port"
-        puts "  #{File.basename($0)} -a -d   # Auto-port with debugger"
+        puts ""
+        puts "Port Configuration:"
+        puts "  If port 3000 is in use, run bin/configure-ports to find an available port."
         exit 0
       end
     end
