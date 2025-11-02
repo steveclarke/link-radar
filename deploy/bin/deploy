@@ -91,6 +91,7 @@ Initialization Options:
   --deployed          Mark server as already deployed (use for existing deployments)
   --user USERNAME     Override DEPLOY_USER (default: deploy)
   --image IMAGE       Override BACKEND_IMAGE (default: ghcr.io/steveclarke/lr-backend:latest)
+  --port PORT         Override BACKEND_PORT (default: 3000)
   --force             Overwrite existing config without prompting
 
 Deployment Examples:
@@ -109,7 +110,7 @@ Initialization Examples:
   bin/deploy staging --init --host=staging.example.com --op=def456
 
   # Override defaults
-  bin/deploy prod --init --host=server.com --op=abc123 --user=ubuntu
+  bin/deploy prod --init --host=server.com --op=abc123 --user=ubuntu --port=8080
 
   # Force overwrite existing config
   bin/deploy prod --init --host=server.com --op=abc123 --force
@@ -128,10 +129,8 @@ EOF
 ################################################################################
 
 init_environment() {
-  local template_file
-  template_file="$(dirname "$0")/../.config/environment.env.template"
-  local config_file
-  config_file="$(dirname "$0")/../.config/${deploy_env}.env"
+  local template_file="$(dirname "$0")/../.config/environment.env.template"
+  local config_file="$(dirname "$0")/../.config/${deploy_env}.env"
 
   log "Initializing environment: ${deploy_env}"
 
@@ -213,6 +212,9 @@ init_environment() {
   if [ -n "$init_image" ]; then
     sed -i.bak "s|^#BACKEND_IMAGE=.*|BACKEND_IMAGE=${init_image}|" "$config_file"
   fi
+  if [ -n "$init_port" ]; then
+    sed -i.bak "s|^#BACKEND_PORT=.*|BACKEND_PORT=${init_port}|" "$config_file"
+  fi
 
   # Clean up backup file
   rm -f "${config_file}.bak"
@@ -263,6 +265,7 @@ parse_arguments() {
   init_deployed=false
   init_user=""
   init_image=""
+  init_port=""
 
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -275,6 +278,7 @@ parse_arguments() {
       --deployed) init_deployed=true; shift ;;
       --user) init_user="$2"; shift 2 ;;
       --image) init_image="$2"; shift 2 ;;
+      --port) init_port="$2"; shift 2 ;;
       *) error "Unknown option: $1" ;;
     esac
   done
@@ -295,23 +299,12 @@ Create from template:
   info "Environment: ${deploy_env}"
 
   # Map config file variables (UPPERCASE) to local variables (snake_case)
-  deploy_host="${DEPLOY_HOST:-}"
+  deploy_host="${DEPLOY_HOST}"
   onepassword_item_id="${ONEPASSWORD_ITEM_ID:-}"
   deployed="${DEPLOYED:-false}"
   deploy_user="${DEPLOY_USER:-deploy}"
   backend_image="${BACKEND_IMAGE:-ghcr.io/steveclarke/lr-backend:latest}"
-
-  # SSH target for remote commands
-  ssh_target="${deploy_user}@${deploy_host}"
-
-  # Remote directory paths (on deployment server)
-  # Note: $HOME will expand on remote server when commands execute
-  remote_docker_dir="\$HOME/docker"
-  remote_repo_dir="${remote_docker_dir}/link-radar"
-  remote_deploy_dir="${remote_repo_dir}/deploy"
-
-  # Container names (must match compose.yml)
-  backend_container="linkradar-backend"
+  backend_port="${BACKEND_PORT:-3000}"
 }
 
 load_credentials() {
@@ -362,8 +355,8 @@ check_prerequisites() {
 
 test_ssh_connection() {
   log "Testing SSH connection..."
-  if ! ssh -o ConnectTimeout=5 -o BatchMode=yes "${ssh_target}" "echo 'SSH OK'" &>/dev/null; then
-    error "Cannot connect to ${ssh_target}. Check SSH access."
+  if ! ssh -o ConnectTimeout=5 -o BatchMode=yes "${deploy_user}@${deploy_host}" "echo 'SSH OK'" &>/dev/null; then
+    error "Cannot connect to ${deploy_user}@${deploy_host}. Check SSH access."
   fi
   log "SSH connection successful"
 }
@@ -371,7 +364,7 @@ test_ssh_connection() {
 check_database_password_requirement() {
   # Only check if in install mode
   if [ "$deployed" != "true" ]; then
-    if ssh "${ssh_target}" "docker volume ls 2>/dev/null | grep -q postgres_data" 2>/dev/null; then
+    if ssh "${deploy_user}@${deploy_host}" "docker volume ls 2>/dev/null | grep -q postgres_data" 2>/dev/null; then
       info "PostgreSQL volume exists, skipping db_password requirement"
     else
       info "First deploy detected, db_password required"
@@ -404,12 +397,10 @@ install_deployment() {
 
 setup_deploy_directory() {
   log "Setting up deploy directory on server..."
-  # shellcheck disable=SC2087
-  # We need local expansion of ${remote_docker_dir} to inject $HOME path for remote expansion
-  ssh "${ssh_target}" bash << ENDSSH
+  ssh "${deploy_user}@${deploy_host}" bash << 'ENDSSH'
 set -e
-mkdir -p ${remote_docker_dir}
-cd ${remote_docker_dir}
+mkdir -p ~/docker
+cd ~/docker
 
 # Clone if not exists, otherwise update
 if [ ! -d "link-radar" ]; then
@@ -425,7 +416,7 @@ else
 fi
 
 cd deploy
-echo "Deploy directory ready: \$(pwd)"
+echo "Deploy directory ready: $(pwd)"
 ENDSSH
 
   log "Deploy directory ready"
@@ -433,10 +424,8 @@ ENDSSH
 
 run_setup_script() {
   log "Running setup script..."
-  # shellcheck disable=SC2087
-  # We need local expansion of ${remote_deploy_dir} to inject $HOME path for remote expansion
-  ssh "${ssh_target}" bash << ENDSSH
-cd ${remote_deploy_dir}
+  ssh "${deploy_user}@${deploy_host}" bash << 'ENDSSH'
+cd ~/docker/link-radar/deploy
 ./bin/setup
 ENDSSH
 
@@ -447,14 +436,16 @@ generate_env_files() {
   log "Generating environment files..."
 
   # Create .env
-  # shellcheck disable=SC2087,SC2029
-  # We need local expansion of ${remote_deploy_dir} to inject $HOME path for remote expansion
-  ssh "${ssh_target}" "cat > ${remote_deploy_dir}/.env" << EOF
+  # shellcheck disable=SC2087
+  ssh "${deploy_user}@${deploy_host}" "cat > ~/docker/link-radar/deploy/.env" << EOF
 # Link Radar Production Deployment Configuration
 # Generated by automated deployment script
 
 # Backend Docker Image
 BACKEND_IMAGE=${backend_image}
+
+# Backend Port (external port mapping)
+BACKEND_PORT=${backend_port}
 EOF
 
   # Get API key (1Password → existing → generate)
@@ -464,9 +455,8 @@ EOF
   db_password_encoded=$(printf '%s' "${db_password}" | jq -sRr @uri)
 
   # Create backend.env
-  # shellcheck disable=SC2087,SC2029
-  # We need local expansion of ${remote_deploy_dir} to inject $HOME path for remote expansion
-  ssh "${ssh_target}" "cat > ${remote_deploy_dir}/env/backend.env" << EOF
+  # shellcheck disable=SC2087
+  ssh "${deploy_user}@${deploy_host}" "cat > ~/docker/link-radar/deploy/env/backend.env" << EOF
 # Link Radar Backend Configuration
 # Generated by automated deployment script
 
@@ -492,9 +482,8 @@ RAILS_MAX_THREADS=5
 EOF
 
   # Create postgres.env
-  # shellcheck disable=SC2087,SC2029
-  # We need local expansion of ${remote_deploy_dir} to inject $HOME path for remote expansion
-  ssh "${ssh_target}" "cat > ${remote_deploy_dir}/env/postgres.env" << EOF
+  # shellcheck disable=SC2087
+  ssh "${deploy_user}@${deploy_host}" "cat > ~/docker/link-radar/deploy/env/postgres.env" << EOF
 # PostgreSQL Database Configuration
 # Generated by automated deployment script
 
@@ -517,9 +506,7 @@ get_api_key() {
   fi
 
   # Try to preserve existing from server
-  # shellcheck disable=SC2029
-  # We need local expansion of ${remote_deploy_dir} to inject $HOME path for remote expansion
-  api_key=$(ssh "${ssh_target}" "grep CORE_API_KEY ${remote_deploy_dir}/env/backend.env 2>/dev/null | cut -d= -f2" || echo "")
+  api_key=$(ssh "${deploy_user}@${deploy_host}" "grep CORE_API_KEY ~/docker/link-radar/deploy/env/backend.env 2>/dev/null | cut -d= -f2" || echo "")
   if [ -n "$api_key" ]; then
     info "Preserved existing API key from server"
     return
@@ -533,10 +520,8 @@ get_api_key() {
 
 pull_images() {
   log "Pulling Docker images..."
-  # shellcheck disable=SC2087
-  # We need local expansion of ${remote_deploy_dir} to inject $HOME path for remote expansion
-  ssh "${ssh_target}" bash << ENDSSH
-cd ${remote_deploy_dir}
+  ssh "${deploy_user}@${deploy_host}" bash << 'ENDSSH'
+cd ~/docker/link-radar/deploy
 docker compose pull
 ENDSSH
 
@@ -545,10 +530,8 @@ ENDSSH
 
 start_services() {
   log "Starting services..."
-  # shellcheck disable=SC2087
-  # We need local expansion of ${remote_deploy_dir} to inject $HOME path for remote expansion
-  ssh "${ssh_target}" bash << ENDSSH
-cd ${remote_deploy_dir}
+  ssh "${deploy_user}@${deploy_host}" bash << 'ENDSSH'
+cd ~/docker/link-radar/deploy
 ./bin/up
 ENDSSH
 
@@ -571,11 +554,9 @@ update_deployment() {
 
 update_code() {
   log "Updating code on server..."
-  # shellcheck disable=SC2087
-  # We need local expansion of ${remote_repo_dir} to inject $HOME path for remote expansion
-  ssh "${ssh_target}" bash << ENDSSH
+  ssh "${deploy_user}@${deploy_host}" bash << 'ENDSSH'
 set -e
-cd ${remote_repo_dir}
+cd ~/docker/link-radar
 git fetch origin
 git reset --hard origin/master
 echo "Code updated to latest commit"
@@ -586,10 +567,8 @@ ENDSSH
 
 restart_services() {
   log "Restarting services..."
-  # shellcheck disable=SC2087
-  # We need local expansion of ${remote_deploy_dir} to inject $HOME path for remote expansion
-  ssh "${ssh_target}" bash << ENDSSH
-cd ${remote_deploy_dir}
+  ssh "${deploy_user}@${deploy_host}" bash << 'ENDSSH'
+cd ~/docker/link-radar/deploy
 docker compose up -d
 ENDSSH
 
@@ -606,18 +585,14 @@ verify_deployment() {
 
   # Check container status
   info "Checking container status..."
-  # shellcheck disable=SC2087
-  # We need local expansion of ${remote_deploy_dir} to inject $HOME path for remote expansion
-  ssh "${ssh_target}" bash << ENDSSH
-cd ${remote_deploy_dir}
+  ssh "${deploy_user}@${deploy_host}" bash << 'ENDSSH'
+cd ~/docker/link-radar/deploy
 docker compose ps
 ENDSSH
 
   # Test health endpoint (from inside container - port not exposed)
   info "Testing health endpoint..."
-  # shellcheck disable=SC2029
-  # We need local expansion of ${backend_container} to inject container name for remote execution
-  if ssh "${ssh_target}" "docker exec ${backend_container} curl -f http://localhost:3000/up" &>/dev/null; then
+  if ssh "${deploy_user}@${deploy_host}" "docker exec linkradar-backend curl -f http://localhost:3000/up" &>/dev/null; then
     log "Health check passed!"
   else
     warn "Health check failed - backend may still be starting..."
@@ -625,9 +600,7 @@ ENDSSH
 
   # Test database connection
   info "Testing database connection..."
-  # shellcheck disable=SC2029
-  # We need local expansion of ${backend_container} to inject container name for remote execution
-  if ssh "${ssh_target}" "docker exec ${backend_container} bin/rails runner 'Link.count'" &>/dev/null; then
+  if ssh "${deploy_user}@${deploy_host}" "docker exec linkradar-backend bin/rails runner 'Link.count'" &>/dev/null; then
     log "Database connection verified"
   else
     warn "Database check failed - backend may still be starting..."
@@ -681,9 +654,9 @@ main() {
   echo "Your Link Radar backend is running on ${deploy_host}"
   echo ""
   echo "Next steps:"
-  echo "  - View logs: ssh ${ssh_target} 'cd ${remote_deploy_dir} && ./bin/logs'"
-  echo "  - Check status: ssh ${ssh_target} 'cd ${remote_deploy_dir} && docker compose ps'"
-  echo "  - Rails console: ssh ${ssh_target} 'cd ${remote_deploy_dir} && ./bin/console'"
+  echo "  - View logs: ssh ${deploy_user}@${deploy_host} 'cd ~/docker/link-radar/deploy && ./bin/logs'"
+  echo "  - Check status: ssh ${deploy_user}@${deploy_host} 'cd ~/docker/link-radar/deploy && docker compose ps'"
+  echo "  - Rails console: ssh ${deploy_user}@${deploy_host} 'cd ~/docker/link-radar/deploy && ./bin/console'"
   if [ "$deployed" != "true" ]; then
     echo ""
     warn "Save credentials to 1Password if not already saved!"
