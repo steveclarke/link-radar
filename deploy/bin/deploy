@@ -129,8 +129,10 @@ EOF
 ################################################################################
 
 init_environment() {
-  local template_file="$(dirname "$0")/../.config/environment.env.template"
-  local config_file="$(dirname "$0")/../.config/${deploy_env}.env"
+  local template_file
+  local config_file
+  template_file="$(dirname "$0")/../.config/environment.env.template"
+  config_file="$(dirname "$0")/../.config/${deploy_env}.env"
 
   log "Initializing environment: ${deploy_env}"
 
@@ -158,7 +160,7 @@ init_environment() {
   if [ -t 0 ]; then
     # Prompt for DEPLOY_HOST if not provided
     if [ -z "$init_host" ]; then
-      read -p "Server hostname or IP: " init_host
+      read -r -p "Server hostname or IP: " init_host
       if [ -z "$init_host" ]; then
         error "DEPLOY_HOST is required"
       fi
@@ -166,7 +168,7 @@ init_environment() {
 
     # Prompt for ONEPASSWORD_ITEM_ID if not provided
     if [ -z "$init_op" ]; then
-      read -p "1Password item ID: " init_op
+      read -r -p "1Password item ID: " init_op
       if [ -z "$init_op" ]; then
         error "ONEPASSWORD_ITEM_ID is required"
       fi
@@ -299,6 +301,7 @@ Create from template:
   info "Environment: ${deploy_env}"
 
   # Map config file variables (UPPERCASE) to local variables (snake_case)
+  # shellcheck disable=SC2153
   deploy_host="${DEPLOY_HOST}"
   onepassword_item_id="${ONEPASSWORD_ITEM_ID:-}"
   deployed="${DEPLOYED:-false}"
