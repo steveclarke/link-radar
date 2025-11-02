@@ -7,7 +7,8 @@ services:
     env_file:
       - env/backend.env
     # Port exposure handled by Caddy reverse proxy
-    # Uncomment for direct access: ports: ["${BACKEND_PORT:-3000}:3000"]
+    # Uncomment for direct access:
+    # ports: ["${BACKEND_PORT:-3000}:3000"]
     networks:
       - default      # For postgres/redis
       - caddy_net    # For Caddy reverse proxy
