@@ -57,6 +57,50 @@ blue='\033[0;34m'
 nc='\033[0m'
 
 ################################################################################
+# Main Orchestration
+################################################################################
+
+main() {
+  parse_arguments "$@"
+
+  # Handle initialization mode
+  if [ "$init_mode" = true ]; then
+    init_environment
+    exit 0
+  fi
+
+  load_environment_config
+  load_credentials
+  check_prerequisites
+
+  if [ "$deployed" == "true" ]; then
+    info "Update mode: pulling latest and restarting"
+    update_deployment
+  else
+    info "Install mode: full deployment"
+    install_deployment
+    mark_as_deployed
+  fi
+
+  verify_deployment
+
+  echo ""
+  log "🎉 Deployment complete!"
+  echo ""
+  echo "Your Link Radar backend is running on ${deploy_host}"
+  echo ""
+  echo "Next steps:"
+  echo "  - View logs: ssh ${deploy_user}@${deploy_host} 'cd ~/docker/link-radar/deploy && ./bin/logs'"
+  echo "  - Check status: ssh ${deploy_user}@${deploy_host} 'cd ~/docker/link-radar/deploy && docker compose ps'"
+  echo "  - Rails console: ssh ${deploy_user}@${deploy_host} 'cd ~/docker/link-radar/deploy && ./bin/console'"
+  if [ "$deployed" != "true" ]; then
+    echo ""
+    warn "Save credentials to 1Password if not already saved!"
+  fi
+  echo ""
+}
+
+################################################################################
 # Helper Functions
 ################################################################################
 
@@ -64,6 +108,46 @@ log() { echo -e "${green}==>${nc} ${1}"; }
 info() { echo -e "${blue}Info:${nc} ${1}"; }
 warn() { echo -e "${yellow}Warning:${nc} ${1}"; }
 error() { echo -e "${red}Error:${nc} ${1}" >&2; exit 1; }
+
+################################################################################
+# 1Password Helper Functions
+################################################################################
+
+# Check if 1Password CLI is available
+has_onepassword_cli() {
+  command -v op &> /dev/null
+}
+
+# Check if 1Password is available and configured
+can_use_onepassword() {
+  [ -n "${onepassword_item_id:-}" ] && has_onepassword_cli
+}
+
+# Get a field from 1Password, returns empty string if unavailable
+# Usage: get_onepassword_field "label_name" [--reveal]
+get_onepassword_field() {
+  local label="$1"
+  local reveal_flag="${2:-}"
+
+  if ! can_use_onepassword; then
+    echo ""
+    return 1
+  fi
+
+  local value
+  if [ "$reveal_flag" == "--reveal" ]; then
+    value=$(op item get "$onepassword_item_id" --fields "label=${label}" --reveal 2>/dev/null || echo "")
+  else
+    value=$(op item get "$onepassword_item_id" --fields "label=${label}" 2>/dev/null || echo "")
+  fi
+
+  echo "$value"
+  [ -n "$value" ]
+}
+
+################################################################################
+# Supporting Functions
+################################################################################
 
 usage() {
   cat << EOF
@@ -312,19 +396,23 @@ Create from template:
 
 load_credentials() {
   # Warn if 1Password CLI is not available but config expects it
-  if [ -n "${onepassword_item_id:-}" ] && ! command -v op &> /dev/null; then
+  if [ -n "${onepassword_item_id:-}" ] && ! has_onepassword_cli; then
     warn "1Password CLI not found - install it or set credentials via environment variables"
     warn "Install: https://developer.1password.com/docs/cli/get-started/"
   fi
 
   # Auto-fetch credentials from 1Password
-  if command -v op &> /dev/null && [ -n "${onepassword_item_id:-}" ]; then
+  if can_use_onepassword; then
     if op item get "$onepassword_item_id" &> /dev/null 2>&1; then
       info "Loading credentials from 1Password..."
 
-      deploy_user="${deploy_user:-$(op item get "$onepassword_item_id" --fields label="username" 2>/dev/null || echo "deploy")}"
+      local op_user op_password
+      op_user=$(get_onepassword_field "username")
+      op_password=$(get_onepassword_field "Database Password" --reveal)
+
+      deploy_user="${deploy_user:-${op_user:-deploy}}"
       RAILS_MASTER_KEY="${RAILS_MASTER_KEY:-$(cat "$(dirname "$0")/../../backend/config/master.key" 2>/dev/null || echo "")}"
-      db_password="${db_password:-$(op item get "$onepassword_item_id" --fields label="Database Password" --reveal 2>/dev/null || echo "")}"
+      db_password="${db_password:-${op_password}}"
 
       log "Credentials loaded from 1Password"
     fi
@@ -500,8 +588,8 @@ EOF
 
 get_api_key() {
   # Try 1Password first
-  if [ -n "${onepassword_item_id:-}" ] && command -v op &> /dev/null; then
-    api_key=$(op item get "$onepassword_item_id" --fields label="API Key" --reveal 2>/dev/null || echo "")
+  if can_use_onepassword; then
+    api_key=$(get_onepassword_field "API Key" --reveal)
     if [ -n "$api_key" ]; then
       info "API key loaded from 1Password"
       return
@@ -621,50 +709,6 @@ mark_as_deployed() {
     log "Marked as deployed in .config/${deploy_env}.env"
     warn "Future deploys will use update mode (faster, preserves config)"
   fi
-}
-
-################################################################################
-# Main Orchestration
-################################################################################
-
-main() {
-  parse_arguments "$@"
-
-  # Handle initialization mode
-  if [ "$init_mode" = true ]; then
-    init_environment
-    exit 0
-  fi
-
-  load_environment_config
-  load_credentials
-  check_prerequisites
-
-  if [ "$deployed" == "true" ]; then
-    info "Update mode: pulling latest and restarting"
-    update_deployment
-  else
-    info "Install mode: full deployment"
-    install_deployment
-    mark_as_deployed
-  fi
-
-  verify_deployment
-
-  echo ""
-  log "🎉 Deployment complete!"
-  echo ""
-  echo "Your Link Radar backend is running on ${deploy_host}"
-  echo ""
-  echo "Next steps:"
-  echo "  - View logs: ssh ${deploy_user}@${deploy_host} 'cd ~/docker/link-radar/deploy && ./bin/logs'"
-  echo "  - Check status: ssh ${deploy_user}@${deploy_host} 'cd ~/docker/link-radar/deploy && docker compose ps'"
-  echo "  - Rails console: ssh ${deploy_user}@${deploy_host} 'cd ~/docker/link-radar/deploy && ./bin/console'"
-  if [ "$deployed" != "true" ]; then
-    echo ""
-    warn "Save credentials to 1Password if not already saved!"
-  fi
-  echo ""
 }
 
 ################################################################################

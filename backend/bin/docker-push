@@ -29,7 +29,19 @@ script_dir=$(cd "$(dirname "$0")" && pwd)
 source "${script_dir}/docker-config.sh"
 
 ################################################################################
-# Core Functions
+# Main Orchestration
+################################################################################
+
+main() {
+  load_version
+  verify_local_image
+  tag_for_registry
+  push_to_registry
+  show_success
+}
+
+################################################################################
+# Supporting Functions
 ################################################################################
 
 load_version() {
@@ -85,18 +97,6 @@ show_success() {
   echo "View on GitHub:"
   echo "  https://github.com/steveclarke/link-radar/pkgs/container/${LR_IMAGE_NAME}"
   echo ""
-}
-
-################################################################################
-# Main Orchestration
-################################################################################
-
-main() {
-  load_version
-  verify_local_image
-  tag_for_registry
-  push_to_registry
-  show_success
 }
 
 ################################################################################

@@ -30,7 +30,18 @@ local_build=false
 extra_args=()
 
 ################################################################################
-# Core Functions
+# Main Orchestration
+################################################################################
+
+main() {
+  parse_build_options "$@"
+  load_version
+  build_image
+  show_next_steps
+}
+
+################################################################################
+# Supporting Functions
 ################################################################################
 
 parse_build_options() {
@@ -86,17 +97,6 @@ show_next_steps() {
   echo "  - Test the image: docker run --rm ${image_tag} bin/rails --version"
   echo "  - Push to registry: bin/docker-push"
   echo ""
-}
-
-################################################################################
-# Main Orchestration
-################################################################################
-
-main() {
-  parse_build_options "$@"
-  load_version
-  build_image
-  show_next_steps
 }
 
 ################################################################################
