@@ -7,6 +7,7 @@ env/*.env
 !env.template
 
 # Deployment configs (gitignored - contain server info)
-.config/
+.config/*.env
 !.config/environment.env.template
+!.config/.keep
 

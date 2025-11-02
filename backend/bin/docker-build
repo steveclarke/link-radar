@@ -26,8 +26,8 @@ script_dir=$(cd "$(dirname "$0")" && pwd)
 source "${script_dir}/docker-config.sh"
 
 # Build options
-LOCAL_BUILD=false
-EXTRA_ARGS=()
+local_build=false
+extra_args=()
 
 ################################################################################
 # Core Functions
@@ -36,19 +36,19 @@ EXTRA_ARGS=()
 parse_build_options() {
   # Check for --local flag
   if [ "${1:-}" == "--local" ]; then
-    LOCAL_BUILD=true
+    local_build=true
     shift
   fi
-  
+
   # Parse -- separator for extra docker args
   while [ "${1:-}" != "--" ] && [ -n "${1:-}" ]; do
     shift || break
   done
-  
+
   # Remove the -- and capture remaining args
   if [ "${1:-}" == "--" ]; then
     shift
-    EXTRA_ARGS=("$@")
+    extra_args=("$@")
   fi
 }
 
@@ -57,30 +57,30 @@ load_version() {
 }
 
 build_image() {
-  local image_tag="${IMAGE_NAME}:${version}"
+  local image_tag="${LR_IMAGE_NAME}:${lr_version}"
   local build_context
   build_context=$(get_build_context "${script_dir}")
-  
+
   log "Building ${image_tag}"
   info "Build context: ${build_context}"
-  
+
   cd "${build_context}"
-  
-  if [ "$LOCAL_BUILD" = true ]; then
+
+  if [ "$local_build" = true ]; then
     info "Building for local platform (faster, but won't work on linux/amd64 servers)"
-    docker build -t "${image_tag}" "${EXTRA_ARGS[@]}" .
+    docker build -t "${image_tag}" "${extra_args[@]}" .
   else
-    info "Building for ${DEFAULT_PLATFORM} (production-ready)"
-    docker buildx build --platform "${DEFAULT_PLATFORM}" --load -t "${image_tag}" "${EXTRA_ARGS[@]}" .
+    info "Building for ${LR_DEFAULT_PLATFORM} (production-ready)"
+    docker buildx build --platform "${LR_DEFAULT_PLATFORM}" --load -t "${image_tag}" "${extra_args[@]}" .
   fi
-  
+
   log "Build complete!"
   info "Image: ${image_tag}"
 }
 
 show_next_steps() {
-  local image_tag="${IMAGE_NAME}:${version}"
-  
+  local image_tag="${LR_IMAGE_NAME}:${lr_version}"
+
   echo ""
   echo "Next steps:"
   echo "  - Test the image: docker run --rm ${image_tag} bin/rails --version"

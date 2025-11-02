@@ -37,7 +37,7 @@ load_version() {
 }
 
 verify_local_image() {
-  local local_image="${IMAGE_NAME}:${version}"
+  local local_image="${LR_IMAGE_NAME}:${lr_version}"
 
   if ! docker image inspect "${local_image}" >/dev/null 2>&1; then
     error "Image ${local_image} not found. Run bin/docker-build first."
@@ -47,9 +47,9 @@ verify_local_image() {
 }
 
 tag_for_registry() {
-  local local_image="${IMAGE_NAME}:${version}"
-  local repo_version="${GHCR_REPO}:${version}"
-  local repo_latest="${GHCR_REPO}:latest"
+  local local_image="${LR_IMAGE_NAME}:${lr_version}"
+  local repo_version="${LR_GHCR_REPO}:${lr_version}"
+  local repo_latest="${LR_GHCR_REPO}:latest"
 
   log "Tagging ${local_image} for GHCR"
 
@@ -61,8 +61,8 @@ tag_for_registry() {
 }
 
 push_to_registry() {
-  local repo_version="${GHCR_REPO}:${version}"
-  local repo_latest="${GHCR_REPO}:latest"
+  local repo_version="${LR_GHCR_REPO}:${lr_version}"
+  local repo_latest="${LR_GHCR_REPO}:latest"
 
   log "Pushing ${repo_version}"
   docker push "${repo_version}"
@@ -74,8 +74,8 @@ push_to_registry() {
 }
 
 show_success() {
-  local repo_version="${GHCR_REPO}:${version}"
-  local repo_latest="${GHCR_REPO}:latest"
+  local repo_version="${LR_GHCR_REPO}:${lr_version}"
+  local repo_latest="${LR_GHCR_REPO}:latest"
 
   echo ""
   echo "Images pushed:"
@@ -83,7 +83,7 @@ show_success() {
   echo "  - ${repo_latest}"
   echo ""
   echo "View on GitHub:"
-  echo "  https://github.com/steveclarke/link-radar/pkgs/container/${IMAGE_NAME}"
+  echo "  https://github.com/steveclarke/link-radar/pkgs/container/${LR_IMAGE_NAME}"
   echo ""
 }
 

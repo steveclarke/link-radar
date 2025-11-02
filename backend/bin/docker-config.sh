@@ -14,37 +14,37 @@
 ################################################################################
 
 # Image configuration (exported for use by sourcing scripts)
-export IMAGE_NAME="lr-backend"
-export GHCR_REGISTRY="ghcr.io/steveclarke"
-export GHCR_REPO="${GHCR_REGISTRY}/${IMAGE_NAME}"
-export DEFAULT_PLATFORM="linux/amd64"
+export LR_IMAGE_NAME="lr-backend"
+export LR_GHCR_REGISTRY="ghcr.io/steveclarke"
+export LR_GHCR_REPO="${LR_GHCR_REGISTRY}/${LR_IMAGE_NAME}"
+export LR_DEFAULT_PLATFORM="linux/amd64"
 
 ################################################################################
 # Helper Functions
 ################################################################################
 
 # Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
+red='\033[0;31m'
+green='\033[0;32m'
+yellow='\033[1;33m'
+blue='\033[0;34m'
+nc='\033[0m'
 
 log() {
-  echo -e "${GREEN}==>${NC} ${1}"
+  echo -e "${green}==>${nc} ${1}"
 }
 
 error() {
-  echo -e "${RED}Error:${NC} ${1}" >&2
+  echo -e "${red}Error:${nc} ${1}" >&2
   exit 1
 }
 
 warn() {
-  echo -e "${YELLOW}Warning:${NC} ${1}"
+  echo -e "${yellow}Warning:${nc} ${1}"
 }
 
 info() {
-  echo -e "${BLUE}Info:${NC} ${1}"
+  echo -e "${blue}Info:${nc} ${1}"
 }
 
 ################################################################################
@@ -53,7 +53,7 @@ info() {
 
 # Get version from VERSION file
 # Args: $1 - script directory
-# Sets: version (global variable)
+# Sets: lr_version (global variable)
 get_version() {
   local script_dir="${1}"
   local version_file="${script_dir}/../VERSION"
@@ -62,13 +62,13 @@ get_version() {
     error "VERSION file not found at ${version_file}"
   fi
 
-  version=$(cat "${version_file}" | tr -d '[:space:]')
+  lr_version=$(cat "${version_file}" | tr -d '[:space:]')
 
-  if [ -z "${version}" ]; then
+  if [ -z "${lr_version}" ]; then
     error "VERSION file is empty"
   fi
 
-  log "Version: ${version}"
+  log "Version: ${lr_version}"
 }
 
 # Get build context directory
