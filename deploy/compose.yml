@@ -54,6 +54,19 @@ services:
       timeout: 5s
       retries: 5
 
+  postgres-backup:
+    image: kartoza/pg-backup:18-3.4
+    container_name: linkradar-postgres-backup
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - env/postgres.env
+      - env/backup.env
+    networks:
+      - default
+
   redis:
     image: redis:7-alpine
     container_name: linkradar-redis
