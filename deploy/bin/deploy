@@ -563,6 +563,7 @@ generate_env_files() {
   if [ -n "${s3_access_key:-}" ]; then
     info "Generating env/backup.env..."
     cat "$(dirname "$0")/../env/backup.env.template" | \
+      sed 's|^POSTGRES_PASS=.*|POSTGRES_PASS='"${db_password}"'|' | \
       sed 's|^ACCESS_KEY_ID=.*|ACCESS_KEY_ID='"${s3_access_key}"'|' | \
       sed 's|^SECRET_ACCESS_KEY=.*|SECRET_ACCESS_KEY='"${s3_secret_key}"'|' | \
       sed 's|^BUCKET=.*|BUCKET='"${s3_bucket}"'|' | \
