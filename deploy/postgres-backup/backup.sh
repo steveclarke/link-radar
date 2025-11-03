@@ -51,6 +51,28 @@ FILENAME="linkradar_${TIMESTAMP}.sql.gz"
 BACKUP_PATH="/tmp/${FILENAME}"
 
 ################################################################################
+# Main Orchestration
+################################################################################
+
+main() {
+  echo "========================================="
+  log "Starting backup: $(date)"
+  info "Database: ${POSTGRES_DB}@${POSTGRES_HOST}"
+  info "Destination: s3://${BUCKET}/"
+  echo "========================================="
+  
+  generate_s3_config
+  dump_database
+  upload_to_s3
+  cleanup_local_backup
+  cleanup_old_backups
+  
+  echo "========================================="
+  log "Backup completed: $(date)"
+  echo "========================================="
+}
+
+################################################################################
 # Helper Functions
 ################################################################################
 
@@ -125,28 +147,6 @@ cleanup_old_backups() {
       warn "Old backup cleanup skipped (date command not compatible)"
     fi
   fi
-}
-
-################################################################################
-# Main Orchestration
-################################################################################
-
-main() {
-  echo "========================================="
-  log "Starting backup: $(date)"
-  info "Database: ${POSTGRES_DB}@${POSTGRES_HOST}"
-  info "Destination: s3://${BUCKET}/"
-  echo "========================================="
-  
-  generate_s3_config
-  dump_database
-  upload_to_s3
-  cleanup_local_backup
-  cleanup_old_backups
-  
-  echo "========================================="
-  log "Backup completed: $(date)"
-  echo "========================================="
 }
 
 ################################################################################
