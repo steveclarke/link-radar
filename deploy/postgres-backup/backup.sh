@@ -58,17 +58,24 @@ echo "Local backup file removed"
 # Remove old backups if REMOVE_BEFORE is set
 if [ "${REMOVE_BEFORE}" -gt 0 ]; then
     echo "Cleaning up backups older than ${REMOVE_BEFORE} days..."
-    CUTOFF_DATE=$(date -d "${REMOVE_BEFORE} days ago" +%Y-%m-%d 2>/dev/null || date -v-${REMOVE_BEFORE}d +%Y-%m-%d)
+    CUTOFF_TIMESTAMP=$(date -d "${REMOVE_BEFORE} days ago" +%s 2>/dev/null || date -v-${REMOVE_BEFORE}d +%s 2>/dev/null || echo "")
     
-    s3cmd ls "s3://${BUCKET}/" | while read -r line; do
-        BACKUP_FILE=$(echo "$line" | awk '{print $4}')
-        BACKUP_DATE=$(echo "$BACKUP_FILE" | grep -oP 'linkradar_\K\d{4}-\d{2}-\d{2}' || echo "")
-        
-        if [ -n "$BACKUP_DATE" ] && [ "$BACKUP_DATE" \< "$CUTOFF_DATE" ]; then
-            echo "Removing old backup: $BACKUP_FILE"
-            s3cmd del "$BACKUP_FILE"
-        fi
-    done
+    if [ -n "$CUTOFF_TIMESTAMP" ]; then
+        s3cmd ls "s3://${BUCKET}/" | while read -r date_part time_part size_part filename; do
+            if [ -n "$filename" ]; then
+                FILE_DATE=$(echo "$date_part" | tr -d '-')
+                FILE_TIME=$(echo "$time_part" | tr -d ':' | cut -d'.' -f1)
+                FILE_TIMESTAMP=$(date -d "${FILE_DATE:0:4}-${FILE_DATE:4:2}-${FILE_DATE:6:2} ${FILE_TIME:0:2}:${FILE_TIME:2:2}:${FILE_TIME:4:2}" +%s 2>/dev/null || echo "0")
+                
+                if [ "$FILE_TIMESTAMP" -gt 0 ] && [ "$FILE_TIMESTAMP" -lt "$CUTOFF_TIMESTAMP" ]; then
+                    echo "Removing old backup: $filename"
+                    s3cmd del "$filename"
+                fi
+            fi
+        done
+    else
+        echo "Note: Old backup cleanup skipped (date command not compatible)"
+    fi
 fi
 
 echo "========================================="
