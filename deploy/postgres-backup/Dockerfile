@@ -18,6 +18,6 @@ RUN echo "0 */3 * * * /backup.sh >> /var/log/cron.log 2>&1" > /etc/crontabs/root
 # Create log file
 RUN touch /var/log/cron.log
 
-# Start cron in foreground
-CMD crond -f -l 2
+# Start cron and tail logs
+CMD crond && tail -f /var/log/cron.log
 
