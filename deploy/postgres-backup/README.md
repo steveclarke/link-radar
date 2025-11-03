@@ -22,7 +22,22 @@ s3cmd get s3://lr-backups/linkradar_YYYY-MM-DD_HH-MM-SS.sql.gz
 gunzip < linkradar_YYYY-MM-DD_HH-MM-SS.sql.gz | docker compose exec -T postgres psql -U linkradar linkradar_production
 ```
 
+## Deploying Changes
+
+When you modify the Dockerfile or backup.sh:
+
+```bash
+git pull
+bin/up --build postgres-backup  # Force rebuild
+```
+
+Or rebuild all build-based services:
+
+```bash
+bin/up --build
+```
+
 ## Configuration
 
-Configured via `env/postgres.env` and `env/backup.env`. Image builds automatically on server when running `docker compose up -d`.
+Configured via `env/postgres.env` and `env/backup.env`. Image builds automatically on first startup.
 

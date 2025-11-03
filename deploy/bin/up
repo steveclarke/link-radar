@@ -1,8 +1,43 @@
 #!/usr/bin/env bash
 set -e
 
+# Parse arguments
+BUILD_FLAG=""
+SERVICES=""
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --build)
+      BUILD_FLAG="--build"
+      shift
+      ;;
+    -h|--help)
+      echo "Usage: bin/up [OPTIONS] [SERVICES...]"
+      echo ""
+      echo "Options:"
+      echo "  --build         Force rebuild images (for build-based services)"
+      echo "  --help          Show this help"
+      echo ""
+      echo "Examples:"
+      echo "  bin/up                           # Start all services"
+      echo "  bin/up --build                   # Start all, rebuild build-based services"
+      echo "  bin/up --build postgres-backup   # Rebuild and start only postgres-backup"
+      exit 0
+      ;;
+    *)
+      SERVICES="$SERVICES $1"
+      shift
+      ;;
+  esac
+done
+
 echo "🚀 Starting Link Radar services..."
-docker compose up -d
+if [ -n "$BUILD_FLAG" ]; then
+  echo "   (with rebuild)"
+fi
+
+# shellcheck disable=SC2086
+docker compose up -d $BUILD_FLAG $SERVICES
 
 echo ""
 echo "✓ Services started!"
