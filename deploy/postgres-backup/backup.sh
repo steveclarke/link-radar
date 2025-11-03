@@ -58,10 +58,10 @@ echo "Local backup file removed"
 # Remove old backups if REMOVE_BEFORE is set
 if [ "${REMOVE_BEFORE}" -gt 0 ]; then
     echo "Cleaning up backups older than ${REMOVE_BEFORE} days..."
-    CUTOFF_TIMESTAMP=$(date -d "${REMOVE_BEFORE} days ago" +%s 2>/dev/null || date -v-${REMOVE_BEFORE}d +%s 2>/dev/null || echo "")
+    CUTOFF_TIMESTAMP=$(date -d "${REMOVE_BEFORE} days ago" +%s 2>/dev/null || date -v-"${REMOVE_BEFORE}"d +%s 2>/dev/null || echo "")
     
     if [ -n "$CUTOFF_TIMESTAMP" ]; then
-        s3cmd ls "s3://${BUCKET}/" | while read -r date_part time_part size_part filename; do
+        s3cmd ls "s3://${BUCKET}/" | while read -r date_part time_part _ filename; do
             if [ -n "$filename" ]; then
                 FILE_DATE=$(echo "$date_part" | tr -d '-')
                 FILE_TIME=$(echo "$time_part" | tr -d ':' | cut -d'.' -f1)
