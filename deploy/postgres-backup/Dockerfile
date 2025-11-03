@@ -19,5 +19,5 @@ RUN echo "0 */3 * * * /backup.sh >> /var/log/cron.log 2>&1" > /etc/crontabs/root
 RUN touch /var/log/cron.log
 
 # Start cron and tail logs
-CMD crond && tail -f /var/log/cron.log
+CMD ["sh", "-c", "crond && tail -f /var/log/cron.log"]
 
