@@ -167,9 +167,11 @@ bin/down
 
 ## Database Backups
 
-**Automated backups** to S3-compatible storage using kartoza/pg-backup.
+**Automated backups** to S3-compatible storage using custom Postgres 18 backup container.
 
-**Current Setup**: Vultr Object Storage
+**Current Setup**: Vultr Object Storage  
+**Source**: `postgres-backup/` directory  
+**Image**: Builds automatically on server from postgres:18-alpine
 
 **Configuration**:
 - Schedule: Every 3 hours (configurable in `env/backup.env`)
@@ -186,7 +188,7 @@ cp env/backup.env.template env/backup.env
 **Manual operations**:
 ```bash
 # Force immediate backup
-docker compose exec postgres-backup backup
+docker compose exec postgres-backup /backup.sh
 
 # View backup logs
 bin/logs postgres-backup
@@ -195,11 +197,13 @@ bin/logs postgres-backup
 **Restore from backup**:
 ```bash
 # Download backup from S3, then restore
-cat backup.sql | docker compose exec -T postgres psql -U linkradar linkradar
+gunzip < backup.sql.gz | docker compose exec -T postgres psql -U linkradar linkradar_production
 ```
 
 **Changing Storage Provider**:
 To switch between Vultr, Backblaze B2, AWS S3, or other S3-compatible storage, just update `HOST_BASE` and `HOST_BUCKET` in `env/backup.env`.
+
+See `postgres-backup/README.md` for more details.
 
 ## Troubleshooting
 

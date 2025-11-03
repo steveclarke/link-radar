@@ -55,7 +55,9 @@ services:
       retries: 5
 
   postgres-backup:
-    image: kartoza/pg-backup:17-3.5
+    build:
+      context: ./postgres-backup
+      dockerfile: Dockerfile
     container_name: linkradar-postgres-backup
     restart: unless-stopped
     depends_on:
