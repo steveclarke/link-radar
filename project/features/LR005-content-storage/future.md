@@ -179,6 +179,32 @@ t.text :content_text, compression: :gzip
 
 ## Phase 4: Integration & Optimization
 
+### Operational Improvements
+
+**Enhanced Retry Logic:**
+- Smart retry based on error type (retry DNS failures, rate limits with longer backoff)
+- Respect `Retry-After` headers for rate-limited requests
+- Different timeout settings for retry attempts (be more patient on later attempts)
+- Track retry attempt numbers for monitoring and user feedback
+
+**Domain Rate Limiting:**
+- Respect crawling by limiting requests per domain per time period
+- Minimum delay between requests to same domain (e.g., 1 second)
+- Configurable per-domain policies for frequently updated sites
+- Useful when bulk importing or re-fetching many links
+
+**Content Quality Tracking:**
+- Track content quality metrics (length, HTML/text ratio, etc.)
+- UI indicators for low-quality extractions needing manual review
+- Automatic re-fetch suggestions for poor-quality archives
+- Success rate analytics by domain and content type
+
+**Detailed Status Tracking:**
+- Show retry attempt progress in UI ("Attempt 2 of 3...")
+- Track fetch timing and performance metrics
+- Historical status transitions for debugging
+- Alert on repeated failures for specific domains
+
 ### Content Versioning & Diff
 
 **Feature:** Track content changes over time when re-fetching.
