@@ -30,16 +30,16 @@ Automatically capture and preserve web page content when links are saved to Link
 - Tracks status through 6-state lifecycle
 - Stores extracted content and metadata
 
-**FetchContentJob**:
+**ArchiveContentJob**:
 - Triggered on ContentArchive creation
 - Orchestrates content extraction pipeline
 - Handles retry logic with exponential backoff
 
 **Service Classes** (module_function pattern):
-- `LinkRadar::ContentExtraction::UrlValidator` - URL validation and SSRF prevention
-- `LinkRadar::ContentExtraction::HttpFetcher` - HTTP fetching with timeouts/redirects
-- `LinkRadar::ContentExtraction::ContentExtractor` - Content extraction orchestration
-- `LinkRadar::ContentExtraction::HtmlSanitizer` - HTML sanitization
+- `LinkRadar::ContentArchiving::UrlValidator` - URL validation and SSRF prevention
+- `LinkRadar::ContentArchiving::HttpFetcher` - HTTP fetching with timeouts/redirects
+- `LinkRadar::ContentArchiving::ContentExtractor` - Content extraction orchestration
+- `LinkRadar::ContentArchiving::HtmlSanitizer` - HTML sanitization
 
 **Configuration**:
 - `ContentArchiveConfig` - Timeouts, size limits, retry settings, User-Agent
@@ -47,13 +47,15 @@ Automatically capture and preserve web page content when links are saved to Link
 ### 2.2 Processing Flow
 
 1. Link created → ContentArchive created with `pending` status
-2. FetchContentJob enqueued asynchronously
-3. Pre-validation (URL scheme, private IP detection)
+2. ArchiveContentJob enqueued asynchronously (no validation at this point)
+3. **Job starts**: Pre-validation (URL scheme, private IP detection)
 4. Validation fails → status to `blocked` or `invalid_url`, exit
 5. Validation passes → status to `processing`, begin fetch
 6. HTTP fetch → content extraction → sanitization → text extraction
 7. Success → status to `success` with content stored
 8. Failure → retry logic or status to `failed` with error message
+
+**Design Note**: All validation happens inside the job (step 3+), not before enqueueing. This keeps link creation fast since URL validation requires DNS resolution (network call) for private IP detection. Jobs that fail validation immediately are minimal overhead, and this approach keeps all archival logic centralized in one place.
 
 ### 2.3 Technology Stack
 
@@ -210,14 +212,15 @@ Planned endpoints for when frontend UI is added:
 - ContentArchive `belongs_to :link`
 
 **Lifecycle Hook**:
-- Link `after_create` callback creates ContentArchive and enqueues FetchContentJob
+- Link `after_create` callback creates ContentArchive and enqueues ArchiveContentJob
 - Archive record always created (even if validation fails immediately)
 
 ### 5.2 Background Job Integration
 
 **Job Trigger**:
-- Enqueued after Link creation completes
+- Enqueued immediately after Link creation completes (no pre-validation)
 - Passes `link_id` to job for lookup
+- Job performs all validation, fetching, and extraction
 - Job updates ContentArchive status throughout pipeline
 
 **Retry Strategy**:
@@ -286,7 +289,7 @@ backend/
 │   │   ├── content_archive.rb              # ContentArchive model
 │   │   └── link.rb                         # Updated with association
 │   ├── jobs/
-│   │   └── fetch_content_job.rb            # Background job
+│   │   └── archive_content_job.rb          # Background job
 │   └── views/api/v1/links/
 │       └── _link.json.jbuilder             # Updated response template
 ├── config/
@@ -297,7 +300,7 @@ backend/
 │   ├── YYYYMMDDHHMMSS_create_content_archives.rb
 │   └── YYYYMMDDHHMMSS_migrate_link_archival_data.rb
 └── lib/link_radar/
-    └── content_extraction/
+    └── content_archiving/
         ├── url_validator.rb                # SSRF prevention
         ├── http_fetcher.rb                 # HTTP fetching
         ├── content_extractor.rb            # Content extraction
