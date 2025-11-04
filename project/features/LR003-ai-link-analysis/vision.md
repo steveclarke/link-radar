@@ -34,7 +34,7 @@ Add an "Analyze with AI" feature that provides intelligent tag and note suggesti
 
 **Manual trigger with selective acceptance** - User clicks button when they want suggestions. AI never auto-fills or overwrites their work. They pick which suggestions to accept.
 
-**Backend-powered analysis** - Extension sends URL to backend, backend fetches content and analyzes with OpenAI. Simple, clean separation of concerns.
+**Backend-powered analysis** - Extension extracts page content (DOM) and sends it with URL to backend for OpenAI analysis. Backend never fetches content for AI analysis - it receives pre-extracted content from extension.
 
 **Works everywhere** - Analyze new links before saving OR re-analyze existing links anytime.
 
@@ -76,8 +76,8 @@ Phase 2 and beyond will explore auto-analyze mode, learning from user patterns, 
 ### What v1 Delivers
 
 **Backend Analysis Endpoint:**
-- `POST /api/v1/links/analyze` accepts `{url}` or `{link_id}`
-- Fetches page content on-demand (title, meta, ~2000 chars text)
+- `POST /api/v1/links/analyze` accepts `{url, content}` from extension or `{link_id}` (for re-analysis with archived content)
+- Receives pre-extracted page content from extension (title, meta, ~2000 chars text)
 - Queries user's existing tags for context
 - Calls OpenAI GPT-4o-mini via RubyLLM
 - Returns structured JSON: `{suggested_note, suggested_tags: [{name, exists}]}`
@@ -101,11 +101,6 @@ Phase 2 and beyond will explore auto-analyze mode, learning from user patterns, 
 - 1-2 sentence notes
 - Respects user's chosen tag casing
 
-**Quality Attributes:**
-- 3-5 second typical response time
-- ~$0.0004 per analysis (~$0.06/month at 5 analyses/day)
-- Graceful error handling never blocks save workflow
-
 ### What's Not in v1
 
 **Explicitly Deferred:**
@@ -122,13 +117,6 @@ Phase 2 and beyond will explore auto-analyze mode, learning from user patterns, 
 - Multi-language optimization
 
 **Known Limitations (Acceptable for v1):**
-- Backend can't fetch auth-walled or paywalled content
-- Simple HTTP fetch may miss JS-rendered content in SPAs
+- Extension-extracted content sent to OpenAI (privacy implication noted in UI)
 - Not optimized for non-English content (but GPT-4 is multilingual)
-
----
-
-**Dependencies:** RubyLLM ✓, OpenAI API Key ✓, Faraday gem, Nokogiri gem  
-**Timeline:** 2-3 days (1 day backend, 1 day extension, 0.5-1 day polish)  
-**Cost:** ~$0.06/month at 5 analyses per day
-
+- Re-analysis of existing links depends on archived content availability

@@ -184,16 +184,7 @@ This document defines the requirements for automatically capturing and preservin
 - Fast capture workflow regardless of archival complexity
 - Clear status indication when viewing links (archived, processing, failed)
 
-### 5.2 Content Access Patterns
-
-**When accessing archived content:**
-
-- **Original URL Primary**: Default action on a link should open the original website
-- **Archive as Backup**: Provide secondary "View Archive" option for accessing preserved content
-- **Simple Status Display**: Show simple status indicators ("Processing", "Archived", "Failed")
-- **Error Visibility**: Make error messages available (but not prominently displayed) when archival fails
-
-### 5.3 Graceful Degradation
+### 5.2 Graceful Degradation
 
 **When archival fails:**
 

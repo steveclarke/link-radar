@@ -113,8 +113,8 @@ See [future.md](./future.md) for detailed future enhancements.
 - Metadata in export: version, timestamp, record counts
 
 **Import Capabilities:**
-- File upload in extension's developer mode panel → imports JSON
-- Rake task with DSL: `rake linkradar:import[file.json,importer]`
+- File upload in extension's developer mode panel → imports JSON with mode selection (skip/update)
+- Rake task with DSL: `rake linkradar:import[file.json,importer,mode]` (mode: skip or update, defaults to skip)
 - Lightweight Ruby DSL for field mapping
 - Base importer class with transformation support
 - Example importers included: `importers/linkradar.rb` (own format), `importers/notion.rb` (external)
@@ -123,8 +123,10 @@ See [future.md](./future.md) for detailed future enhancements.
 
 **Core Behaviors:**
 - Tags matched case-insensitively by name (preserves radar co-occurrence data)
-- Import is additive (doesn't delete existing data)
-- Duplicate detection by URL (skip or update - TBD in requirements)
+- Import mode selection: additive (default) or overwrite
+- Duplicate detection by URL with configurable strategy:
+  - **Skip mode**: Ignore duplicates, keep existing data (safe default)
+  - **Update mode**: Overwrite existing links with imported data (useful for corrections/migrations)
 
 ### What's NOT in v1
 
@@ -139,7 +141,7 @@ See [future.md](./future.md) for detailed future enhancements.
 - Scheduled/automatic exports
 - Incremental exports (only changes)
 - Export filtering (by tags, date ranges)
-- Import merging strategies beyond basic duplicate handling
+- Advanced merging strategies (merge/combine fields, conflict resolution rules beyond skip/update)
 - Cloud backup integration
 
 **Rationale for scope:**
