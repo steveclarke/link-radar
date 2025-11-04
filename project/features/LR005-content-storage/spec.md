@@ -81,7 +81,6 @@ Automatically capture and preserve web page content when links are saved to Link
 | error_message | text | nullable | Error details when failed |
 | content_html | text | nullable | Cleaned HTML from Readability |
 | content_text | text | nullable | Plain text for search |
-| raw_html | text | nullable | Original HTML before processing |
 | title | string(500) | nullable | Extracted page title |
 | description | text | nullable | Extracted page description |
 | image_url | string(2048) | nullable | Preview image URL |
@@ -91,25 +90,19 @@ Automatically capture and preserve web page content when links are saved to Link
 | updated_at | datetime | NOT NULL | Record update |
 
 **Indexes**:
-- `content_archives.link_id` (unique)
-- `content_archives.status`
-- `content_archives.metadata` (GIN)
-- `content_archives.content_text` (GIN, trigram) - for future full-text search
+- `content_archives.link_id` (unique) - Enforces one-to-one relationship with Link. Used for lookups when displaying link details with archive status.
+- `content_archives.status` - Supports filtering by archive state (e.g., finding failed archives for debugging, counting successful archives, monitoring pending jobs).
+- `content_archives.metadata` (GIN) - Enables efficient querying of JSONB metadata fields (OpenGraph/Twitter Card data). Future use for filtering by metadata attributes.
+- `content_archives.content_text` (GIN, trigram) - Enables full-text search across archived content. Not used in v1 but prepared for future search features.
 
 **Foreign Key**:
 - `link_id` → `links.id` (cascade delete)
 
 **Enum Type**:
-```sql
-CREATE TYPE content_archive_status AS ENUM (
-  'pending',
-  'processing', 
-  'success',
-  'failed',
-  'invalid_url',
-  'blocked'
-);
-```
+
+PostgreSQL enum type `content_archive_status` with values: `pending`, `processing`, `success`, `failed`, `invalid_url`, `blocked`.
+
+Use Rails' `create_enum` in migration and wire up with Rails' `enum` method in the model for database-level type safety plus Rails enum helpers.
 
 ### 3.2 Status State Machine
 
@@ -128,9 +121,9 @@ CREATE TYPE content_archive_status AS ENUM (
 ### 3.3 Data Migration Strategy
 
 **From Link Model to ContentArchive**:
-- Migrate existing `content_text`, `raw_html`, `fetch_error`, `fetched_at`, `image_url`, `metadata`, `title`
+- Migrate existing `content_text`, `fetch_error`, `fetched_at`, `image_url`, `metadata`, `title`
 - Map `link_fetch_state` enum to `content_archive_status`
-- Drop migrated columns from `links` table after migration
+- Drop migrated columns from `links` table after migration (including unused `raw_html`)
 
 ### 3.4 Metadata Structure
 

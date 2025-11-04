@@ -15,4 +15,10 @@ Rails.application.routes.draw do
       resources :tags
     end
   end
+
+  #---------------------------------------------------------------------------
+  # GoodJob Dashboard
+  # Secured by basic auth. See config/initializers/good_job.rb
+  #---------------------------------------------------------------------------
+  mount GoodJob::Engine, at: "/goodjob"
 end

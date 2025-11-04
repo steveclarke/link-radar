@@ -49,5 +49,13 @@ module LinkRadar
     # Middleware like session, flash, cookies can be added back manually.
     # Skip views, helpers and assets when generating a new resource.
     config.api_only = true
+
+    # Add back middleware needed for GoodJob dashboard
+    config.middleware.use ActionDispatch::Cookies
+    config.middleware.use ActionDispatch::Session::CookieStore
+    config.middleware.use ActionDispatch::Flash
+
+    # Use GoodJob for background job processing
+    config.active_job.queue_adapter = :good_job
   end
 end
