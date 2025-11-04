@@ -2,16 +2,19 @@
 #
 # Table name: messages
 #
-#  id            :uuid             not null, primary key
-#  content       :text
-#  input_tokens  :integer
-#  output_tokens :integer
-#  role          :string           not null
-#  created_at    :datetime         not null
-#  updated_at    :datetime         not null
-#  chat_id       :uuid             not null
-#  model_id      :uuid
-#  tool_call_id  :uuid
+#  id                    :uuid             not null, primary key
+#  cache_creation_tokens :integer
+#  cached_tokens         :integer
+#  content               :text
+#  content_raw           :json
+#  input_tokens          :integer
+#  output_tokens         :integer
+#  role                  :string           not null
+#  created_at            :datetime         not null
+#  updated_at            :datetime         not null
+#  chat_id               :uuid             not null
+#  model_id              :uuid
+#  tool_call_id          :uuid
 #
 # Indexes
 #
