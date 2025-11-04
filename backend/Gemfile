@@ -77,3 +77,6 @@ gem "good_job", "~> 4.12"
 
 # State machine library for modeling object state transitions
 gem "statesman"
+
+# Pagination library
+gem "pagy", "~> 43.0"

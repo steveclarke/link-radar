@@ -10,6 +10,11 @@ get {
   auth: inherit
 }
 
+params:query {
+  ~page_size: 1
+  ~page: 2
+}
+
 script:post-response {
   if (res.status === 200 && res.body?.data?.links?.length > 0) {
     bru.setVar("linkId", res.body.data.links[0].id);
@@ -18,14 +23,14 @@ script:post-response {
 
 docs {
   Get all links ordered by created_at (newest first).
-
+  
   Returns:
   {
     "data": {
       "links": [array of link objects with all fields except raw_html]
     }
   }
-
+  
   This script automatically sets the linkId variable to the first link's ID
   for use in other requests (Get Link, Update Link, Delete Link).
 }

@@ -5,7 +5,8 @@ module Api
 
       # GET /api/v1/links
       def index
-        @links = Link.all.order(created_at: :desc)
+        links = Link.all.order(created_at: :desc)
+        @pagination, @links = pagy(links)
       end
 
       # GET /api/v1/links/:id

@@ -24,26 +24,26 @@ body:json {
 
 docs {
   Create a new link.
-
+  
   Required fields:
   - submitted_url: The URL to save
-
+  
   Optional fields:
   - title: Link title
   - note: Link note
   - image_url: Link preview image URL
   - tag_names: Array of tag names to assign (creates missing tags automatically)
-
+  
   The submitted_url will be normalized to the url field.
   The link will be created with fetch_state: "pending".
   Tags will be created if they don't exist and linked to the new link.
-
+  
   Returns 201 Created on success:
   {
     "data": {
       "link": {created link object including tags}
     }
   }
-
+  
   Returns 422 Unprocessable Entity on validation errors.
 }
