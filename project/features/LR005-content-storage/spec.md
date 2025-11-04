@@ -151,29 +151,31 @@ Automatically capture and preserve web page content when links are saved to Link
 
 **Usage**:
 ```ruby
-# Check current state
-archive.state_machine.current_state  # => "pending"
+# Check current state (using delegate method)
+archive.current_state  # => "pending"
 
-# Transition with metadata
-archive.state_machine.transition_to!(:processing)
-archive.state_machine.transition_to!(:success, { fetch_duration_ms: 1234 })
-archive.state_machine.transition_to!(:failed, { error_message: "Timeout", retry_count: 3 })
+# Transition with metadata (using delegate method)
+archive.transition_to!(:processing)
+archive.transition_to!(:success, { fetch_duration_ms: 1234 })
+archive.transition_to!(:failed, { error_message: "Timeout", retry_count: 3 })
 
-# Query by state (via Statesman queries)
+# Check allowed transitions (using delegate method)
+archive.allowed_transitions  # => ["processing", "blocked", "invalid_url"]
+archive.can_transition_to?(:processing)  # => true
+
+# Query by state (via Statesman queries - class level)
 ContentArchive.in_state(:pending)
 ContentArchive.in_state(:failed)
 ```
 
 ### 3.3 Data Migration Strategy
 
-**From Link Model to ContentArchive**:
-- Migrate existing `content_text`, `fetch_error`, `fetched_at`, `image_url`, `metadata`, `title`
-- Map `link.fetch_state` enum to initial Statesman state:
-  - `pending` → `pending`
-  - `success` → `success`
-  - `failed` → `failed`
-- Create initial transition record for each ContentArchive with appropriate state
-- Drop migrated columns from `links` table after migration (including unused `raw_html`)
+**No data migration needed** - The Link model's content-related fields (`content_text`, `fetch_error`, `fetched_at`, `image_url`, `metadata`, `title`, `raw_html`) are currently unused and empty.
+
+**Migration steps**:
+1. Create ContentArchive model and content_archive_transitions table
+2. Drop unused content-related columns from `links` table in the same migration
+3. All new archives will start fresh with `pending` status
 
 ### 3.4 Metadata Structure
 
@@ -233,7 +235,7 @@ ContentArchive.in_state(:failed)
 - Job uses state machine to transition between states with metadata
 
 **Job and State Machine Interaction**:
-- Job calls `archive.state_machine.transition_to!(:state, metadata)` at each step
+- Job calls `archive.transition_to!(:state, metadata)` at each step (using delegate method)
 - Metadata captures context: error messages, fetch duration, retry count, etc.
 - State machine enforces valid transitions (guards prevent invalid state changes)
 - Transition history provides full audit trail for debugging
@@ -278,8 +280,8 @@ rails generate link_radar:state_machine ContentArchive pending:initial processin
 **Model Integration** (already handled by generator):
 - Adds `has_many :content_archive_transitions, dependent: :destroy`
 - Adds `include Statesman::Adapters::ActiveRecordQueries`
-- Adds `state_machine` method
-- Delegate methods: `current_state`, `in_state?`, `transition_to!`, etc.
+- Adds `state_machine` method returning state machine instance
+- Delegate methods: `current_state`, `can_transition_to?`, `transition_to!`, `allowed_transitions`
 
 **Customize Transitions**: After generation, edit the state machine to define allowed transitions:
 ```ruby
