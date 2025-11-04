@@ -16,11 +16,11 @@
     - [3.3. Tag Data](#33-tag-data)
   - [4. Business Rules \& Logic](#4-business-rules--logic)
     - [4.1. Export Rules](#41-export-rules)
-    - [4.2. Import Rules](#42-import-rules)
-    - [4.3. Duplicate Detection](#43-duplicate-detection)
-    - [4.4. Tag Matching and Creation](#44-tag-matching-and-creation)
-    - [4.5. Timestamp Preservation](#45-timestamp-preservation)
-    - [4.6. Import Modes](#46-import-modes)
+    - [4.2. Import Modes](#42-import-modes)
+    - [4.3. Import Rules](#43-import-rules)
+    - [4.4. Duplicate Detection](#44-duplicate-detection)
+    - [4.5. Tag Matching and Creation](#45-tag-matching-and-creation)
+    - [4.6. Timestamp Preservation](#46-timestamp-preservation)
   - [5. User Experience Requirements](#5-user-experience-requirements)
     - [5.1. Extension Interface](#51-extension-interface)
     - [5.2. Feedback and Notifications](#52-feedback-and-notifications)
@@ -139,7 +139,28 @@ Tag handling must support:
 - System must save files to `data/exports/` directory
 - System must not show progress indicators or status updates during export
 
-### 4.2. Import Rules
+### 4.2. Import Modes
+
+Import modes control how the system handles links with URLs that already exist in the database. The user selects a mode when initiating an import operation, which determines the behavior for all duplicate links encountered during that import.
+
+**Skip Mode (Default):**
+
+This mode takes a conservative, non-destructive approach. When a link with a duplicate URL is encountered, the system ignores the imported data and preserves the existing link exactly as it is. This is the safe default for regular imports where you want to add new bookmarks without accidentally overwriting existing ones.
+
+- System must ignore links with duplicate URLs
+- System must preserve all existing data for duplicates
+- System must continue processing remaining links
+
+**Update Mode:**
+
+This mode treats imported data as the authoritative source. When a link with a duplicate URL is encountered, the system completely replaces the existing link's data with the imported data. This is useful for data migrations, fixing bulk errors, or re-importing from an authoritative external source.
+
+- System must overwrite all fields for links with duplicate URLs
+- System must replace URL, title, notes, and tags completely
+- System must keep original `created_at` timestamp
+- System must treat update as complete replacement of link data
+
+### 4.3. Import Rules
 
 - System must wrap entire import operation in database transaction
 - System must abort entire import if any error occurs (all-or-nothing)
@@ -150,39 +171,25 @@ Tag handling must support:
 - System must accept full path override for import file location
 - System must find importer by name in standard location
 
-### 4.3. Duplicate Detection
+### 4.4. Duplicate Detection
 
 - System must detect duplicates by comparing URLs
 - System must normalize URLs before comparison (strip trailing slashes, normalize case, remove fragments)
 - System must treat normalized URLs as duplicates even if original formatting differs
 - System must apply skip or update behavior based on selected mode
 
-### 4.4. Tag Matching and Creation
+### 4.5. Tag Matching and Creation
 
 - System must match tags case-insensitively by name
 - System must use existing tag when case-insensitive match found
 - System must preserve existing tag's capitalization when matched
 - System must create new tag with exact capitalization from import when no match found
-- System must maintain tag co-occurrence data (radar) through name-based relationships
 
-### 4.5. Timestamp Preservation
+### 4.6. Timestamp Preservation
 
 - System must preserve `created_at` timestamp from import file when present
 - System must use current import time for `created_at` when not present in import file
 - System must keep original `created_at` unchanged when updating existing links in update mode
-
-### 4.6. Import Modes
-
-**Skip Mode (Default):**
-- System must ignore links with duplicate URLs
-- System must preserve all existing data for duplicates
-- System must continue processing remaining links
-
-**Update Mode:**
-- System must overwrite all fields for links with duplicate URLs
-- System must replace URL, title, notes, and tags completely
-- System must keep original `created_at` timestamp
-- System must treat update as complete replacement of link data
 
 ## 5. User Experience Requirements
 
