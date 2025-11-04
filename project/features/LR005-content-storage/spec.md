@@ -27,8 +27,9 @@ Automatically capture and preserve web page content when links are saved to Link
 
 **ContentArchive Model**:
 - One-to-one with Link (cascade delete)
-- Tracks status through 6-state lifecycle
+- Tracks status through 6-state lifecycle using Statesman state machine
 - Stores extracted content and metadata
+- Full transition history for audit trail and debugging
 
 **ArchiveContentJob**:
 - Triggered on ContentArchive creation
@@ -60,12 +61,13 @@ Automatically capture and preserve web page content when links are saved to Link
 ### 2.3 Technology Stack
 
 - **GoodJob** - PostgreSQL-backed Active Job backend
+- **Statesman** - State machine for tracking archival status with full transition history
 - **Faraday** - HTTP client with timeout/redirect support
 - **ruby-readability** - Main content extraction (Mozilla Readability algorithm)
 - **metainspector** - OpenGraph/Twitter Card metadata extraction
 - **loofah** - HTML sanitization (XSS protection)
 - **addressable** - URL normalization and validation
-- **PostgreSQL** - UUIDs, enum types, jsonb columns
+- **PostgreSQL** - UUIDs, jsonb columns, efficient state queries
 
 ## 3. Data Architecture
 
@@ -77,7 +79,6 @@ Automatically capture and preserve web page content when links are saved to Link
 |--------|------|-------------|-------------|
 | id | uuid | PK, default: uuidv7() | Primary key |
 | link_id | uuid | FK (links), NOT NULL, UNIQUE | One-to-one with Link |
-| status | enum | NOT NULL, default: 'pending' | Archival state |
 | error_message | text | nullable | Error details when failed |
 | content_html | text | nullable | Cleaned HTML from Readability |
 | content_text | text | nullable | Plain text for search |
@@ -89,40 +90,89 @@ Automatically capture and preserve web page content when links are saved to Link
 | created_at | datetime | NOT NULL | Record creation |
 | updated_at | datetime | NOT NULL | Record update |
 
+**Note**: Status is managed by Statesman state machine, not stored on this model.
+
 **Indexes**:
 - `content_archives.link_id` (unique) - Enforces one-to-one relationship with Link. Used for lookups when displaying link details with archive status.
-- `content_archives.status` - Supports filtering by archive state (e.g., finding failed archives for debugging, counting successful archives, monitoring pending jobs).
 - `content_archives.metadata` (GIN) - Enables efficient querying of JSONB metadata fields (OpenGraph/Twitter Card data). Future use for filtering by metadata attributes.
 - `content_archives.content_text` (GIN, trigram) - Enables full-text search across archived content. Not used in v1 but prepared for future search features.
 
 **Foreign Key**:
 - `link_id` → `links.id` (cascade delete)
 
-**Enum Type**:
+**ContentArchiveTransition Table** (Statesman):
 
-PostgreSQL enum type `content_archive_status` with values: `pending`, `processing`, `success`, `failed`, `invalid_url`, `blocked`.
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | bigint | PK, auto-increment | Primary key |
+| content_archive_id | uuid | FK, NOT NULL, indexed | Foreign key to content_archives |
+| to_state | string | NOT NULL, indexed | Target state |
+| metadata | jsonb | default: {} | Transition context (error details, duration, etc.) |
+| sort_key | integer | NOT NULL, indexed | Transition ordering |
+| most_recent | boolean | NOT NULL, indexed | Current state flag |
+| created_at | datetime | NOT NULL | Transition timestamp |
+| updated_at | datetime | NOT NULL | Record update |
 
-Use Rails' `create_enum` in migration and wire up with Rails' `enum` method in the model for database-level type safety plus Rails enum helpers.
+**Indexes**:
+- `content_archive_transitions.content_archive_id` - Join to parent record
+- `content_archive_transitions.to_state` - Query by state (e.g., find all failed archives)
+- `content_archive_transitions.sort_key` - Order transitions chronologically
+- `content_archive_transitions.most_recent` - Efficiently find current state
+- Composite: `(content_archive_id, most_recent)` - Optimized current state lookup per Statesman docs
 
-### 3.2 Status State Machine
+**Foreign Key**:
+- `content_archive_id` → `content_archives.id` (cascade delete)
+
+### 3.2 Status State Machine (Statesman)
 
 **States**:
-- `pending` - Archive created, waiting for job
+- `pending` (initial) - Archive created, waiting for job
 - `processing` - Job actively fetching/extracting
 - `success` - Content successfully archived
 - `failed` - Failed after retries exhausted
 - `invalid_url` - URL validation failed (invalid scheme, malformed)
 - `blocked` - URL blocked for security (private IP, SSRF)
 
-**Transitions**:
+**Allowed Transitions**:
 - `pending` → `processing` | `blocked` | `invalid_url`
 - `processing` → `success` | `failed` | `blocked`
+
+**State Machine Class**: `ContentArchiveStateMachine`
+- Location: `app/state_machines/content_archive_state_machine.rb`
+- Includes `Statesman::Machine`
+- Defines states, transitions, and optional guards/callbacks
+
+**Transition Metadata** (stored in `content_archive_transitions.metadata` jsonb):
+- `error_message` (string) - Error details for failed transitions
+- `validation_reason` (string) - Why URL was blocked/invalid
+- `fetch_duration_ms` (integer) - Time taken for successful fetches
+- `retry_count` (integer) - Current retry attempt number
+- `http_status` (integer) - HTTP response code if applicable
+
+**Usage**:
+```ruby
+# Check current state
+archive.state_machine.current_state  # => "pending"
+
+# Transition with metadata
+archive.state_machine.transition_to!(:processing)
+archive.state_machine.transition_to!(:success, { fetch_duration_ms: 1234 })
+archive.state_machine.transition_to!(:failed, { error_message: "Timeout", retry_count: 3 })
+
+# Query by state (via Statesman queries)
+ContentArchive.in_state(:pending)
+ContentArchive.in_state(:failed)
+```
 
 ### 3.3 Data Migration Strategy
 
 **From Link Model to ContentArchive**:
 - Migrate existing `content_text`, `fetch_error`, `fetched_at`, `image_url`, `metadata`, `title`
-- Map `link_fetch_state` enum to `content_archive_status`
+- Map `link.fetch_state` enum to initial Statesman state:
+  - `pending` → `pending`
+  - `success` → `success`
+  - `failed` → `failed`
+- Create initial transition record for each ContentArchive with appropriate state
 - Drop migrated columns from `links` table after migration (including unused `raw_html`)
 
 ### 3.4 Metadata Structure
@@ -180,7 +230,13 @@ Use Rails' `create_enum` in migration and wire up with Rails' `enum` method in t
 - Enqueued immediately after Link creation completes (no pre-validation)
 - Passes `link_id` to job for lookup
 - Job performs all validation, fetching, and extraction
-- Job updates ContentArchive status throughout pipeline
+- Job uses state machine to transition between states with metadata
+
+**Job and State Machine Interaction**:
+- Job calls `archive.state_machine.transition_to!(:state, metadata)` at each step
+- Metadata captures context: error messages, fetch duration, retry count, etc.
+- State machine enforces valid transitions (guards prevent invalid state changes)
+- Transition history provides full audit trail for debugging
 
 **Retry Strategy**:
 - Network timeouts: Retry with exponential backoff (immediate, +2s, +4s)
@@ -203,10 +259,36 @@ Use Rails' `create_enum` in migration and wire up with Rails' `enum` method in t
 
 **Error Handling**:
 - Services return Result objects (not exceptions)
-- Job checks `result.success?` and translates to ContentArchive status updates
-- Failure reasons available in `result.errors` for debugging
+- Job checks `result.success?` and transitions state machine accordingly
+- Failure reasons stored in transition metadata for debugging
 
-### 5.4 External Gem Dependencies
+### 5.4 State Machine Setup
+
+**Generator Command**:
+```bash
+rails generate link_radar:state_machine ContentArchive pending:initial processing success failed invalid_url blocked
+```
+
+**What the Generator Creates**:
+- `app/state_machines/content_archive_state_machine.rb` - State machine definition
+- `app/models/content_archive_transition.rb` - Transition model
+- Migration for `content_archive_transitions` table
+- Factory and RSpec tests (if applicable)
+
+**Model Integration** (already handled by generator):
+- Adds `has_many :content_archive_transitions, dependent: :destroy`
+- Adds `include Statesman::Adapters::ActiveRecordQueries`
+- Adds `state_machine` method
+- Delegate methods: `current_state`, `in_state?`, `transition_to!`, etc.
+
+**Customize Transitions**: After generation, edit the state machine to define allowed transitions:
+```ruby
+# app/state_machines/content_archive_state_machine.rb
+transition from: :pending, to: [:processing, :blocked, :invalid_url]
+transition from: :processing, to: [:success, :failed, :blocked]
+```
+
+### 5.5 External Gem Dependencies
 
 **Required Gems** (add to Gemfile):
 - `metainspector` - OpenGraph/Twitter Card metadata extraction
@@ -253,7 +335,10 @@ backend/
 ├── app/
 │   ├── models/
 │   │   ├── content_archive.rb              # ContentArchive model
+│   │   ├── content_archive_transition.rb   # Statesman transition model
 │   │   └── link.rb                         # Updated with association
+│   ├── state_machines/
+│   │   └── content_archive_state_machine.rb # Statesman state machine
 │   └── jobs/
 │       └── archive_content_job.rb          # Background job
 ├── config/
@@ -262,6 +347,7 @@ backend/
 │   └── content_archive.yml                 # YAML configuration
 ├── db/migrate/
 │   ├── YYYYMMDDHHMMSS_create_content_archives.rb
+│   ├── YYYYMMDDHHMMSS_create_content_archive_transitions.rb
 │   └── YYYYMMDDHHMMSS_migrate_link_archival_data.rb
 └── lib/link_radar/
     ├── result.rb                           # Result class for success/failure
@@ -296,17 +382,19 @@ backend/
 **Failure Isolation**:
 - Archival failures never prevent link creation
 - Archive record always created (even on immediate failure)
-- Error messages stored for debugging
+- Error messages stored in transition metadata for debugging
 
 **Retry Logic**:
 - Network timeouts retry with exponential backoff
 - Non-retryable errors fail immediately
 - Maximum 3 attempts total
+- Each retry tracked in transition metadata
 
 **Data Integrity**:
-- Cascade delete ensures archive removed with link
-- Unique constraint enforces one-to-one relationship
-- Status transitions are atomic (single UPDATE)
+- Cascade delete ensures archive and transitions removed with link
+- Unique constraint enforces one-to-one Link-ContentArchive relationship
+- State transitions are atomic (single INSERT into transitions table)
+- Statesman ensures transition history is never lost
 
 ### 8.3 Performance
 
@@ -324,14 +412,16 @@ backend/
 ### 8.4 Maintainability
 
 **Code Organization**:
-- Service classes use module_function pattern (stateless utilities)
+- Service classes use Result pattern with `LinkRadar::Resultable`
+- State machine provides clear visibility into archival workflow
 - Clear separation of concerns (validation, fetching, extraction, sanitization)
 - Configuration centralized in ContentArchiveConfig
+- Transition history provides audit trail for debugging
 
 **Testing Strategy**:
 - Manual testing for v1 (no automated tests yet)
 - Test scenarios documented in requirements
-- Future: Unit tests for services, integration tests for job
+- Future: Unit tests for services, integration tests for job, state machine specs
 
 ### 8.5 Scalability
 
