@@ -1,3 +1,5 @@
+require_relative "../dev/sample_data"
+
 namespace :sample_data do
   desc "Load sample data (calls LinkRadar::SampleData DSL)"
   task load: :environment do

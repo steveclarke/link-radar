@@ -1,11 +1,19 @@
 module Api
   module V1
     class LinksController < ApplicationController
+      include Saltbox::SortByColumns::Controller
+
       before_action :set_link, only: [:show, :update, :destroy]
 
       # GET /api/v1/links
+      # Supports sorting via ?sort=column:direction
+      # Examples:
+      #   ?sort=title:asc
+      #   ?sort=created_at:desc
+      #   ?sort=title:asc,created_at:desc
+      #   ?sort=c_tag_count:desc (sort by tag count)
       def index
-        links = Link.all.order(created_at: :desc)
+        links = apply_scopes(Link.all)
         @pagination, @links = pagy(links)
       end
 

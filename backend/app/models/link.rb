@@ -27,12 +27,24 @@
 #  index_links_on_url          (url) UNIQUE
 #
 class Link < ApplicationRecord
+  include Saltbox::SortByColumns::Model
+
   # Associations
   has_many :link_tags, dependent: :destroy
   has_many :tags, through: :link_tags
 
   # Virtual attribute for tag assignment
   attr_accessor :tag_names
+
+  # Configure sortable columns
+  sort_by_columns :title, :created_at, :updated_at, :fetched_at, :c_tag_count
+
+  # Custom scope for sorting by tag count
+  scope :sorted_by_tag_count, ->(direction) {
+    left_joins(:link_tags)
+      .group("links.id")
+      .order(Arel.sql("COUNT(link_tags.id) #{direction}, links.title #{direction}"))
+  }
 
   # Fetch state enum backed by Postgres enum type
   enum :fetch_state, {

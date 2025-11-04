@@ -1,0 +1,24 @@
+meta {
+  name: Sort by Usage Count
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/v1/tags?sort=usage_count:desc
+  body: none
+  auth: inherit
+}
+
+params:query {
+  sort: usage_count:desc
+}
+
+docs {
+  # Sort Tags by Usage Count
+  
+  Returns tags sorted by how often they're used (most used first).
+  
+  This is useful for showing the most popular tags at the top.
+}
+

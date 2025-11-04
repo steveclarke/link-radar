@@ -19,9 +19,14 @@
 #  index_tags_on_slug  (slug) UNIQUE
 #
 class Tag < ApplicationRecord
+  include Saltbox::SortByColumns::Model
+
   # Associations
   has_many :link_tags, dependent: :destroy
   has_many :links, through: :link_tags
+
+  # Configure sortable columns
+  sort_by_columns :name, :usage_count, :last_used_at, :created_at
 
   # Validations
   validates :name, presence: true, length: {maximum: 100}

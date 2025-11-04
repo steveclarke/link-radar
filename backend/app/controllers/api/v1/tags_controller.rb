@@ -1,15 +1,22 @@
 module Api
   module V1
     class TagsController < ApplicationController
+      include Saltbox::SortByColumns::Controller
+
       before_action :set_tag, only: [:show, :update, :destroy]
 
       # GET /api/v1/tags
       # Supports optional ?search= query parameter for autocomplete
+      # Supports sorting via ?sort=column:direction
+      # Examples:
+      #   ?sort=name:asc
+      #   ?sort=usage_count:desc
+      #   ?sort=last_used_at:desc
       def index
         @tags = if params[:search].present?
           Tag.autocomplete(params[:search])
         else
-          Tag.by_usage
+          apply_scopes(Tag.all)
         end
       end
 

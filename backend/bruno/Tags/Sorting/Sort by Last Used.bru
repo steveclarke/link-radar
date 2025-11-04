@@ -1,0 +1,24 @@
+meta {
+  name: Sort by Last Used
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/api/v1/tags?sort=last_used_at:desc
+  body: none
+  auth: inherit
+}
+
+params:query {
+  sort: last_used_at:desc
+}
+
+docs {
+  # Sort Tags by Last Used Date
+  
+  Returns tags sorted by when they were last used (most recent first).
+  
+  This is useful for showing recently active tags at the top.
+}
+

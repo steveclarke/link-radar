@@ -80,3 +80,9 @@ gem "statesman"
 
 # Pagination library
 gem "pagy", "~> 43.0"
+
+# Map incoming controller parameters to named scopes in your resources
+gem "has_scope", "~> 0.8"
+
+# Sorting with URL parameters
+gem "saltbox-sort_by_columns", github: "myunio/saltbox-sort_by_columns"

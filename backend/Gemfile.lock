@@ -1,4 +1,12 @@
 GIT
+  remote: https://github.com/myunio/saltbox-sort_by_columns.git
+  revision: 4260720edd3ab98e3572d569b73218f22fbc8e98
+  specs:
+    saltbox-sort_by_columns (1.0.1)
+      has_scope
+      rails (>= 7.1)
+
+GIT
   remote: https://github.com/standardrb/standard-rails.git
   revision: e7b114f6eb71030f0b8ef24d22261e4bd8a7b414
   specs:
@@ -149,6 +157,9 @@ GEM
       fugit (>= 1.11.0)
       railties (>= 6.1.0)
       thor (>= 1.0.0)
+    has_scope (0.9.0)
+      actionpack (>= 7.0)
+      activesupport (>= 7.0)
     i18n (1.14.7)
       concurrent-ruby (~> 1.0)
     image_processing (1.14.0)
@@ -398,6 +409,7 @@ DEPENDENCIES
   dotenv-rails
   faker
   good_job (~> 4.12)
+  has_scope (~> 0.8)
   image_processing (~> 1.2)
   jbuilder
   pagy (~> 43.0)
@@ -407,6 +419,7 @@ DEPENDENCIES
   rails (~> 8.1.0)
   rspec-rails
   ruby_llm (~> 1.8)
+  saltbox-sort_by_columns!
   shoulda-matchers
   standard
   standard-rails!

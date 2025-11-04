@@ -1,0 +1,28 @@
+meta {
+  name: Sort Multiple Columns
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/api/v1/links?sort=title:asc,created_at:desc
+  body: none
+  auth: inherit
+}
+
+params:query {
+  sort: title:asc,created_at:desc
+}
+
+docs {
+  # Sort Links by Multiple Columns
+  
+  Returns links sorted by:
+  1. Title (ascending/alphabetical)
+  2. Then by created_at (descending/newest first) for ties
+  
+  Multiple sort columns are separated by commas.
+  
+  Note: Custom scopes (c_*) cannot be combined with other columns.
+}
+
