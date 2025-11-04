@@ -125,6 +125,11 @@ GEM
     et-orbi (1.4.0)
       tzinfo
     event_stream_parser (1.0.0)
+    factory_bot (6.5.6)
+      activesupport (>= 6.1.0)
+    factory_bot_rails (6.5.1)
+      factory_bot (~> 6.5)
+      railties (>= 6.1.0)
     faker (3.5.2)
       i18n (>= 1.8.11, < 2)
     faraday (2.14.0)
@@ -235,6 +240,9 @@ GEM
     pg (1.6.2-x86_64-darwin)
     pg (1.6.2-x86_64-linux)
     pg (1.6.2-x86_64-linux-musl)
+    pg_search (2.3.7)
+      activerecord (>= 6.1)
+      activesupport (>= 6.1)
     pp (0.6.3)
       prettyprint
     prettyprint (0.2.0)
@@ -407,6 +415,7 @@ DEPENDENCIES
   bundler-audit
   debug
   dotenv-rails
+  factory_bot_rails
   faker
   good_job (~> 4.12)
   has_scope (~> 0.8)
@@ -414,6 +423,7 @@ DEPENDENCIES
   jbuilder
   pagy (~> 43.0)
   pg (~> 1.1)
+  pg_search
   puma (>= 5.0)
   rack-cors
   rails (~> 8.1.0)

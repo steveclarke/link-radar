@@ -4,20 +4,21 @@
 #
 # Table name: links
 #
-#  id            :uuid             not null, primary key
-#  content_text  :text
-#  fetch_error   :text
-#  fetch_state   :enum             default("pending"), not null
-#  fetched_at    :datetime
-#  image_url     :string(2048)
-#  metadata      :jsonb
-#  note          :text
-#  raw_html      :text
-#  submitted_url :string(2048)     not null
-#  title         :string(500)
-#  url           :string(2048)     not null
-#  created_at    :datetime         not null
-#  updated_at    :datetime         not null
+#  id                :uuid             not null, primary key
+#  content_text      :text
+#  fetch_error       :text
+#  fetch_state       :enum             default("pending"), not null
+#  fetched_at        :datetime
+#  image_url         :string(2048)
+#  metadata          :jsonb
+#  note              :text
+#  raw_html          :text
+#  search_projection :text
+#  submitted_url     :string(2048)     not null
+#  title             :string(500)
+#  url               :string(2048)     not null
+#  created_at        :datetime         not null
+#  updated_at        :datetime         not null
 #
 # Indexes
 #
@@ -28,6 +29,10 @@
 #
 class Link < ApplicationRecord
   include Saltbox::SortByColumns::Model
+  include Searchable
+
+  # Search configuration
+  searchable_with SearchContent::Link, project: true
 
   # Associations
   has_many :link_tags, dependent: :destroy

@@ -11,13 +11,13 @@ end
 Rails.application.configure do
   config.good_job.execution_mode = Rails.env.development? ? :inline : :external
 
-  # Enable cron when you have scheduled jobs
-  # config.good_job.enable_cron = true
-  # config.good_job.cron = {
-  #   example_job: {
-  #     cron: "0 0 * * *",
-  #     class: "ExampleJob",
-  #     args: []
-  #   }
-  # }
+  # https://github.com/bensheldon/good_job?tab=readme-ov-file#cron-style-repeatingrecurring-jobs
+  config.good_job.enable_cron = true
+  config.good_job.cron = {
+    rebuild_search_projections_job: {
+      cron: "0 * * * *", # Every hour at minute 0
+      class: "RebuildSearchProjectionsJob",
+      args: []
+    }
+  }
 end

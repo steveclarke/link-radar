@@ -1,0 +1,53 @@
+# frozen_string_literal: true
+
+# == Schema Information
+#
+# Table name: links
+#
+#  id                :uuid             not null, primary key
+#  content_text      :text
+#  fetch_error       :text
+#  fetch_state       :enum             default("pending"), not null
+#  fetched_at        :datetime
+#  image_url         :string(2048)
+#  metadata          :jsonb
+#  note              :text
+#  raw_html          :text
+#  search_projection :text
+#  submitted_url     :string(2048)     not null
+#  title             :string(500)
+#  url               :string(2048)     not null
+#  created_at        :datetime         not null
+#  updated_at        :datetime         not null
+#
+# Indexes
+#
+#  index_links_on_created_at   (created_at)
+#  index_links_on_fetch_state  (fetch_state)
+#  index_links_on_metadata     (metadata) USING gin
+#  index_links_on_url          (url) UNIQUE
+#
+require "rails_helper"
+
+RSpec.describe Link, type: :model do
+  it_behaves_like "searchable model", {
+    search_content_class: SearchContent::Link,
+    setup: ->(record) {
+      record.update!(title: "Ruby Programming", note: "Great resource")
+      ruby_tag = create(:tag, name: "Rails")
+      record.tags << ruby_tag
+
+      ["Ruby", "Programming", "Rails"]
+    }
+  }
+
+  describe "associations" do
+    it { should have_many(:link_tags).dependent(:destroy) }
+    it { should have_many(:tags).through(:link_tags) }
+  end
+
+  describe "validations" do
+    it { should validate_presence_of(:url) }
+    it { should validate_presence_of(:submitted_url) }
+  end
+end

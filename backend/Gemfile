@@ -52,6 +52,9 @@ group :development, :test do
 
   # RSpec is our testing framework
   gem "rspec-rails"
+
+  # Factory Bot for test data generation
+  gem "factory_bot_rails"
 end
 
 group :development do
@@ -86,3 +89,6 @@ gem "has_scope", "~> 0.8"
 
 # Sorting with URL parameters
 gem "saltbox-sort_by_columns", github: "myunio/saltbox-sort_by_columns"
+
+# Full-text search with PostgreSQL
+gem "pg_search"

@@ -5,13 +5,17 @@ module Api
 
       before_action :set_link, only: [:show, :update, :destroy]
 
+      has_scope :search, only: [:index]
+
       # GET /api/v1/links
       # Supports sorting via ?sort=column:direction
+      # Supports optional ?search= query parameter for full-text search
       # Examples:
       #   ?sort=title:asc
       #   ?sort=created_at:desc
       #   ?sort=title:asc,created_at:desc
       #   ?sort=c_tag_count:desc (sort by tag count)
+      #   ?search=ruby programming
       def index
         links = apply_scopes(Link.all)
         @pagination, @links = pagy(links)

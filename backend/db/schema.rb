@@ -10,9 +10,11 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_11_04_132526) do
+ActiveRecord::Schema[8.1].define(version: 2025_11_04_223341) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+  enable_extension "pg_trgm"
+  enable_extension "unaccent"
 
   # Custom types defined in this database.
   # Note that some types may not work with other database engines. Be careful if changing database.
@@ -164,6 +166,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_04_132526) do
     t.jsonb "metadata", default: {}
     t.text "note"
     t.text "raw_html"
+    t.text "search_projection"
     t.string "submitted_url", limit: 2048, null: false
     t.string "title", limit: 500
     t.datetime "updated_at", null: false

@@ -6,18 +6,21 @@ module Api
       before_action :set_tag, only: [:show, :update, :destroy]
 
       # GET /api/v1/tags
-      # Supports optional ?search= query parameter for autocomplete
-      # Supports sorting via ?sort=column:direction
+      # Supports optional ?search= query parameter for autocomplete/full-text search
+      # When search is present, returns up to 20 results sorted by usage
+      # When search is absent, returns all tags (can be sorted via ?sort=)
       # Examples:
-      #   ?sort=name:asc
-      #   ?sort=usage_count:desc
-      #   ?sort=last_used_at:desc
+      #   ?search=javascript          (returns top 20 by usage)
+      #   ?sort=name:asc              (returns all, sorted by name)
+      #   ?sort=usage_count:desc      (returns all, sorted by usage)
+      has_scope :search, only: [:index] do |controller, scope, value|
+        # Use autocomplete for search: limits to 20 results, sorts by usage
+        # This is optimized for the extension's tag input dropdown
+        scope.autocomplete(value)
+      end
+
       def index
-        @tags = if params[:search].present?
-          Tag.autocomplete(params[:search])
-        else
-          apply_scopes(Tag.all)
-        end
+        @tags = apply_scopes(Tag.alphabetical)
       end
 
       # GET /api/v1/tags/:id

@@ -1,0 +1,47 @@
+meta {
+  name: Search Links
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/v1/links?search=ruby programming
+  body: none
+  auth: inherit
+}
+
+params:query {
+  search: ruby programming
+}
+
+docs {
+  Search links using full-text search across title, content, notes, and tag names.
+
+  Query parameters:
+  - search: Search term (uses PostgreSQL full-text search with trigrams)
+
+  Returns:
+  {
+    "data": {
+      "links": [array of matching links with all fields except raw_html]
+    },
+    "pagination": {
+      "current_page": 1,
+      "total_pages": 1,
+      "total_count": 5,
+      "limit": 10
+    }
+  }
+
+  Search features:
+  - Searches across: title, content_text, note, and associated tag names
+  - Uses trigram matching for fuzzy/partial matches
+  - Uses TSearch for word-based full-text search with prefix matching
+  - Searches tag names via search_projection (rebuilt hourly)
+
+  Example searches:
+  - "ruby programming" → finds links with ruby/Rails and programming tags
+  - "tutorial" → finds links with "tutorial" in title, content, or notes
+  - "708" → fuzzy match for partial terms
+}
+
