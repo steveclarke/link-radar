@@ -1,0 +1,46 @@
+# frozen_string_literal: true
+
+# == Schema Information
+#
+# Table name: <%= @transition_snake_name.pluralize %>
+#
+#  id          :uuid             not null, primary key
+#  to_state    :string           not null
+#  metadata    :jsonb            default({})
+#  sort_key    :integer          not null
+#  most_recent :boolean          not null
+#  created_at  :datetime         not null
+#  updated_at  :datetime         not null
+#  <%= @snake_name %>_id   :uuid             not null
+#
+# Indexes
+#
+#  index_<%= @transition_snake_name.pluralize %>_parent_sort         (<%= @snake_name %>_id,sort_key) UNIQUE
+#  index_<%= @transition_snake_name.pluralize %>_parent_most_recent  (<%= @snake_name %>_id,most_recent) UNIQUE WHERE most_recent
+#
+# Foreign Keys
+#
+#  fk_rails_...  (<%= @snake_name %>_id => <%= @snake_name.pluralize %>.id)
+#
+class <%= @transition_model_name %> < ApplicationRecord
+  # Associations
+  belongs_to :<%= @snake_name %>, inverse_of: :<%= @transition_snake_name.pluralize %>
+
+  # Validations
+  validates :to_state, presence: true, inclusion: { in: <%= @state_machine_name %>.states }
+  validates :sort_key, presence: true
+  validates :most_recent, inclusion: { in: [true, false] }
+
+  # Cleanup callback for transition deletion
+  after_destroy :update_most_recent, if: :most_recent?
+
+  private
+
+  def update_most_recent
+    last_transition = <%= @snake_name %>.<%= @transition_snake_name.pluralize %>.order(:sort_key).last
+    return if last_transition.blank?
+
+    last_transition.update_column(:most_recent, true)
+  end
+end
+

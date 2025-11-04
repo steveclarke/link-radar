@@ -35,7 +35,7 @@ Automatically capture and preserve web page content when links are saved to Link
 - Orchestrates content extraction pipeline
 - Handles retry logic with exponential backoff
 
-**Service Classes** (module_function pattern):
+**Service Classes** (using Result pattern):
 - `LinkRadar::ContentArchiving::UrlValidator` - URL validation and SSRF prevention
 - `LinkRadar::ContentArchiving::HttpFetcher` - HTTP fetching with timeouts/redirects
 - `LinkRadar::ContentArchiving::ContentExtractor` - Content extraction orchestration
@@ -149,52 +149,18 @@ Use Rails' `create_enum` in migration and wire up with Rails' `enum` method in t
 
 ## 4. API Architecture
 
-### 4.1 Endpoint Changes
+### 4.1 V1 API Changes
 
-**No new endpoints** - archive status exposed through existing Link API responses.
+**No API changes in v1** - Content archival happens silently in the background. Archive data is stored in the database but not exposed through API responses.
 
-### 4.2 Response Contract Enhancement
+**Link Response**: Unchanged. No archive-related fields added.
 
-**Link Response** (`_link.json.jbuilder` modification):
+### 4.2 Future API Changes (Phase 2+)
 
-Added fields when `content_archive` association exists:
+**Link Response Enhancement** - When archive UI is added, include archive fields in `_link.json.jbuilder`:
 - `archive_status` - Current archive status (enum string)
 - `archive_fetched_at` - Timestamp of successful fetch (ISO 8601, nullable)
 - `archive_error` - Error message (only when status is `failed`)
-
-**Response Example**:
-```json
-{
-  "id": "uuid",
-  "url": "https://example.com/article",
-  "title": "Example Article",
-  "note": "User note",
-  "tags": [...],
-  "archive_status": "success",
-  "archive_fetched_at": "2025-11-02T12:00:00Z"
-}
-```
-
-**Response Example (failed)**:
-```json
-{
-  "id": "uuid",
-  "url": "https://example.com/article",
-  "title": "Example Article",
-  "note": "User note",
-  "tags": [...],
-  "archive_status": "failed",
-  "archive_fetched_at": null,
-  "archive_error": "Connection timeout after 3 attempts"
-}
-```
-
-### 4.3 Future API Endpoints (Phase 2+)
-
-Planned endpoints for when frontend UI is added:
-- `GET /api/v1/links/:id/archive` - Retrieve archived content HTML
-- `GET /api/v1/links/:id/archive/text` - Retrieve plain text
-- `POST /api/v1/links/:id/archive/refetch` - Trigger re-fetch
 
 ## 5. Integration Architecture
 
@@ -223,15 +189,22 @@ Planned endpoints for when frontend UI is added:
 
 ### 5.3 Service Class Architecture
 
-**Stateless Utilities** (module_function pattern per codebase convention):
-- UrlValidator returns validation result with reason
-- HttpFetcher returns success/failure with HTML or error
-- ContentExtractor returns extracted content and metadata
-- HtmlSanitizer returns sanitized HTML string
+**Service Classes** (Result pattern with `LinkRadar::Resultable`):
+- All services include `LinkRadar::Resultable` for consistent return values
+- Each service is instantiated with required parameters, then `call` is invoked
+- Services return `LinkRadar::Result` objects with `success?`, `failure?`, `data`, and `errors`
+- Example: `result = UrlValidator.new(url).call`
+
+**Service Responsibilities**:
+- `UrlValidator` - Returns success with validated URL or failure with reason
+- `HttpFetcher` - Returns success with HTML content or failure with error
+- `ContentExtractor` - Returns success with extracted content/metadata or failure with error
+- `HtmlSanitizer` - Returns success with sanitized HTML or failure with error
 
 **Error Handling**:
-- Services return structured results (not exceptions)
-- Job translates service results to ContentArchive status updates
+- Services return Result objects (not exceptions)
+- Job checks `result.success?` and translates to ContentArchive status updates
+- Failure reasons available in `result.errors` for debugging
 
 ### 5.4 External Gem Dependencies
 
@@ -281,10 +254,8 @@ backend/
 │   ├── models/
 │   │   ├── content_archive.rb              # ContentArchive model
 │   │   └── link.rb                         # Updated with association
-│   ├── jobs/
-│   │   └── archive_content_job.rb          # Background job
-│   └── views/api/v1/links/
-│       └── _link.json.jbuilder             # Updated response template
+│   └── jobs/
+│       └── archive_content_job.rb          # Background job
 ├── config/
 │   ├── configs/
 │   │   └── content_archive_config.rb       # Configuration class
@@ -293,6 +264,8 @@ backend/
 │   ├── YYYYMMDDHHMMSS_create_content_archives.rb
 │   └── YYYYMMDDHHMMSS_migrate_link_archival_data.rb
 └── lib/link_radar/
+    ├── result.rb                           # Result class for success/failure
+    ├── resultable.rb                       # Resultable concern
     └── content_archiving/
         ├── url_validator.rb                # SSRF prevention
         ├── http_fetcher.rb                 # HTTP fetching

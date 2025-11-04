@@ -59,6 +59,11 @@ end
 # Configuration library for Ruby gems and applications
 gem "anyway_config"
 
+# Ruby client for interacting with LLM APIs (OpenAI, Anthropic, etc.)
 gem "ruby_llm", "~> 1.8"
 
+# Multithreaded, Postgres-based ActiveJob backend for background jobs
 gem "good_job", "~> 4.12"
+
+# State machine library for modeling object state transitions
+gem "statesman"

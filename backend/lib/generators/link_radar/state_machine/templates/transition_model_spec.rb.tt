@@ -1,0 +1,67 @@
+# == Schema Information
+#
+# Table name: <%= @transition_snake_name.pluralize %>
+#
+#  id          :uuid             not null, primary key
+#  to_state    :string           not null
+#  metadata    :jsonb            default({})
+#  sort_key    :integer          not null
+#  most_recent :boolean          not null
+#  created_at  :datetime         not null
+#  updated_at  :datetime         not null
+#  <%= @snake_name %>_id   :uuid             not null
+#
+require "rails_helper"
+
+RSpec.describe <%= @transition_model_name %>, type: :model do
+  it "has a valid factory" do
+    expect(build(:<%= @transition_snake_name %>)).to be_valid
+  end
+
+  describe "associations" do
+    it { should belong_to(:<%= @snake_name %>) }
+  end
+
+  describe "validations" do
+    it { should validate_presence_of(:to_state) }
+    it { should validate_inclusion_of(:to_state).in_array(<%= @state_machine_name %>.states) }
+    it { should validate_presence_of(:sort_key) }
+  end
+
+  describe "metadata" do
+    it "stores JSONB metadata" do
+      metadata = { reason: "manual transition", user_id: "123" }
+      transition = create(:<%= @transition_snake_name %>, metadata: metadata)
+
+      expect(transition.metadata).to eq({
+        "reason" => "manual transition",
+        "user_id" => "123"
+      })
+    end
+
+    it "defaults to empty hash" do
+      transition = create(:<%= @transition_snake_name %>)
+      expect(transition.metadata).to eq({})
+    end
+  end
+
+  describe "after_destroy callback" do
+    it "updates most_recent flag when most recent transition is destroyed" do
+      <%= @snake_name %> = create(:<%= @snake_name %>)
+
+      # Manually create multiple transitions to test the callback
+      first_transition = create(:<%= @transition_snake_name %>, <%= @snake_name %>: <%= @snake_name %>, to_state: "<%= @parsed_states.find { |s| s[:initial] }&.dig(:name) || @parsed_states.first[:name] %>", sort_key: 1, most_recent: false)
+      second_transition = create(:<%= @transition_snake_name %>, <%= @snake_name %>: <%= @snake_name %>, to_state: "<%= @parsed_states.reject { |s| s[:initial] }.first&.dig(:name) || @parsed_states.last[:name] %>", sort_key: 2, most_recent: true)
+
+      expect(first_transition.most_recent).to be(false)
+      expect(second_transition.most_recent).to be(true)
+
+      # Destroy the most recent transition
+      second_transition.destroy!
+
+      # Previous transition should now be marked as most recent
+      expect(first_transition.reload.most_recent).to be(true)
+    end
+  end
+end
+

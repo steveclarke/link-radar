@@ -1,0 +1,34 @@
+# frozen_string_literal: true
+
+class <%= @state_machine_name %>
+  include Statesman::Machine
+
+<% @parsed_states.each do |state| -%>
+  state :<%= state[:name] %><%= ", initial: true" if state[:initial] %>
+<% end -%>
+
+  # Define your transitions here
+  # Example: Allow progression from initial state to any other state
+<% initial_state = @parsed_states.find { |s| s[:initial] }[:name] -%>
+<% other_states = @parsed_states.reject { |s| s[:initial] }.map { |s| s[:name] } -%>
+<% if other_states.any? -%>
+  transition from: :<%= initial_state %>, to: [<%= other_states.map { |s| ":#{s}" }.join(", ") %>]
+<% end -%>
+
+  # Add more specific transitions as needed:
+  # transition from: :state1, to: :state2
+  # transition from: :state2, to: [:state3, :state4]
+
+  # Example guard - customize as needed
+  # guard_transition(from: :<%= initial_state %>, to: :<%= other_states.first || initial_state %>) do |<%= @snake_name %>, transition|
+  #   # Add your validation logic here
+  #   true
+  # end
+
+  # Example callback - customize as needed
+  # after_transition(from: :<%= initial_state %>, to: :<%= other_states.first || initial_state %>) do |<%= @snake_name %>, transition|
+  #   # Add your business logic here
+  #   # e.g., send notifications, update related records, etc.
+  # end
+end
+

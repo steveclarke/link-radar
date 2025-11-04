@@ -1,0 +1,87 @@
+# frozen_string_literal: true
+
+require "rails_helper"
+
+RSpec.describe <%= @state_machine_name %> do
+  let(:<%= @snake_name %>) { create(:<%= @snake_name %>) }
+  let(:state_machine) { described_class.new(<%= @snake_name %>, transition_class: <%= @transition_model_name %>, association_name: :<%= @transition_snake_name.pluralize %>) }
+
+  describe "states" do
+    it "defines the correct states" do
+      expect(described_class.states).to eq(<%= @parsed_states.map { |s| s[:name] }.inspect %>)
+    end
+
+    it "has <%= @parsed_states.find { |s| s[:initial] }&.dig(:name) || @parsed_states.first[:name] %> as initial state" do
+      expect(described_class.initial_state).to eq("<%= @parsed_states.find { |s| s[:initial] }&.dig(:name) || @parsed_states.first[:name] %>")
+    end
+  end
+
+  describe "transitions" do
+<% @parsed_states.each do |from_state| %>
+<% next if from_state[:transitions_to].empty? %>
+<% from_state[:transitions_to].each do |to_state| %>
+    it "allows transition from <%= from_state[:name] %> to <%= to_state %>" do
+      expect(state_machine.allowed_transitions).to include("<%= to_state %>")
+    end
+
+    it "performs transition from <%= from_state[:name] %> to <%= to_state %>" do
+      expect(state_machine.current_state).to eq("<%= @parsed_states.find { |s| s[:initial] }&.dig(:name) || @parsed_states.first[:name] %>")
+
+      state_machine.transition_to!("<%= to_state %>")
+
+      expect(state_machine.current_state).to eq("<%= to_state %>")
+    end
+
+    it "creates transition record in database" do
+      expect {
+        state_machine.transition_to!("<%= to_state %>")
+      }.to change { <%= @snake_name %>.<%= @transition_snake_name.pluralize %>.count }.by(1)
+
+      transition = <%= @snake_name %>.<%= @transition_snake_name.pluralize %>.last
+      expect(transition.to_state).to eq("<%= to_state %>")
+      expect(transition.most_recent).to be(true)
+    end
+<% break # Only test one transition to keep specs focused %>
+<% end %>
+<% break # Only test transitions from one state to keep specs focused %>
+<% end %>
+  end
+
+  describe "guards" do
+    # Guards are tested by asserting that transition_to! raises Statesman::GuardFailedError
+    #
+    # Example:
+    # it "prevents transition when guard condition fails" do
+    #   # Setup condition that should make guard fail
+    #   <%= @snake_name %>.update!(some_property: false)
+    #
+    #   expect { state_machine.transition_to!(:target_state) }
+    #     .to raise_error(Statesman::GuardFailedError)
+    # end
+    #
+    # it "allows transition when guard condition passes" do
+    #   # Setup condition that should make guard pass
+    #   <%= @snake_name %>.update!(some_property: true)
+    #
+    #   expect { state_machine.transition_to!(:target_state) }
+    #     .to_not raise_error
+    # end
+  end
+
+  describe "callbacks" do
+    # Callbacks are tested by asserting observable effects of the transition
+    #
+    # Example for before_transition callback:
+    # it "performs expected action before transition" do
+    #   expect { state_machine.transition_to!(:target_state) }
+    #     .to change { <%= @snake_name %>.reload.some_counter }.by(1)
+    # end
+    #
+    # Example for after_transition callback:
+    # it "sends notification after successful transition" do
+    #   expect(NotificationService).to receive(:send_notification).with(<%= @snake_name %>)
+    #   state_machine.transition_to!(:target_state)
+    # end
+  end
+end
+

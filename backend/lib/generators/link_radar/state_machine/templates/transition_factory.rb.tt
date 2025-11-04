@@ -1,0 +1,37 @@
+# == Schema Information
+#
+# Table name: <%= @transition_snake_name.pluralize %>
+#
+#  id          :uuid             not null, primary key
+#  to_state    :string           not null
+#  metadata    :jsonb            default({})
+#  sort_key    :integer          not null
+#  most_recent :boolean          not null
+#  created_at  :datetime         not null
+#  updated_at  :datetime         not null
+#  <%= @snake_name %>_id   :uuid             not null
+#
+# Indexes
+#
+#  index_<%= @transition_snake_name.pluralize %>_parent_sort         (<%= @snake_name %>_id,sort_key) UNIQUE
+#  index_<%= @transition_snake_name.pluralize %>_parent_most_recent  (<%= @snake_name %>_id,most_recent) UNIQUE WHERE most_recent
+#
+# Foreign Keys
+#
+#  fk_rails_...  (<%= @snake_name %>_id => <%= @snake_name.pluralize %>.id)
+#
+FactoryBot.define do
+  factory :<%= @transition_snake_name %> do
+    # Associations
+    <%= @snake_name %>
+
+    # Required fields
+    to_state { "<%= @parsed_states.find { |s| s[:initial] }&.dig(:name) || @parsed_states.first[:name] %>" }
+    sort_key { 1 }
+    most_recent { true }
+
+    # Optional JSONB metadata
+    metadata { {} }
+  end
+end
+

@@ -334,6 +334,7 @@ GEM
     standard-performance (1.8.0)
       lint_roller (~> 1.1)
       rubocop-performance (~> 1.25.0)
+    statesman (13.1.0)
     stringio (3.1.7)
     thor (1.4.0)
     timeout (0.4.4)
@@ -382,6 +383,7 @@ DEPENDENCIES
   ruby_llm (~> 1.8)
   standard
   standard-rails!
+  statesman
   tzinfo-data
 
 BUNDLED WITH
