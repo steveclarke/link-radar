@@ -49,11 +49,21 @@ group :development, :test do
   # (https://github.com/standardrb/standard-rails/issues/72)
   # Safe to switch back to RubyGems once version > 1.4.0 is published
   gem "standard-rails", github: "standardrb/standard-rails", require: false
+
+  # RSpec is our testing framework
+  gem "rspec-rails"
 end
 
 group :development do
   # Annotate models with schema information
   gem "annotaterb"
+end
+
+group :test do
+  # Provides RSpec- and Minitest-compatible one-liners to test common Rails
+  # functionality that, if written by hand, would be much longer, more complex,
+  # and error-prone.
+  gem "shoulda-matchers"
 end
 
 # Configuration library for Ruby gems and applications
