@@ -42,4 +42,4 @@ end
 parser.parse!(ARGV)
 
 # Run the setup
-LinkRadar::Tooling::SetupRunner.new(APP_ROOT).run(reset: options[:reset]) if __FILE__ == $0
+Dev::Tooling::SetupRunner.new(APP_ROOT).run(reset: options[:reset]) if __FILE__ == $0

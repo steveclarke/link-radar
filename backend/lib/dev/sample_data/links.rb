@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module LinkRadar
+module Dev
   module SampleData
     module Links
       module_function

@@ -5,7 +5,7 @@
 require_relative "runner_support"
 require_relative "one_password_client"
 
-module LinkRadar
+module Dev
   module Tooling
     # Idempotent setup runner for development environment
     #

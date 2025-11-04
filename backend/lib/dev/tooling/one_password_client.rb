@@ -2,12 +2,12 @@
 
 # rubocop:disable Rails/Output
 
-module LinkRadar
+module Dev
   module Tooling
     # Client for interacting with 1Password CLI to fetch secrets
     #
     # Usage:
-    #   client = LinkRadar::Tooling::OnePasswordClient.new
+    #   client = Dev::Tooling::OnePasswordClient.new
     #
     #   if client.available?
     #     secret = client.fetch(

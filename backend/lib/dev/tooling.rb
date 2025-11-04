@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Loader for LinkRadar development tooling
+# Loader for development tooling
 #
 # Note: We use require_relative here (not Zeitwerk autoloading) because these
 # utilities are used by bin scripts (bin/dev, bin/setup, bin/services) that run

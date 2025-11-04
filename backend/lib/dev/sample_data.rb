@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module LinkRadar
+module Dev
   module SampleData
     module_function
 
@@ -27,7 +27,7 @@ module LinkRadar
       case resource
       when :links
         require_relative "sample_data/links"
-        LinkRadar::SampleData::Links.call(**options)
+        Dev::SampleData::Links.call(**options)
       else
         raise ArgumentError, "Unknown sample data resource: #{resource}"
       end

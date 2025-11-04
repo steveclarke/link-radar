@@ -99,14 +99,14 @@ class ServicesRunner
   end
 
   def create_env_file
-    LinkRadar::Tooling::RunnerSupport.create_env_file(app_root)
+    Dev::Tooling::RunnerSupport.create_env_file(app_root)
   end
 
   def check_for_port_conflicts
     # Load environment variables before checking ports
-    LinkRadar::Tooling::RunnerSupport.load_env_file(app_root)
+    Dev::Tooling::RunnerSupport.load_env_file(app_root)
 
-    port_manager = LinkRadar::Tooling::PortManager.new(
+    port_manager = Dev::Tooling::PortManager.new(
       app_root,
       services: :backend_services
     )
@@ -115,7 +115,7 @@ class ServicesRunner
 
   def execute_docker_command(options)
     if options[:command] == "up"
-      LinkRadar::Tooling::RunnerSupport.system!("docker", "compose", "up", *options[:daemon_mode])
+      Dev::Tooling::RunnerSupport.system!("docker", "compose", "up", *options[:daemon_mode])
     else
       # Pass through the full command to docker compose
       exec "docker compose #{options[:command]}"
