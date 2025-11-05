@@ -19,7 +19,7 @@
 #
 # Foreign Keys
 #
-#  fk_rails_...  (content_archive_id => content_archives.id)
+#  fk_rails_...  (content_archive_id => content_archives.id) ON DELETE => cascade
 #
 FactoryBot.define do
   factory :content_archive_transition do

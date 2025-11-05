@@ -19,7 +19,7 @@
 #
 # Foreign Keys
 #
-#  fk_rails_...  (content_archive_id => content_archives.id)
+#  fk_rails_...  (content_archive_id => content_archives.id) ON DELETE => cascade
 #
 require "rails_helper"
 
