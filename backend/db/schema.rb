@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_11_05_020107) do
+ActiveRecord::Schema[8.1].define(version: 2025_11_05_021500) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -49,6 +49,19 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_05_020107) do
     t.uuid "model_id"
     t.datetime "updated_at", null: false
     t.index ["model_id"], name: "index_chats_on_model_id"
+  end
+
+  create_table "content_archive_transitions", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
+    t.uuid "content_archive_id", null: false
+    t.datetime "created_at", null: false
+    t.jsonb "metadata", default: {}
+    t.boolean "most_recent", null: false
+    t.integer "sort_key", null: false
+    t.string "to_state", null: false
+    t.datetime "updated_at", null: false
+    t.index ["content_archive_id", "most_recent"], name: "index_content_archive_transitions_parent_most_recent", unique: true, where: "most_recent"
+    t.index ["content_archive_id", "sort_key"], name: "index_content_archive_transitions_parent_sort", unique: true
+    t.index ["content_archive_id"], name: "index_content_archive_transitions_on_content_archive_id"
   end
 
   create_table "content_archives", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
@@ -250,6 +263,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_05_020107) do
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "chats", "models"
+  add_foreign_key "content_archive_transitions", "content_archives"
   add_foreign_key "content_archives", "links", on_delete: :cascade
   add_foreign_key "link_tags", "links"
   add_foreign_key "link_tags", "tags"
