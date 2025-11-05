@@ -2,19 +2,26 @@
 
 ## Overview
 
-This plan implements the content extraction pipeline as independent service classes:
-- URL validation with SSRF prevention (novel DNS resolution logic)
-- HTTP fetching with timeouts, redirects, and size limits
-- Content extraction orchestrating metainspector and ruby-readability
-- HTML sanitization for XSS protection
+This plan implements the content extraction pipeline with security built into each service:
+- URL validation with SSRF prevention (using private_address_check gem)
+- HTTP fetching with timeouts, redirects, and size limits (self-validating)
+- Content extraction orchestrating metainspector, ruby-readability, and loofah
+- HTML sanitization integrated into extraction (XSS protection by default)
 
 **Key components created:**
 - LinkRadar::ContentArchiving::UrlValidator - URL scheme and private IP validation
-- LinkRadar::ContentArchiving::HttpFetcher - Faraday-based HTTP client
-- LinkRadar::ContentArchiving::ContentExtractor - Metadata and content extraction
-- LinkRadar::ContentArchiving::HtmlSanitizer - Loofah-based sanitization
+- LinkRadar::ContentArchiving::HttpFetcher - Self-validating HTTP client (validates initial URL and all redirects)
+- LinkRadar::ContentArchiving::ContentExtractor - Metadata/content extraction with built-in sanitization (secure by default)
 
-**Pattern**: All services follow LinkRadar::Resultable pattern for consistent return values.
+**Architecture Pattern**: 
+- HttpFetcher is a **security boundary** - internally validates all URLs (initial + redirects)
+- ContentExtractor is **secure by default** - automatically sanitizes HTML output (XSS protection built-in)
+- All services follow LinkRadar::Resultable pattern for consistent return values
+
+**Security Model**: 
+- HttpFetcher enforces SSRF protection - safe to use anywhere in codebase
+- ContentExtractor enforces XSS protection - output is always sanitized and safe to store/display
+- "Pit of success" design - developers cannot accidentally introduce security vulnerabilities
 
 **References:**
 - Technical Spec: [spec.md](spec.md) sections 5.3 (Service Class Architecture), 8.1 (Security)
@@ -24,7 +31,7 @@ This plan implements the content extraction pipeline as independent service clas
 
 1. [Phase 3: URL Validation Service](#1-phase-3-url-validation-service)
 2. [Phase 4: HTTP Fetching Service](#2-phase-4-http-fetching-service)
-3. [Phase 5: Content Processing Services](#3-phase-5-content-processing-services)
+3. [Phase 5: Content Extraction Service](#3-phase-5-content-extraction-service)
 
 ---
 
@@ -34,7 +41,18 @@ This plan implements the content extraction pipeline as independent service clas
 
 Creates URL validation service with SSRF attack prevention through DNS resolution and private IP detection.
 
-### 1.1 Create UrlValidator Service
+**Note:** This service will be used internally by HttpFetcher to validate all URLs (initial and redirects). It can also be used standalone if needed.
+
+### 1.1 Add private_address_check Gem
+
+**Add to `backend/Gemfile`**:
+
+- [ ] Add gem dependency: `gem "private_address_check", "~> 0.5.0"`
+- [ ] Run: `bundle install`
+
+This gem provides comprehensive RFC-compliant private IP detection, automatically maintained with updates.
+
+### 1.2 Create UrlValidator Service
 
 **Create `backend/lib/link_radar/content_archiving/url_validator.rb`** with full SSRF prevention logic:
 
@@ -44,7 +62,7 @@ Creates URL validation service with SSRF attack prevention through DNS resolutio
 # frozen_string_literal: true
 
 require "addressable/uri"
-require "resolv"
+require "private_address_check"
 
 module LinkRadar
   module ContentArchiving
@@ -55,19 +73,17 @@ module LinkRadar
     # 2. Private IP detection via DNS resolution (prevents SSRF attacks)
     #
     # SSRF Prevention Strategy:
-    # Resolves the hostname to IP addresses and checks if any resolve to
+    # Uses the private_address_check gem to detect if a hostname resolves to
     # private/internal IP ranges. This prevents attackers from using the
     # archival system to probe internal networks or services.
     #
-    # Blocked IP ranges:
-    # - 10.0.0.0/8 (private networks)
-    # - 127.0.0.0/8 (loopback)
-    # - 192.168.0.0/16 (private networks)
-    # - 172.16.0.0/12 (private networks)
-    # - 169.254.0.0/16 (link-local)
-    # - ::1/128 (IPv6 loopback)
-    # - fc00::/7 (IPv6 private)
-    # - fe80::/10 (IPv6 link-local)
+    # The gem automatically handles all RFC-defined private ranges including:
+    # - IPv4: 10.0.0.0/8, 127.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12, 169.254.0.0/16
+    # - IPv6: ::1/128, fc00::/7, fe80::/10
+    # - Plus any new ranges added to RFC standards
+    #
+    # Usage: This service is primarily used internally by HttpFetcher but can
+    # be called standalone if needed for URL validation without fetching.
     #
     # @example Valid URL
     #   result = UrlValidator.new("https://example.com/article").call
@@ -87,22 +103,6 @@ module LinkRadar
     class UrlValidator
       include LinkRadar::Resultable
 
-      # Private IP ranges for SSRF prevention (IPv4)
-      PRIVATE_IP_RANGES = [
-        IPAddr.new("10.0.0.0/8"),      # Private network
-        IPAddr.new("127.0.0.0/8"),     # Loopback
-        IPAddr.new("192.168.0.0/16"),  # Private network
-        IPAddr.new("172.16.0.0/12"),   # Private network
-        IPAddr.new("169.254.0.0/16")   # Link-local
-      ].freeze
-
-      # Private IP ranges for SSRF prevention (IPv6)
-      PRIVATE_IPV6_RANGES = [
-        IPAddr.new("::1/128"),   # Loopback
-        IPAddr.new("fc00::/7"),  # Unique local address
-        IPAddr.new("fe80::/10")  # Link-local
-      ].freeze
-
       # Allowed URL schemes
       ALLOWED_SCHEMES = %w[http https].freeze
 
@@ -118,32 +118,34 @@ module LinkRadar
         parsed_url = parse_url
         return parsed_url if parsed_url.failure?
 
-        scheme_validation = validate_scheme(parsed_url.data)
-        return scheme_validation if scheme_validation.failure?
+        scheme_validation_result = validate_scheme(parsed_url.data)
+        return scheme_validation_result if scheme_validation_result.failure?
 
-        private_ip_check = check_for_private_ips(parsed_url.data)
-        return private_ip_check if private_ip_check.failure?
+        private_ip_check_result = check_for_private_ips(parsed_url.data)
+        return private_ip_check_result if private_ip_check_result.failure?
 
         success(parsed_url.data.to_s)
       rescue => e
-        failure("URL validation error: #{e.message}")
+        failure("URL validation error: #{e.message}", {url: url})
       end
 
       private
+
+      attr_reader :url
 
       # Parses the URL using Addressable
       #
       # @return [LinkRadar::Result] success with parsed URL or failure with error
       def parse_url
-        parsed = Addressable::URI.parse(@url)
+        parsed = Addressable::URI.parse(url)
 
         if parsed.nil? || parsed.host.nil?
-          return failure("Invalid URL format")
+          return failure("Invalid URL format", {url: url})
         end
 
         success(parsed)
       rescue Addressable::URI::InvalidURIError => e
-        failure("Malformed URL: #{e.message}")
+        failure("Malformed URL: #{e.message}", {url: url})
       end
 
       # Validates URL scheme is http or https
@@ -152,83 +154,46 @@ module LinkRadar
       # @return [LinkRadar::Result] success or failure with error
       def validate_scheme(parsed_url)
         unless ALLOWED_SCHEMES.include?(parsed_url.scheme&.downcase)
-          return failure("URL scheme must be http or https")
+          return failure(
+            "URL scheme must be http or https",
+            {scheme: parsed_url.scheme, allowed_schemes: ALLOWED_SCHEMES, url: parsed_url.to_s}
+          )
         end
 
         success
       end
 
-      # Checks if URL resolves to private IP addresses (SSRF prevention)
+      # Checks if hostname resolves to private IP addresses (SSRF prevention)
       #
-      # Resolves the hostname to IP addresses and checks each against
-      # private IP ranges. This prevents SSRF attacks where malicious users
-      # could use the archival system to probe internal networks.
+      # Uses private_address_check gem to resolve the hostname and check if any
+      # resolved addresses are in private IP ranges. This prevents SSRF attacks
+      # where malicious users could use the archival system to probe internal networks.
+      #
+      # The gem handles DNS resolution and checks against all RFC-defined private ranges.
       #
       # @param parsed_url [Addressable::URI] the parsed URL
       # @return [LinkRadar::Result] success or failure if private IP detected
       def check_for_private_ips(parsed_url)
         hostname = parsed_url.host
 
-        # Resolve hostname to IP addresses
-        addresses = resolve_hostname(hostname)
-
-        # Check each resolved IP against private ranges
-        addresses.each do |ip_string|
-          ip = IPAddr.new(ip_string)
-
-          if private_ip?(ip)
-            return failure(
-              "URL resolves to private IP address (SSRF protection)",
-              {validation_reason: "private_ip", resolved_ip: ip_string}
-            )
-          end
+        if PrivateAddressCheck.resolves_to_private_address?(hostname)
+          return failure(
+            "URL resolves to private IP address (SSRF protection)",
+            {validation_reason: "private_ip", hostname: hostname, url: parsed_url.to_s}
+          )
         end
 
         success
       rescue SocketError => e
         # DNS resolution failed - could be invalid hostname
-        failure("DNS resolution failed: #{e.message}")
-      end
-
-      # Resolves hostname to IP addresses
-      #
-      # @param hostname [String] the hostname to resolve
-      # @return [Array<String>] array of IP address strings
-      def resolve_hostname(hostname)
-        Resolv::DNS.open do |dns|
-          # Try IPv4 first
-          ipv4_addresses = dns.getresources(hostname, Resolv::DNS::Resource::IN::A)
-            .map { |r| r.address.to_s }
-
-          # Try IPv6 if no IPv4 found
-          ipv6_addresses = if ipv4_addresses.empty?
-            dns.getresources(hostname, Resolv::DNS::Resource::IN::AAAA)
-              .map { |r| r.address.to_s }
-          else
-            []
-          end
-
-          ipv4_addresses + ipv6_addresses
-        end
-      end
-
-      # Checks if an IP address is in a private range
-      #
-      # @param ip [IPAddr] the IP address to check
-      # @return [Boolean] true if IP is private, false otherwise
-      def private_ip?(ip)
-        if ip.ipv4?
-          PRIVATE_IP_RANGES.any? { |range| range.include?(ip) }
-        else
-          PRIVATE_IPV6_RANGES.any? { |range| range.include?(ip) }
-        end
+        failure("DNS resolution failed: #{e.message}", {hostname: hostname, url: parsed_url.to_s})
       end
     end
   end
 end
 ```
 
-### 1.2 Verification
+### 1.3 Verification
 
 **Test UrlValidator in Rails console:**
 
@@ -239,13 +204,65 @@ end
 - [ ] Test private IP: `LinkRadar::ContentArchiving::UrlValidator.new("http://192.168.1.1").call`
 - [ ] Test malformed URL: `LinkRadar::ContentArchiving::UrlValidator.new("not a url").call`
 
+### 1.4 Spec Structure
+
+**Create `backend/spec/lib/link_radar/content_archiving/url_validator_spec.rb`:**
+
+```
+describe LinkRadar::ContentArchiving::UrlValidator
+  describe "#call"
+    context "with valid URLs"
+      it "returns success for https URLs"
+      it "returns success for http URLs"
+      it "returns normalized URL string in data"
+      it "preserves query parameters and fragments"
+    
+    context "with invalid URL schemes"
+      it "returns failure for ftp URLs"
+      it "returns failure for file URLs"
+      it "returns failure for javascript URLs"
+      it "returns failure for data URLs"
+      it "includes scheme, allowed_schemes, and url in error data"
+    
+    context "with malformed URLs"
+      it "returns failure for URLs without host"
+      it "returns failure for completely invalid URL strings"
+      it "returns failure for URLs with invalid characters"
+      it "includes url in error data"
+    
+    context "with private IP addresses (SSRF protection)"
+      it "returns failure for localhost"
+      it "returns failure for 127.0.0.1"
+      it "returns failure for 192.168.x.x addresses"
+      it "returns failure for 10.x.x.x addresses"
+      it "returns failure for 172.16.x.x - 172.31.x.x addresses"
+      it "returns failure for IPv6 localhost (::1)"
+      it "returns failure for IPv6 private addresses (fc00::/7)"
+      it "includes validation_reason, hostname, and url in error data"
+    
+    context "with DNS resolution failures"
+      it "returns failure for non-existent domains"
+      it "includes hostname and url in error data"
+    
+    context "with edge cases"
+      it "handles URLs with international domain names"
+      it "handles URLs with very long paths"
+      it "handles URLs with unusual but valid ports"
+```
+
 ---
 
 ## 2. Phase 4: HTTP Fetching Service
 
 **Implements:** spec.md#5.3 (HttpFetcher), requirements.md#2.2 (Content Extraction Pipeline)
 
-Creates HTTP client service using Faraday with timeout, redirect, and size limit configurations.
+Creates self-validating HTTP client service using Faraday with timeout, redirect, and size limit configurations.
+
+**Security Boundary:** HttpFetcher is the security boundary for external requests. It internally validates:
+1. Initial URL before fetching
+2. Every redirect target before following
+
+This ensures HttpFetcher is safe to use anywhere in the codebase - it cannot be used to make requests to private IPs.
 
 ### 2.1 Create HttpFetcher Service
 
@@ -260,31 +277,45 @@ require "faraday"
 
 module LinkRadar
   module ContentArchiving
-    # Fetches web page content via HTTP with timeouts and size limits
+    # Self-validating HTTP client that fetches web pages with SSRF protection
     #
-    # Uses Faraday HTTP client configured with:
+    # SECURITY BOUNDARY: This service is the security boundary for external HTTP requests.
+    # It validates all URLs (initial and redirects) internally before making requests,
+    # preventing SSRF attacks even if called directly from other parts of the codebase.
+    #
+    # Features:
+    # - Validates initial URL for scheme and private IPs before fetching
+    # - Manually follows redirects, validating each redirect target
     # - Connect and read timeouts from ContentArchiveConfig
-    # - Automatic redirect following (up to max_redirects)
     # - Content-Length header checking before download
     # - Custom User-Agent identifying LinkRadar
+    #
+    # SSRF Protection Strategy:
+    # 1. Validates initial URL using UrlValidator
+    # 2. Manually handles HTTP redirects (not automatic)
+    # 3. Validates each redirect target before following
+    # 4. Blocks redirect chains to private IPs
     #
     # @example Successful fetch
     #   result = HttpFetcher.new("https://example.com/article").call
     #   result.success? # => true
     #   result.data     # => {body: "<html>...</html>", status: 200, final_url: "..."}
     #
-    # @example File too large
+    # @example Content too large
     #   result = HttpFetcher.new("https://example.com/huge.html").call
     #   result.failure? # => true
-    #   result.errors   # => ["File size exceeds 10MB limit"]
+    #   result.errors   # => ["Content size exceeds 10MB limit"]
     #
-    # @example Timeout
-    #   result = HttpFetcher.new("https://slow-site.com").call
+    # @example Redirect to private IP (SSRF blocked)
+    #   result = HttpFetcher.new("https://evil.com/redirect-to-localhost").call
     #   result.failure? # => true
-    #   result.errors   # => ["Connection timeout"]
+    #   result.errors   # => ["Redirect to private IP address blocked (SSRF protection)"]
     #
     class HttpFetcher
       include LinkRadar::Resultable
+
+      # HTTP redirect status codes
+      REDIRECT_STATUSES = [301, 302, 303, 307, 308].freeze
 
       # @param url [String] the URL to fetch
       def initialize(url)
@@ -292,83 +323,168 @@ module LinkRadar
         @config = ContentArchiveConfig.new
       end
 
-      # Fetches the URL content
+      # Fetches the URL content with validation
       #
       # @return [LinkRadar::Result] success with response data or failure with error
       #   - On success: data contains {body: String, status: Integer, final_url: String}
       #   - On failure: errors contains descriptive error message
       def call
-        # Check file size before downloading
-        size_check = check_file_size
-        return size_check if size_check.failure?
+        # SECURITY: Validate initial URL before making any requests
+        validation_result = validate_url(url)
+        return validation_result if validation_result.failure?
 
-        # Perform HTTP request
-        response = http_client.get(@url)
+        # Check content size before downloading (best effort)
+        size_check_result = check_content_length(url)
+        return size_check_result if size_check_result.failure?
 
-        if response.success?
+        # Perform HTTP request with redirect validation
+        response = fetch_with_redirect_validation(url)
+        return response if response.failure?
+
+        final_response = response.data
+
+        if final_response.success?
           success(
-            body: response.body,
-            status: response.status,
-            final_url: response.env.url.to_s,
-            content_type: response.headers["content-type"]
+            body: final_response.body,
+            status: final_response.status,
+            final_url: final_response.env.url.to_s,
+            content_type: final_response.headers["content-type"]
           )
         else
           failure(
-            "HTTP #{response.status}: #{response.reason_phrase}",
-            {http_status: response.status}
+            "HTTP #{final_response.status}: #{final_response.reason_phrase}",
+            {http_status: final_response.status, url: url}
           )
         end
       rescue Faraday::ConnectionFailed => e
-        failure("Connection failed: #{e.message}")
+        failure("Connection failed: #{e.message}", {url: url})
       rescue Faraday::TimeoutError => e
-        failure("Connection timeout")
-      rescue Faraday::TooManyRedirectsError => e
-        failure("Too many redirects (exceeded #{@config.max_redirects})")
+        failure(
+          "Connection timeout",
+          {url: url, connect_timeout: config.connect_timeout, read_timeout: config.read_timeout}
+        )
       rescue => e
-        failure("HTTP fetch error: #{e.message}")
+        failure("HTTP fetch error: #{e.message}", {url: url})
       end
 
       private
+
+      attr_reader :url, :config
+
+      # Validates a URL using UrlValidator
+      #
+      # @param url [String] the URL to validate
+      # @return [LinkRadar::Result] success or failure from UrlValidator
+      def validate_url(url)
+        UrlValidator.new(url).call
+      end
+
+      # Fetches URL with manual redirect following and validation
+      #
+      # Manually follows redirects up to max_redirects, validating each
+      # redirect target for SSRF before following. This prevents attacks
+      # where a public domain redirects to a private IP.
+      #
+      # @param url [String] the URL to fetch
+      # @param redirect_count [Integer] current redirect depth (for recursion)
+      # @return [LinkRadar::Result] success with Faraday::Response or failure
+      def fetch_with_redirect_validation(url, redirect_count = 0)
+        response = http_client.get(url)
+
+        # Check if response is a redirect
+        if REDIRECT_STATUSES.include?(response.status)
+          if redirect_count >= config.max_redirects
+            return failure(
+              "Too many redirects (exceeded #{config.max_redirects})",
+              {redirect_count: redirect_count, max_redirects: config.max_redirects, final_url: url}
+            )
+          end
+
+          redirect_url = response.headers["location"]
+          unless redirect_url
+            return failure(
+              "Redirect missing Location header",
+              {status: response.status, current_url: url}
+            )
+          end
+
+          # Resolve relative URLs to absolute
+          redirect_url = resolve_redirect_url(url, redirect_url)
+
+          # SECURITY: Validate redirect target before following
+          validation_result = validate_url(redirect_url)
+          if validation_result.failure?
+            return failure(
+              "Redirect to private IP address blocked (SSRF protection)",
+              {redirect_url: redirect_url, current_url: url, validation_errors: validation_result.errors}
+            )
+          end
+
+          # Follow the redirect
+          return fetch_with_redirect_validation(redirect_url, redirect_count + 1)
+        end
+
+        # Not a redirect, return the response
+        success(response)
+      end
+
+      # Resolves relative redirect URLs to absolute URLs
+      #
+      # @param base_url [String] the current URL
+      # @param redirect_url [String] the redirect Location header value
+      # @return [String] absolute redirect URL
+      def resolve_redirect_url(base_url, redirect_url)
+        base_uri = Addressable::URI.parse(base_url)
+        redirect_uri = Addressable::URI.parse(redirect_url)
+
+        # If redirect is absolute, use it as-is
+        return redirect_url if redirect_uri.absolute?
+
+        # Otherwise, resolve relative to base URL
+        (base_uri + redirect_uri).to_s
+      end
 
       # Builds configured Faraday HTTP client
       #
       # @return [Faraday::Connection] configured HTTP client
       def http_client
         @http_client ||= Faraday.new do |conn|
-          conn.options.timeout = @config.read_timeout
-          conn.options.open_timeout = @config.connect_timeout
-          conn.headers["User-Agent"] = @config.user_agent
+          conn.options.timeout = config.read_timeout
+          conn.options.open_timeout = config.connect_timeout
+          conn.headers["User-Agent"] = config.user_agent
 
-          # Follow redirects up to max_redirects
-          conn.use Faraday::FollowRedirects::Middleware,
-            limit: @config.max_redirects
-
+          # Don't follow redirects automatically - we handle them manually
+          # to validate each redirect target for SSRF protection
           conn.adapter Faraday.default_adapter
         end
       end
 
-      # Checks Content-Length header to reject oversized files
+      # Checks Content-Length header to reject oversized content
       #
       # Makes a HEAD request to check Content-Length before downloading.
-      # This prevents wasting bandwidth on files that exceed size limits.
+      # This prevents wasting bandwidth on content that exceeds size limits.
       #
-      # @return [LinkRadar::Result] success or failure if file too large
-      def check_file_size
-        response = http_client.head(@url)
+      # @param url [String] the URL to check
+      # @return [LinkRadar::Result] success or failure if content too large
+      def check_content_length(url)
+        response = http_client.head(url)
         content_length = response.headers["content-length"]&.to_i
 
-        if content_length && content_length > @config.max_file_size
-          max_mb = @config.max_file_size / 1_048_576
+        if content_length && content_length > config.max_content_size
+          max_size = ActiveSupport::NumberHelper.number_to_human_size(config.max_content_size)
           return failure(
-            "File size exceeds #{max_mb}MB limit",
-            {content_length: content_length, max_size: @config.max_file_size}
+            "Content size exceeds #{max_size} limit",
+            {content_length: content_length, max_size: config.max_content_size}
           )
         end
 
         success
       rescue => e
-        # If HEAD request fails, continue with GET (some servers don't support HEAD)
-        success
+        # Fail if we can't check content size - don't risk downloading huge files
+        failure(
+          "Unable to check content size: #{e.message}",
+          {url: url, error_class: e.class.name}
+        )
       end
     end
   end
@@ -382,15 +498,95 @@ end
 - [ ] Test real URL: `LinkRadar::ContentArchiving::HttpFetcher.new("https://example.com").call`
 - [ ] Verify response includes body, status, final_url
 - [ ] Test 404: `LinkRadar::ContentArchiving::HttpFetcher.new("https://example.com/nonexistent").call`
-- [ ] Test redirect: `LinkRadar::ContentArchiving::HttpFetcher.new("http://example.com").call` (should redirect to https)
+- [ ] Test redirect: `LinkRadar::ContentArchiving::HttpFetcher.new("http://example.com").call` (should follow to https)
+- [ ] **Test SSRF protection:**
+  - Test private IP blocked: `LinkRadar::ContentArchiving::HttpFetcher.new("http://192.168.1.1").call`
+  - Verify returns failure with "private IP" error
+  - Test localhost blocked: `LinkRadar::ContentArchiving::HttpFetcher.new("http://localhost").call`
+  - Verify returns failure with "private IP" error
+
+**Note:** HttpFetcher validates all URLs internally, so it's safe to use anywhere in the codebase.
+
+### 2.3 Spec Structure
+
+**Create `backend/spec/lib/link_radar/content_archiving/http_fetcher_spec.rb`:**
+
+```
+describe LinkRadar::ContentArchiving::HttpFetcher
+  describe "#call"
+    context "with successful HTTP requests"
+      it "returns success with body, status, final_url, and content_type"
+      it "fetches HTML content successfully"
+      it "handles 200 OK responses"
+      it "includes final URL in response data"
+      it "includes content type in response data"
+    
+    context "with HTTP errors"
+      it "returns failure for 404 Not Found"
+      it "returns failure for 500 Internal Server Error"
+      it "returns failure for 403 Forbidden"
+      it "includes http_status and url in error data"
+    
+    context "with redirects"
+      it "follows 301 redirects"
+      it "follows 302 redirects"
+      it "follows 307 redirects"
+      it "follows 308 redirects"
+      it "validates each redirect target"
+      it "returns final URL after following redirects"
+      it "handles relative redirect URLs"
+      it "handles absolute redirect URLs"
+    
+    context "with too many redirects"
+      it "returns failure when exceeding max_redirects"
+      it "includes redirect_count, max_redirects, and final_url in error data"
+    
+    context "with invalid redirects"
+      it "returns failure when Location header is missing"
+      it "includes status and current_url in error data"
+    
+    context "with SSRF protection"
+      it "blocks initial URL with private IP"
+      it "blocks redirect to localhost"
+      it "blocks redirect to 192.168.x.x"
+      it "blocks redirect to 10.x.x.x"
+      it "blocks redirect to 127.0.0.1"
+      it "blocks redirect chains that end at private IPs"
+      it "includes redirect_url, current_url, and validation_errors in error data"
+      it "includes url in error data for initial URL validation"
+    
+    context "with content size limits"
+      it "returns failure when Content-Length exceeds max_content_size"
+      it "includes content_length and max_size in error data"
+      it "continues when HEAD request fails"
+      it "continues when Content-Length header is missing"
+    
+    context "with timeouts"
+      it "returns failure on connection timeout"
+      it "returns failure on read timeout"
+      it "includes url, connect_timeout, and read_timeout in error data"
+    
+    context "with connection failures"
+      it "returns failure when connection cannot be established"
+      it "returns failure for DNS resolution errors"
+      it "returns failure for SSL certificate errors"
+      it "includes url in error data"
+    
+    context "with URL validation integration"
+      it "validates URL before fetching"
+      it "returns validation failure for invalid scheme"
+      it "returns validation failure for malformed URL"
+```
 
 ---
 
-## 3. Phase 5: Content Processing Services
+## 3. Phase 5: Content Extraction Service
 
-**Implements:** spec.md#5.3 (ContentExtractor, HtmlSanitizer), requirements.md#2.2 (Content Extraction Pipeline)
+**Implements:** spec.md#5.3 (ContentExtractor), requirements.md#2.2 (Content Extraction Pipeline)
 
-Creates services for extracting content/metadata and sanitizing HTML.
+Creates secure-by-default content extraction service with built-in HTML sanitization.
+
+**Security Built-In:** ContentExtractor automatically sanitizes all HTML output to remove XSS vectors. This service works on HTML data (strings), not URLs, and is safe to use anywhere in the codebase - output is always sanitized.
 
 ### 3.1 Create ContentExtractor Service
 
@@ -403,14 +599,38 @@ Creates services for extracting content/metadata and sanitizing HTML.
 
 require "metainspector"
 require "ruby-readability"
+require "loofah"
+require "nokogiri"
 
 module LinkRadar
   module ContentArchiving
+    # Value object for parsed content metadata
+    ContentMetadata = Data.define(
+      :opengraph,      # OpenGraph metadata hash (or nil)
+      :twitter,        # Twitter Card metadata hash (or nil)
+      :canonical_url   # Canonical URL string (or nil)
+    )
+
+    # Value object for parsed web content
+    ParsedContent = Data.define(
+      :content_html,   # Main content as sanitized HTML string (XSS-safe)
+      :content_text,   # Main content as plain text string
+      :title,          # Page title string (or nil)
+      :description,    # Page description string (or nil)
+      :image_url,      # Featured image URL string (or nil)
+      :metadata        # ContentMetadata instance
+    )
+
     # Extracts content and metadata from HTML using multiple strategies
     #
-    # Orchestrates two extraction libraries:
+    # SECURITY: This service automatically sanitizes all extracted HTML content
+    # to remove XSS vectors (script tags, event handlers, etc.) before returning.
+    # The output is safe to store and display without additional sanitization.
+    #
+    # Orchestrates three operations:
     # 1. MetaInspector - Extracts OpenGraph/Twitter Card metadata
     # 2. Ruby-Readability - Extracts main article content (Mozilla algorithm)
+    # 3. Loofah - Sanitizes HTML to remove XSS vectors
     #
     # Also extracts plain text version for full-text search and LLM embeddings.
     #
@@ -420,18 +640,10 @@ module LinkRadar
     #     url: "https://example.com/article"
     #   ).call
     #
-    #   result.data # => {
-    #   #   content_html: "<div>Article content...</div>",
-    #   #   content_text: "Article content...",
-    #   #   title: "Article Title",
-    #   #   description: "Article description",
-    #   #   image_url: "https://example.com/image.jpg",
-    #   #   metadata: {
-    #   #     opengraph: {...},
-    #   #     twitter: {...},
-    #   #     canonical_url: "..."
-    #   #   }
-    #   # }
+    #   parsed = result.data # => ParsedContent instance
+    #   parsed.title              # => "Article Title"
+    #   parsed.content_html       # => "<div>Article content...</div>"
+    #   parsed.metadata.opengraph # => {"title" => "...", "image" => "..."}
     #
     class ContentExtractor
       include LinkRadar::Resultable
@@ -455,20 +667,28 @@ module LinkRadar
         content_result = extract_content
         return content_result if content_result.failure?
 
-        # Combine results
+        # Sanitize extracted HTML to remove XSS vectors
+        sanitization_result = sanitize_html(content_result.data[:content_html])
+        return sanitization_result if sanitization_result.failure?
+
+        # Combine results into ParsedContent value object
         success(
-          content_html: content_result.data[:content_html],
-          content_text: content_result.data[:content_text],
-          title: metadata_result.data[:title],
-          description: metadata_result.data[:description],
-          image_url: metadata_result.data[:image_url],
-          metadata: metadata_result.data[:metadata]
+          ParsedContent.new(
+            content_html: sanitization_result.data,
+            content_text: content_result.data[:content_text],
+            title: metadata_result.data[:title],
+            description: metadata_result.data[:description],
+            image_url: metadata_result.data[:image_url],
+            metadata: metadata_result.data[:metadata]
+          )
         )
       rescue => e
         failure("Content extraction error: #{e.message}")
       end
 
       private
+
+      attr_reader :html, :url
 
       # Extracts metadata using MetaInspector
       #
@@ -481,13 +701,13 @@ module LinkRadar
       def extract_metadata
         # MetaInspector expects to fetch the page itself, but we already have HTML
         # Use document: option to provide pre-fetched HTML
-        page = MetaInspector.new(@url, document: @html, warn_level: :store)
+        page = MetaInspector.new(url, document: html, warn_level: :store)
 
         success(
           title: extract_title(page),
           description: extract_description(page),
           image_url: extract_image(page),
-          metadata: build_metadata_hash(page)
+          metadata: build_metadata(page)
         )
       rescue => e
         failure("Metadata extraction error: #{e.message}")
@@ -500,7 +720,7 @@ module LinkRadar
       #
       # @return [LinkRadar::Result] success with content or failure
       def extract_content
-        doc = Readability::Document.new(@html, tags: %w[div p article section])
+        doc = Readability::Document.new(html, tags: %w[div p article section])
 
         content_html = doc.content
         content_text = extract_text_from_html(content_html)
@@ -537,16 +757,16 @@ module LinkRadar
         page.images.best
       end
 
-      # Builds structured metadata hash
+      # Builds ContentMetadata value object
       #
       # @param page [MetaInspector::Document] the MetaInspector page object
-      # @return [Hash] structured metadata with opengraph, twitter, canonical_url
-      def build_metadata_hash(page)
-        {
+      # @return [ContentMetadata] structured metadata value object
+      def build_metadata(page)
+        ContentMetadata.new(
           opengraph: extract_opengraph(page),
           twitter: extract_twitter_card(page),
           canonical_url: page.meta_tags["canonical"]&.first
-        }.compact
+        )
       end
 
       # Extracts OpenGraph metadata
@@ -575,13 +795,35 @@ module LinkRadar
         twitter_data.presence
       end
 
+      # Sanitizes HTML content to remove XSS vectors
+      #
+      # Uses Loofah to strip dangerous elements and attributes:
+      # - Script tags and inline JavaScript
+      # - Event handlers (onclick, onload, etc.)
+      # - Dangerous attributes (style with javascript:, etc.)
+      # - Other XSS attack vectors
+      #
+      # Preserves safe HTML structure for display purposes.
+      #
+      # @param html [String] the HTML content to sanitize
+      # @return [LinkRadar::Result] success with sanitized HTML or failure with error
+      def sanitize_html(html)
+        sanitized = Loofah.fragment(html).scrub!(:prune).to_s
+        success(sanitized)
+      rescue => e
+        failure("HTML sanitization error: #{e.message}")
+      end
+
       # Extracts plain text from HTML for search indexing
+      #
+      # Uses Nokogiri to properly parse HTML and extract text content.
+      # This handles script/style removal, HTML entities (&amp; → &),
+      # and all edge cases that regex cannot handle correctly.
       #
       # @param html [String] the HTML content
       # @return [String] plain text content
       def extract_text_from_html(html)
-        # Simple text extraction - strip all HTML tags
-        text = html.gsub(/<[^>]+>/, " ")
+        text = Nokogiri::HTML(html).text
         # Normalize whitespace
         text.gsub(/\s+/, " ").strip
       end
@@ -590,88 +832,134 @@ module LinkRadar
 end
 ```
 
-### 3.2 Create HtmlSanitizer Service
-
-**Create `backend/lib/link_radar/content_archiving/html_sanitizer.rb`**:
-
-- [ ] Create service file
-
-```ruby
-# frozen_string_literal: true
-
-require "loofah"
-
-module LinkRadar
-  module ContentArchiving
-    # Sanitizes HTML content to remove potentially dangerous elements
-    #
-    # Uses Loofah to strip:
-    # - Script tags and inline JavaScript
-    # - Event handlers (onclick, onload, etc.)
-    # - Dangerous attributes (style with javascript:, etc.)
-    # - Other XSS vectors
-    #
-    # Preserves safe HTML for display purposes.
-    #
-    # @example Sanitizing HTML
-    #   result = HtmlSanitizer.new('<div onclick="alert()">Safe content</div>').call
-    #   result.data # => '<div>Safe content</div>'
-    #
-    class HtmlSanitizer
-      include LinkRadar::Resultable
-
-      # @param html [String] the HTML to sanitize
-      def initialize(html)
-        @html = html
-      end
-
-      # Sanitizes the HTML content
-      #
-      # @return [LinkRadar::Result] success with sanitized HTML or failure with error
-      def call
-        sanitized = Loofah.fragment(@html).scrub!(:prune).to_s
-        success(sanitized)
-      rescue => e
-        failure("HTML sanitization error: #{e.message}")
-      end
-    end
-  end
-end
-```
-
-**Note on Loofah scrubbers:**
-- `:prune` removes unsafe tags entirely (scripts, event handlers, etc.)
-- Preserves safe HTML structure (divs, paragraphs, headings, links, images)
-- Safe for storing and displaying archived content
-
-### 3.3 Verification
+### 3.2 Verification
 
 **Test ContentExtractor in Rails console:**
 
 - [ ] Fetch sample HTML: `html = LinkRadar::ContentArchiving::HttpFetcher.new("https://example.com").call.data[:body]`
 - [ ] Extract content: `result = LinkRadar::ContentArchiving::ContentExtractor.new(html: html, url: "https://example.com").call`
-- [ ] Verify extracted fields: `result.data.keys` (should include content_html, content_text, title, etc.)
-- [ ] Check metadata structure: `result.data[:metadata]`
+- [ ] Verify result is ParsedContent: `parsed = result.data; parsed.class.name` (should be "LinkRadar::ContentArchiving::ParsedContent")
+- [ ] Check fields: `parsed.title`, `parsed.content_html`, `parsed.content_text`, `parsed.description`, `parsed.image_url`
+- [ ] Check metadata: `parsed.metadata.class.name` (should be "LinkRadar::ContentArchiving::ContentMetadata")
+- [ ] Check nested metadata: `parsed.metadata.opengraph`, `parsed.metadata.twitter`, `parsed.metadata.canonical_url`
+- [ ] **Verify sanitization:**
+  - Test with dangerous HTML: `html_with_xss = '<div onclick="alert()"><script>alert()</script><p>Safe content</p></div>'`
+  - Extract: `result = LinkRadar::ContentArchiving::ContentExtractor.new(html: html_with_xss, url: "https://example.com").call`
+  - Verify `result.data.content_html` has no `onclick` attribute
+  - Verify `result.data.content_html` has no `<script>` tags
+  - Verify safe content (`<p>Safe content</p>`) is preserved
 
-**Test HtmlSanitizer in Rails console:**
+### 3.3 Spec Structure
 
-- [ ] Test with dangerous HTML: `LinkRadar::ContentArchiving::HtmlSanitizer.new('<div onclick="alert()">Test</div>').call`
-- [ ] Verify onclick removed
-- [ ] Test with script tag: `LinkRadar::ContentArchiving::HtmlSanitizer.new('<script>alert()</script><p>Safe</p>').call`
-- [ ] Verify script tag removed
+**Create `backend/spec/lib/link_radar/content_archiving/content_extractor_spec.rb`:**
+
+```
+describe LinkRadar::ContentArchiving::ContentExtractor
+  describe "#call"
+    context "with valid HTML and metadata"
+      it "returns success with ParsedContent value object"
+      it "extracts content_html using Readability"
+      it "extracts content_text (plain text version)"
+      it "extracts title from OpenGraph metadata"
+      it "extracts title from Twitter Card metadata"
+      it "falls back to HTML title tag"
+      it "extracts description from OpenGraph metadata"
+      it "extracts description from Twitter Card metadata"
+      it "falls back to meta description tag"
+      it "extracts image_url from best available source"
+      it "returns ContentMetadata value object with opengraph, twitter, and canonical_url"
+    
+    context "with OpenGraph metadata"
+      it "extracts og:title"
+      it "extracts og:description"
+      it "extracts og:image"
+      it "extracts og:type"
+      it "extracts og:url"
+      it "includes all OpenGraph data in metadata"
+    
+    context "with Twitter Card metadata"
+      it "extracts twitter:card"
+      it "extracts twitter:title"
+      it "extracts twitter:description"
+      it "extracts twitter:image"
+      it "includes all Twitter Card data in metadata"
+    
+    context "with minimal HTML"
+      it "handles HTML with no metadata gracefully"
+      it "handles HTML with only title"
+      it "handles HTML with no Readability-extractable content"
+      it "returns empty strings for missing fields"
+    
+    context "with content extraction"
+      it "strips navigation elements"
+      it "strips footer elements"
+      it "strips advertisement elements"
+      it "preserves article content structure"
+      it "preserves paragraphs, headings, and lists"
+      it "converts HTML to plain text for content_text"
+      it "normalizes whitespace in plain text"
+    
+    context "with relative URLs"
+      it "resolves relative image URLs to absolute"
+      it "resolves relative canonical URLs to absolute"
+    
+    context "with HTML sanitization (XSS protection)"
+      it "sanitizes content_html automatically"
+      it "removes script tags completely"
+      it "removes inline JavaScript event handlers (onclick)"
+      it "removes onload event handlers"
+      it "removes onmouseover event handlers"
+      it "removes onerror event handlers"
+      it "removes javascript: protocol in hrefs"
+      it "removes javascript: protocol in style attributes"
+      it "blocks <img src=x onerror=alert()>"
+      it "blocks <svg onload=alert()>"
+      it "blocks <iframe> tags"
+      it "blocks <object> tags"
+      it "blocks <embed> tags"
+      it "preserves safe HTML elements (div, p, h1-h6, a, img, ul, ol, li)"
+      it "preserves article and section tags"
+      it "preserves text content while removing dangerous elements"
+      it "handles mixed safe and dangerous content correctly"
+    
+    context "with sanitization error handling"
+      it "returns failure when sanitization raises exception"
+    
+    context "with error handling"
+      it "returns failure when HTML parsing fails"
+      it "returns failure when extraction raises exception"
+```
 
 ---
 
 ## Completion Checklist
 
 Services complete when:
-- [ ] UrlValidator successfully validates URLs and blocks private IPs
-- [ ] HttpFetcher successfully fetches web pages with proper timeouts
-- [ ] ContentExtractor extracts content and metadata from HTML
-- [ ] HtmlSanitizer removes dangerous HTML elements
+- [ ] `private_address_check` gem added to Gemfile and installed
+- [ ] UrlValidator successfully validates URLs and blocks private IPs (using gem)
+- [ ] HttpFetcher is self-validating (validates initial URL + all redirects internally)
+- [ ] HttpFetcher can be safely used anywhere in codebase (security boundary)
+- [ ] ContentExtractor extracts content/metadata AND sanitizes HTML (secure by default)
+- [ ] ContentExtractor output is XSS-safe without additional sanitization needed
 - [ ] All services follow Result pattern (success/failure return values)
 - [ ] All services include comprehensive YARD documentation
+- [ ] All failures return structured error data for debugging and logging
 - [ ] Manual console testing passes for all services
+- [ ] SSRF protection verified (HttpFetcher blocks private IPs and redirect chains)
+- [ ] XSS protection verified (ContentExtractor sanitizes all HTML output)
+- [ ] RSpec tests implemented for UrlValidator following spec structure
+- [ ] RSpec tests implemented for HttpFetcher following spec structure
+- [ ] RSpec tests implemented for ContentExtractor following spec structure (including sanitization tests)
+- [ ] All specs passing with good coverage of success and failure cases
+
+**Architecture Verified:**
+- [ ] HttpFetcher internally uses UrlValidator (dependency enforced)
+- [ ] ContentExtractor internally sanitizes HTML (XSS protection built-in)
+- [ ] Security boundaries are enforced within services (SSRF + XSS protection)
+- [ ] Services are secure by default - safe to use anywhere in codebase
+- [ ] "Pit of success" design prevents accidental security vulnerabilities
 
 **Next:** Proceed to [plan-3-orchestration.md](plan-3-orchestration.md) to implement the background job and Link integration.
+
+**Note:** The orchestrator (ArchiveContentJob) does NOT need to validate URLs or sanitize HTML - HttpFetcher and ContentExtractor handle security automatically.
 

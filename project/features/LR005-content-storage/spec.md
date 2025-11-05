@@ -38,9 +38,8 @@ Automatically capture and preserve web page content when links are saved to Link
 
 **Service Classes** (using Result pattern):
 - `LinkRadar::ContentArchiving::UrlValidator` - URL validation and SSRF prevention
-- `LinkRadar::ContentArchiving::HttpFetcher` - HTTP fetching with timeouts/redirects
-- `LinkRadar::ContentArchiving::ContentExtractor` - Content extraction orchestration
-- `LinkRadar::ContentArchiving::HtmlSanitizer` - HTML sanitization
+- `LinkRadar::ContentArchiving::HttpFetcher` - HTTP fetching with timeouts/redirects (SSRF-safe)
+- `LinkRadar::ContentArchiving::ContentExtractor` - Content extraction with built-in sanitization (XSS-safe)
 
 **Configuration**:
 - `ContentArchiveConfig` - Timeouts, size limits, retry settings, User-Agent
@@ -128,26 +127,32 @@ Automatically capture and preserve web page content when links are saved to Link
 **States**:
 - `pending` (initial) - Archive created, waiting for job
 - `processing` - Job actively fetching/extracting
-- `success` - Content successfully archived
-- `failed` - Failed after retries exhausted
-- `invalid_url` - URL validation failed (invalid scheme, malformed)
-- `blocked` - URL blocked for security (private IP, SSRF)
+- `completed` - Content successfully fetched (check content_type for what was fetched)
+- `failed` - Could not fetch content (check error_reason for why)
 
 **Allowed Transitions**:
-- `pending` → `processing` | `blocked` | `invalid_url`
-- `processing` → `success` | `failed` | `blocked`
+- `pending` → `processing`
+- `processing` → `completed` | `failed`
 
 **State Machine Class**: `ContentArchiveStateMachine`
 - Location: `app/state_machines/content_archive_state_machine.rb`
 - Includes `Statesman::Machine`
 - Defines states, transitions, and optional guards/callbacks
 
+**Archive Metadata** (stored in `content_archives.metadata` jsonb):
+When completed:
+- `content_type` (string) - Type of content fetched (html, pdf, image, video, other)
+- `final_url` (string) - Final URL after redirects
+- `fetched_at` (string) - ISO8601 timestamp
+
 **Transition Metadata** (stored in `content_archive_transitions.metadata` jsonb):
-- `error_message` (string) - Error details for failed transitions
-- `validation_reason` (string) - Why URL was blocked/invalid
-- `fetch_duration_ms` (integer) - Time taken for successful fetches
-- `retry_count` (integer) - Current retry attempt number
+When completed:
+- `fetch_duration_ms` (integer) - Time taken for fetch
+When failed:
+- `error_reason` (string) - Why it failed (blocked, invalid_url, network_error, size_limit, extraction_error, sanitization_error, unexpected_error)
+- `error_message` (string) - Human-readable error details
 - `http_status` (integer) - HTTP response code if applicable
+- `retry_count` (integer) - Current retry attempt number
 
 **Usage**:
 ```ruby
@@ -156,11 +161,11 @@ archive.current_state  # => "pending"
 
 # Transition with metadata (using delegate method)
 archive.transition_to!(:processing)
-archive.transition_to!(:success, { fetch_duration_ms: 1234 })
-archive.transition_to!(:failed, { error_message: "Timeout", retry_count: 3 })
+archive.transition_to!(:completed, { fetch_duration_ms: 1234 })
+archive.transition_to!(:failed, { error_reason: "network_error", error_message: "Timeout", retry_count: 3 })
 
 # Check allowed transitions (using delegate method)
-archive.allowed_transitions  # => ["processing", "blocked", "invalid_url"]
+archive.allowed_transitions  # => ["processing"]
 archive.can_transition_to?(:processing)  # => true
 
 # Query by state (via Statesman queries - class level)
@@ -255,9 +260,8 @@ ContentArchive.in_state(:failed)
 
 **Service Responsibilities**:
 - `UrlValidator` - Returns success with validated URL or failure with reason
-- `HttpFetcher` - Returns success with HTML content or failure with error
-- `ContentExtractor` - Returns success with extracted content/metadata or failure with error
-- `HtmlSanitizer` - Returns success with sanitized HTML or failure with error
+- `HttpFetcher` - Returns success with HTML content or failure with error (SSRF-protected)
+- `ContentExtractor` - Returns success with extracted/sanitized content or failure with error (XSS-protected)
 
 **Error Handling**:
 - Services return Result objects (not exceptions)
@@ -268,7 +272,7 @@ ContentArchive.in_state(:failed)
 
 **Generator Command**:
 ```bash
-rails generate link_radar:state_machine ContentArchive pending:initial processing success failed invalid_url blocked
+rails generate link_radar:state_machine ContentArchive pending:initial processing completed failed
 ```
 
 **What the Generator Creates**:
@@ -286,8 +290,8 @@ rails generate link_radar:state_machine ContentArchive pending:initial processin
 **Customize Transitions**: After generation, edit the state machine to define allowed transitions:
 ```ruby
 # app/state_machines/content_archive_state_machine.rb
-transition from: :pending, to: [:processing, :blocked, :invalid_url]
-transition from: :processing, to: [:success, :failed, :blocked]
+transition from: :pending, to: [:processing]
+transition from: :processing, to: [:completed, :failed]
 ```
 
 ### 5.5 External Gem Dependencies
@@ -312,7 +316,7 @@ transition from: :processing, to: [:success, :failed, :blocked]
 | connect_timeout | 10 | integer | HTTP connect timeout (seconds) |
 | read_timeout | 15 | integer | HTTP read timeout (seconds) |
 | max_redirects | 5 | integer | Maximum redirect hops |
-| max_file_size | 10485760 | integer | Maximum file size (10MB in bytes) |
+| max_content_size | 10485760 | integer | Maximum content size (10MB in bytes) |
 | max_retries | 3 | integer | Total retry attempts |
 | retry_backoff_base | 2 | integer | Backoff base (seconds) |
 | user_agent_contact_url | (required) | string | Contact URL for User-Agent header |

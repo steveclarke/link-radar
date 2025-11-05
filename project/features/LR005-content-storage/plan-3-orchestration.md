@@ -44,15 +44,16 @@ Creates background job that orchestrates the content archival pipeline with retr
 # Background job to archive web page content for a Link
 #
 # This job orchestrates the content archival pipeline:
-# 1. Validates URL (scheme, private IP detection)
-# 2. Fetches HTML content via HTTP
-# 3. Extracts content and metadata
-# 4. Sanitizes HTML
+# 1. Fetches content via HTTP (HttpFetcher validates URL internally)
+# 2. Checks content type (HTML vs PDF/image/etc)
+# 3. For HTML: Extracts content/metadata and sanitizes
+# 4. For non-HTML: Stores metadata only
 # 5. Stores results in ContentArchive
 #
 # State Machine Integration:
-# - Job transitions archive through states: pending → processing → success/failed
-# - All transitions include metadata for debugging (error messages, duration, etc.)
+# - Job transitions archive through states: pending → processing → completed/failed
+# - completed with content_type in archive metadata (html, pdf, image, etc.)
+# - failed with error_reason in transition metadata (blocked, invalid_url, network_error, etc.)
 # - Transition history provides complete audit trail
 #
 # Retry Strategy (spec.md#5.2):
@@ -98,7 +99,7 @@ class ArchiveContentJob < ApplicationJob
     execute_pipeline
 
     # Record successful completion duration
-    if @archive.current_state == "success"
+    if @archive.current_state == "completed"
       duration_ms = ((Time.current - start_time) * 1000).to_i
       Rails.logger.info "ContentArchive #{@archive.id} completed in #{duration_ms}ms"
     end
@@ -117,89 +118,44 @@ class ArchiveContentJob < ApplicationJob
   #
   # Pipeline steps:
   # 1. Transition to processing
-  # 2. Validate URL
-  # 3. Fetch HTML content
-  # 4. Extract content and metadata
-  # 5. Sanitize HTML
-  # 6. Store results
-  # 7. Transition to success
+  # 2. Fetch content (HttpFetcher validates URL internally)
+  # 3. Check content type
+  # 4a. If HTML: Extract, sanitize, store with content_type="html"
+  # 4b. If non-HTML: Store metadata with content_type="pdf"/"image"/etc
+  # 5. Transition to completed
+  #
+  # Note: URL validation is handled internally by HttpFetcher (security boundary).
+  # HttpFetcher validates both the initial URL and all redirect targets.
   #
   # @return [void]
   def execute_pipeline
     # Step 1: Begin processing
     @archive.transition_to!(:processing)
 
-    # Step 2: Validate URL
-    validation_result = LinkRadar::ContentArchiving::UrlValidator.new(@link.url).call
-    if validation_result.failure?
-      return handle_validation_failure(validation_result)
-    end
-
-    # Step 3: Fetch HTML content
+    # Step 2: Fetch content
+    # HttpFetcher validates URL internally (initial URL + all redirects)
     fetch_result = LinkRadar::ContentArchiving::HttpFetcher.new(@link.url).call
     if fetch_result.failure?
       return handle_fetch_failure(fetch_result)
     end
 
-    # Step 4: Extract content and metadata
-    extraction_result = LinkRadar::ContentArchiving::ContentExtractor.new(
-      html: fetch_result.data[:body],
-      url: fetch_result.data[:final_url]
-    ).call
-    if extraction_result.failure?
-      return handle_extraction_failure(extraction_result)
-    end
-
-    # Step 5: Sanitize HTML content
-    sanitization_result = LinkRadar::ContentArchiving::HtmlSanitizer.new(
-      extraction_result.data[:content_html]
-    ).call
-    if sanitization_result.failure?
-      return handle_sanitization_failure(sanitization_result)
-    end
-
-    # Step 6: Store results in archive
-    store_archive_content(
-      extraction_result.data.merge(content_html: sanitization_result.data),
-      fetch_result.data[:final_url]
-    )
-
-    # Step 7: Transition to success
-    @archive.transition_to!(:success)
-  end
-
-  # Handles URL validation failures
-  #
-  # Determines if failure is due to blocked URL (private IP) or invalid URL,
-  # and transitions to appropriate state.
-  #
-  # @param result [LinkRadar::Result] the failed validation result
-  # @return [void]
-  def handle_validation_failure(result)
-    error_message = result.errors.first
-    metadata = result.data || {}
-
-    # Check if this is a SSRF block (private IP)
-    if error_message.include?("private IP") || metadata[:validation_reason] == "private_ip"
-      @archive.transition_to!(
-        :blocked,
-        error_message: error_message,
-        validation_reason: "private_ip"
-      )
+    # Step 3: Check content type
+    if html_content_type?(fetch_result.data[:content_type])
+      # Step 4a: HTML pipeline
+      handle_html_content(fetch_result)
     else
-      # Other validation failures (invalid scheme, malformed URL, DNS failure)
-      @archive.transition_to!(
-        :invalid_url,
-        error_message: error_message,
-        validation_reason: "invalid_url"
-      )
+      # Step 4b: Non-HTML pipeline
+      handle_non_html_content(fetch_result)
     end
-
-    # Update error_message column for easy querying
-    @archive.update(error_message: error_message)
   end
 
-  # Handles HTTP fetch failures
+  # Handles HTTP fetch failures (includes validation failures from HttpFetcher)
+  #
+  # HttpFetcher validates URLs internally, so this handler receives both:
+  # 1. Validation failures (invalid URL, private IP, DNS errors)
+  # 2. Fetch failures (404, 5xx, timeouts, size limits)
+  #
+  # All failures transition to :failed state with appropriate error_reason.
   #
   # @param result [LinkRadar::Result] the failed fetch result
   # @return [void]
@@ -207,22 +163,32 @@ class ArchiveContentJob < ApplicationJob
     error_message = result.errors.first
     metadata = result.data || {}
 
-    # Check for SSRF attempt detected during redirect
-    if error_message.include?("private IP")
-      @archive.transition_to!(
-        :blocked,
-        error_message: error_message,
-        validation_reason: "private_ip_redirect"
-      )
+    # Determine error reason based on error type
+    error_reason = if error_message.include?("private IP") || metadata[:validation_reason] == "private_ip"
+      "blocked"
+    elsif error_message.include?("scheme must be") || 
+          error_message.include?("Invalid URL") ||
+          error_message.include?("Malformed URL") ||
+          error_message.include?("DNS resolution failed")
+      "invalid_url"
+    elsif error_message.include?("Content size exceeds") || error_message.include?("size limit")
+      "size_limit"
+    elsif error_message.include?("timeout") || error_message.include?("Timeout")
+      "network_error"
+    elsif metadata[:http_status]
+      "network_error"
     else
-      # Other fetch failures (404, 5xx, size limit, etc.)
-      @archive.transition_to!(
-        :failed,
-        error_message: error_message,
-        http_status: metadata[:http_status],
-        retry_count: executions
-      )
+      "network_error"
     end
+
+    # Transition to failed with error reason
+    @archive.transition_to!(
+      :failed,
+      error_reason: error_reason,
+      error_message: error_message,
+      http_status: metadata[:http_status],
+      retry_count: executions
+    )
 
     @archive.update(error_message: error_message)
   end
@@ -236,22 +202,7 @@ class ArchiveContentJob < ApplicationJob
 
     @archive.transition_to!(
       :failed,
-      error_message: error_message,
-      retry_count: executions
-    )
-
-    @archive.update(error_message: error_message)
-  end
-
-  # Handles HTML sanitization failures
-  #
-  # @param result [LinkRadar::Result] the failed sanitization result
-  # @return [void]
-  def handle_sanitization_failure(result)
-    error_message = result.errors.first
-
-    @archive.transition_to!(
-      :failed,
+      error_reason: "extraction_error",
       error_message: error_message,
       retry_count: executions
     )
@@ -270,6 +221,7 @@ class ArchiveContentJob < ApplicationJob
     if executions >= 3
       @archive.transition_to!(
         :failed,
+        error_reason: "network_error",
         error_message: "Connection timeout after #{executions} attempts",
         retry_count: executions
       )
@@ -289,6 +241,7 @@ class ArchiveContentJob < ApplicationJob
 
     @archive.transition_to!(
       :failed,
+      error_reason: "unexpected_error",
       error_message: error_message,
       retry_count: executions
     )
@@ -296,21 +249,98 @@ class ArchiveContentJob < ApplicationJob
     @archive.update(error_message: error_message)
   end
 
-  # Stores extracted content and metadata in archive
+  # Checks if content type is HTML
   #
-  # @param extracted_data [Hash] the extracted content and metadata
-  # @param final_url [String] the final URL after redirects
+  # Phase 1 supports only HTML content for full extraction.
+  # Other content types (PDF, images, etc.) are stored with metadata only.
+  #
+  # @param content_type [String] the Content-Type header value
+  # @return [Boolean] true if HTML, false otherwise
+  def html_content_type?(content_type)
+    return false if content_type.blank?
+    
+    content_type.downcase.include?("text/html") || 
+      content_type.downcase.include?("application/xhtml+xml")
+  end
+
+  # Handles HTML content - full extraction pipeline
+  #
+  # @param fetch_result [LinkRadar::Result] the successful fetch result
   # @return [void]
-  def store_archive_content(extracted_data, final_url)
+  def handle_html_content(fetch_result)
+    # Extract content and metadata (returns ParsedContent value object)
+    # NOTE: ContentExtractor automatically sanitizes HTML output for XSS protection
+    extraction_result = LinkRadar::ContentArchiving::ContentExtractor.new(
+      html: fetch_result.data[:body],
+      url: fetch_result.data[:final_url]
+    ).call
+    return handle_extraction_failure(extraction_result) if extraction_result.failure?
+
+    parsed = extraction_result.data # ParsedContent instance (content_html is already sanitized)
+
+    # Store results with content_type: "html"
     @archive.update!(
-      content_html: extracted_data[:content_html],
-      content_text: extracted_data[:content_text],
-      title: extracted_data[:title],
-      description: extracted_data[:description],
-      image_url: extracted_data[:image_url],
-      metadata: extracted_data[:metadata] || {},
+      content_html: parsed.content_html, # Already XSS-safe from ContentExtractor
+      content_text: parsed.content_text,
+      title: parsed.title,
+      description: parsed.description,
+      image_url: parsed.image_url,
+      metadata: build_metadata_hash(parsed.metadata, fetch_result),
       fetched_at: Time.current
     )
+
+    # Transition to completed
+    @archive.transition_to!(:completed)
+    Rails.logger.info "ContentArchive #{@archive.id} completed (HTML)"
+  end
+
+  # Handles non-HTML content (PDFs, images, etc.)
+  #
+  # Phase 1: Store basic metadata only (URL + content type)
+  # Future: Add PDF text extraction, image processing, etc.
+  #
+  # @param fetch_result [LinkRadar::Result] the successful fetch result
+  # @return [void]
+  def handle_non_html_content(fetch_result)
+    content_type = fetch_result.data[:content_type]
+    final_url = fetch_result.data[:final_url]
+    
+    # Determine simplified content type category
+    type_category = case content_type
+    when /pdf/ then "pdf"
+    when /image/ then "image"
+    when /video/ then "video"
+    else "other"
+    end
+    
+    # Store basic information about the non-HTML content
+    @archive.update(
+      metadata: {
+        content_type: type_category,
+        mime_type: content_type,
+        final_url: final_url
+      },
+      fetched_at: Time.current
+    )
+
+    # Transition to completed
+    @archive.transition_to!(:completed)
+    Rails.logger.info "ContentArchive #{@archive.id} completed (#{type_category})"
+  end
+
+  # Builds metadata hash from ContentMetadata value object
+  #
+  # @param content_metadata [ContentMetadata] the metadata value object
+  # @param fetch_result [LinkRadar::Result] the fetch result with final_url
+  # @return [Hash] metadata hash for storage
+  def build_metadata_hash(content_metadata, fetch_result)
+    {
+      opengraph: content_metadata.opengraph,
+      twitter: content_metadata.twitter,
+      canonical_url: content_metadata.canonical_url,
+      content_type: "html",
+      final_url: fetch_result.data[:final_url]
+    }.compact
   end
 end
 ```
@@ -329,9 +359,116 @@ end
 
 **Test failure cases:**
 
-- [ ] Test invalid URL: Create link with `url: "ftp://example.com"`, run job, verify `invalid_url` state
-- [ ] Test private IP: Create link with `url: "http://192.168.1.1"`, run job, verify `blocked` state
-- [ ] Test 404: Create link with `url: "https://example.com/nonexistent"`, run job, verify `failed` state
+- [ ] Test invalid URL: Create link with `url: "ftp://example.com"`, run job, verify `failed` state with `error_reason: "invalid_url"`
+- [ ] Test private IP: Create link with `url: "http://192.168.1.1"`, run job, verify `failed` state with `error_reason: "blocked"`
+- [ ] Test 404: Create link with `url: "https://example.com/nonexistent"`, run job, verify `failed` state with `error_reason: "network_error"`
+
+**Test non-HTML content:**
+
+- [ ] Test PDF: Create link to PDF URL, run job, verify `completed` state with `metadata["content_type"]: "pdf"`
+
+### 1.3 Spec Structure
+
+**Create `backend/spec/jobs/archive_content_job_spec.rb`:**
+
+```
+describe ArchiveContentJob
+  describe "#perform"
+    context "with HTML content archival"
+      it "transitions from pending to processing to completed"
+      it "fetches HTML content from URL"
+      it "extracts and sanitizes content using ContentExtractor (XSS-safe output)"
+      it "stores content_html in archive (already sanitized)"
+      it "stores content_text in archive"
+      it "stores title in archive"
+      it "stores description in archive"
+      it "stores image_url in archive"
+      it "stores content_type='html' in metadata"
+      it "stores final_url in metadata"
+      it "records all state transitions"
+      it "includes transition metadata for each state"
+    
+    context "with non-HTML content"
+      it "transitions from pending to processing to completed"
+      it "fetches content successfully"
+      it "stores content_type='pdf' in metadata for PDFs"
+      it "stores content_type='image' in metadata for images"
+      it "stores content_type='video' in metadata for videos"
+      it "stores content_type='other' in metadata for unknown types"
+      it "stores mime_type in metadata"
+      it "stores final_url in metadata"
+      it "does not attempt content extraction"
+      it "does not attempt HTML sanitization"
+      it "does not store content_html or content_text"
+    
+    context "with invalid URL scheme"
+      it "transitions to failed state with error_reason='invalid_url'"
+      it "stores error message"
+      it "stores error_reason in transition metadata"
+      it "does not attempt to fetch content"
+      it "records pending -> processing -> failed transitions"
+    
+    context "with private IP addresses (SSRF protection)"
+      it "transitions to failed state with error_reason='blocked' for localhost"
+      it "transitions to failed state with error_reason='blocked' for 192.168.x.x"
+      it "transitions to failed state with error_reason='blocked' for 10.x.x.x"
+      it "transitions to failed state with error_reason='blocked' for 127.0.0.1"
+      it "stores error message about SSRF protection"
+      it "stores error_reason='blocked' in transition metadata"
+      it "records pending -> processing -> failed transitions"
+    
+    context "with HTTP fetch failures"
+      it "transitions to failed state with error_reason='network_error' for 404"
+      it "transitions to failed state with error_reason='network_error' for 500"
+      it "transitions to failed state with error_reason='network_error' for timeouts"
+      it "transitions to failed state with error_reason='network_error' for connection failures"
+      it "stores appropriate error message for each failure type"
+      it "stores error_reason in transition metadata"
+      it "stores http_status when applicable"
+      it "records pending -> processing -> failed transitions"
+    
+    context "with content size limits"
+      it "transitions to failed state with error_reason='size_limit'"
+      it "stores error message about size limit"
+      it "stores error_reason='size_limit' in transition metadata"
+    
+    context "with redirect handling"
+      it "follows redirects and archives final content"
+      it "validates each redirect target"
+      it "blocks redirect chains to private IPs with error_reason='blocked'"
+      it "stores error when redirect validation fails"
+      it "stores final URL in metadata for successful cases"
+    
+    context "with content extraction failures"
+      it "transitions to failed state with error_reason='extraction_error'"
+      it "stores error message from ContentExtractor"
+      it "stores error_reason in transition metadata"
+      it "handles sanitization errors within ContentExtractor as extraction errors"
+    
+    context "with missing ContentArchive"
+      it "logs error when archive not found for link"
+      it "does not raise exception"
+      it "handles gracefully"
+    
+    context "with missing Link"
+      it "logs error when link not found"
+      it "does not raise exception"
+      it "handles gracefully"
+    
+    context "with state machine transitions"
+      it "correctly uses ContentArchiveTransition model"
+      it "stores transition metadata for completed"
+      it "stores error_reason for failures"
+      it "maintains transition order by created_at"
+    
+    context "with service integration"
+      it "calls HttpFetcher with correct URL"
+      it "checks content type before processing"
+      it "calls ContentExtractor for HTML content only (sanitization built-in)"
+      it "does not call separate sanitization service (handled by ContentExtractor)"
+      it "propagates errors from services correctly"
+      it "maps service errors to appropriate error_reason values"
+```
 
 ---
 
@@ -488,39 +625,52 @@ puts "Created link #{link4.id} with archive #{link4.content_archive.id}"
 
 **Test the complete archival pipeline:**
 
-- [ ] **Test 1: Successful archival**
+- [ ] **Test 1: Successful HTML archival**
   - Create link: `link = Link.create!(url: "https://example.com", submitted_url: "https://example.com")`
   - Verify archive created: `link.content_archive.present?`
   - Verify initial state: `link.content_archive.current_state == "pending"`
   - Wait for job to complete (or run synchronously): `ArchiveContentJob.perform_now(link_id: link.id)`
-  - Verify success state: `link.content_archive.reload.current_state == "success"`
+  - Verify completed state: `link.content_archive.reload.current_state == "completed"`
   - Verify content stored: `link.content_archive.content_html.present?`
-  - Verify metadata: `link.content_archive.metadata.present?`
+  - Verify content_type: `link.content_archive.metadata["content_type"] == "html"`
   - Verify transitions: `link.content_archive.content_archive_transitions.order(created_at: :asc).pluck(:to_state)`
-    - Should show: `["pending", "processing", "success"]`
+    - Should show: `["pending", "processing", "completed"]`
 
 - [ ] **Test 2: Private IP blocked**
   - Create link: `link = Link.create!(url: "http://192.168.1.1", submitted_url: "http://192.168.1.1")`
   - Run job: `ArchiveContentJob.perform_now(link_id: link.id)`
-  - Verify blocked state: `link.content_archive.reload.current_state == "blocked"`
+  - Verify failed state: `link.content_archive.reload.current_state == "failed"`
+  - Verify error_reason: Check last transition `metadata["error_reason"] == "blocked"`
   - Verify error message: `link.content_archive.error_message`
-  - Verify transitions: `["pending", "processing", "blocked"]`
+  - Verify transitions: `["pending", "processing", "failed"]`
 
 - [ ] **Test 3: Invalid URL scheme**
   - Create link: `link = Link.create!(url: "ftp://example.com", submitted_url: "ftp://example.com")`
   - Run job: `ArchiveContentJob.perform_now(link_id: link.id)`
-  - Verify invalid_url state: `link.content_archive.reload.current_state == "invalid_url"`
+  - Verify failed state: `link.content_archive.reload.current_state == "failed"`
+  - Verify error_reason: Check last transition `metadata["error_reason"] == "invalid_url"`
   - Verify error message contains "scheme"
-  - Verify transitions: `["pending", "processing", "invalid_url"]`
+  - Verify transitions: `["pending", "processing", "failed"]`
 
 - [ ] **Test 4: HTTP 404 error**
   - Create link: `link = Link.create!(url: "https://example.com/nonexistent", submitted_url: "https://example.com/nonexistent")`
   - Run job: `ArchiveContentJob.perform_now(link_id: link.id)`
   - Verify failed state: `link.content_archive.reload.current_state == "failed"`
+  - Verify error_reason: Check last transition `metadata["error_reason"] == "network_error"`
   - Verify error message contains "404"
   - Verify transitions: `["pending", "processing", "failed"]`
 
-- [ ] **Test 5: Cascade delete**
+- [ ] **Test 5: Non-HTML content (PDF)**
+  - Create link to PDF: `link = Link.create!(url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf", submitted_url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf")`
+  - Run job: `ArchiveContentJob.perform_now(link_id: link.id)`
+  - Verify completed state: `link.content_archive.reload.current_state == "completed"`
+  - Verify content_type: `link.content_archive.metadata["content_type"] == "pdf"`
+  - Verify metadata has mime_type: `link.content_archive.metadata["mime_type"]`
+  - Verify metadata has final_url: `link.content_archive.metadata["final_url"]`
+  - Verify no content extraction: `link.content_archive.content_html.nil?`
+  - Verify transitions: `["pending", "processing", "completed"]`
+
+- [ ] **Test 6: Cascade delete**
   - Create link with archive: `link = Link.create!(url: "https://example.com", submitted_url: "https://example.com")`
   - Note archive ID: `archive_id = link.content_archive.id`
   - Delete link: `link.destroy`
@@ -543,13 +693,14 @@ puts "Created link #{link4.id} with archive #{link4.content_archive.id}"
 ```ruby
 # Summary of all archives by state
 ContentArchive
-  .in_state(:success, :failed, :blocked, :invalid_url, :pending, :processing)
+  .in_state(:completed, :failed, :pending, :processing)
   .group(:to_state)
   .count
 
 # Recent archives with details
 ContentArchive.includes(:link).order(created_at: :desc).limit(10).each do |archive|
-  puts "Archive #{archive.id}: #{archive.current_state} - #{archive.link.url}"
+  content_type = archive.metadata["content_type"] if archive.metadata.present?
+  puts "Archive #{archive.id}: #{archive.current_state} (#{content_type}) - #{archive.link.url}"
   puts "  Error: #{archive.error_message}" if archive.error_message.present?
   puts "  Title: #{archive.title}" if archive.title.present?
   puts "  Fetched: #{archive.fetched_at}" if archive.fetched_at.present?
@@ -595,10 +746,15 @@ CONFIG
 
 Orchestration and integration complete when:
 - [ ] ArchiveContentJob successfully orchestrates the full pipeline
-- [ ] Job handles all failure scenarios correctly (blocked, invalid_url, failed)
+- [ ] Job handles HTML content (full extraction) and non-HTML content (metadata only)
+- [ ] Job handles all failure scenarios with appropriate error_reason values
 - [ ] Retry logic works for timeout errors (exponential backoff)
 - [ ] Link creation automatically creates archive and enqueues job
-- [ ] State machine transitions tracked correctly for all scenarios
+- [ ] State machine uses 4 states: pending, processing, completed, failed
+- [ ] Archive metadata includes content_type for completed archives
+- [ ] Transition metadata includes error_reason for failed archives
+- [ ] RSpec tests implemented for ArchiveContentJob following spec structure
+- [ ] All specs passing with coverage of HTML, non-HTML, and failure scenarios
 - [ ] Manual testing passes for all test cases
 - [ ] Cascade delete works (link deletion removes archive and transitions)
 - [ ] Sample data created and verified

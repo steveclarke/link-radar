@@ -8,7 +8,7 @@ RSpec.describe ContentArchiveStateMachine do
 
   describe "states" do
     it "defines the correct states" do
-      expect(described_class.states).to eq(["pending", "processing", "success", "failed", "invalid_url", "blocked"])
+      expect(described_class.states).to eq(["pending", "processing", "completed", "failed"])
     end
 
     it "has pending as initial state" do

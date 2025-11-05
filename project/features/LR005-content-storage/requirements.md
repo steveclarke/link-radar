@@ -62,8 +62,10 @@ This document defines the requirements for automatically capturing and preservin
 
 **The system must:**
 
-- Track archive status through multiple states: pending, processing, success, failed, invalid_url, blocked
+- Track archive status through multiple states: pending, processing, completed, failed
 - Update status as archival progresses through the pipeline
+- Store error_reason in transition metadata for failed archives (blocked, invalid_url, network_error, etc.)
+- Store content_type in archive metadata for completed archives (html, pdf, image, video, other)
 - Store error messages when archival fails, providing context for debugging
 - Make status visible through API for future UI integration
 
@@ -96,9 +98,9 @@ This document defines the requirements for automatically capturing and preservin
 
 - **Association**: One-to-one relationship with a link record
 - **Content Data**: Cleaned HTML content and extracted plain text
-- **Metadata**: Page title, description, preview image URL, OpenGraph data
-- **Status Information**: Current archival state (pending, processing, success, failed, blocked, invalid_url)
-- **Error Details**: Simple error message when archival fails
+- **Metadata**: Page title, description, preview image URL, OpenGraph data, content_type
+- **Status Information**: Current archival state (pending, processing, completed, failed)
+- **Error Details**: Simple error message and error_reason when archival fails
 - **Timestamps**: When content was successfully fetched
 
 ### 3.2 Metadata Storage
