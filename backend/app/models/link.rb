@@ -5,27 +5,19 @@
 # Table name: links
 #
 #  id                :uuid             not null, primary key
-#  content_text      :text
-#  fetch_error       :text
-#  fetch_state       :enum             default("pending"), not null
-#  fetched_at        :datetime
-#  image_url         :string(2048)
 #  metadata          :jsonb
 #  note              :text
-#  raw_html          :text
 #  search_projection :text
 #  submitted_url     :string(2048)     not null
-#  title             :string(500)
 #  url               :string(2048)     not null
 #  created_at        :datetime         not null
 #  updated_at        :datetime         not null
 #
 # Indexes
 #
-#  index_links_on_created_at   (created_at)
-#  index_links_on_fetch_state  (fetch_state)
-#  index_links_on_metadata     (metadata) USING gin
-#  index_links_on_url          (url) UNIQUE
+#  index_links_on_created_at  (created_at)
+#  index_links_on_metadata    (metadata) USING gin
+#  index_links_on_url         (url) UNIQUE
 #
 class Link < ApplicationRecord
   include Saltbox::SortByColumns::Model
@@ -37,32 +29,32 @@ class Link < ApplicationRecord
   # Associations
   has_many :link_tags, dependent: :destroy
   has_many :tags, through: :link_tags
+  has_one :content_archive, dependent: :destroy
 
   # Virtual attribute for tag assignment
   attr_accessor :tag_names
 
   # Configure sortable columns
-  sort_by_columns :title, :created_at, :updated_at, :fetched_at, :c_tag_count
+  sort_by_columns :created_at, :updated_at, :c_tag_count
 
   # Custom scope for sorting by tag count
   scope :sorted_by_tag_count, ->(direction) {
     left_joins(:link_tags)
       .group("links.id")
-      .order(Arel.sql("COUNT(link_tags.id) #{direction}, links.title #{direction}"))
+      .order(Arel.sql("COUNT(link_tags.id) #{direction}, links.created_at #{direction}"))
   }
 
   # Fetch state enum backed by Postgres enum type
-  enum :fetch_state, {
-    pending: "pending",
-    success: "success",
-    failed: "failed"
-  }, prefix: true
+  # Removed - migrated to ContentArchive state machine
+  # enum :fetch_state, {
+  #   pending: "pending",
+  #   success: "success",
+  #   failed: "failed"
+  # }, prefix: true
 
   # Validations
   validates :url, presence: true, length: {maximum: 2048}
   validates :submitted_url, presence: true, length: {maximum: 2048}
-  validates :title, length: {maximum: 500}
-  validates :image_url, length: {maximum: 2048}
 
   # Callbacks
   # Check @tag_names (instance variable) to distinguish: nil (not provided) vs [] (clear tags)

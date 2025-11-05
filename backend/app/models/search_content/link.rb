@@ -3,7 +3,7 @@
 module SearchContent
   # Search configuration for Link model with projection support
   #
-  # Links are searchable across their core fields (title, content_text, note)
+  # Links are searchable across their core fields (note, url)
   # and associated data (tag names). Uses a hybrid search approach:
   # - Trigram for fuzzy matching and partial terms
   # - TSearch for word-based content search with prefix matching
@@ -15,15 +15,14 @@ module SearchContent
   #   end
   #
   # @example Searching links
-  #   Link.search("ruby programming")  # Finds links with ruby and programming
+  #   Link.search("ruby programming")  # Finds links by note or tags
   #   Link.search("708")                # Finds links tagged with partial matches
-  #   Link.search("rails")              # Finds links by title, content, or tags
+  #   Link.search("rails")              # Finds links by note or tags
   class Link < SearchContent::Base
     SEARCH_FIELDS = {
-      title: "A",            # Highest priority - link titles
-      content_text: "B",     # High priority - extracted content
-      note: "C",             # Medium priority - user notes
-      search_projection: nil # No weight - cached associated data
+      note: "A",             # Highest priority - user notes
+      url: "B",              # Medium priority - URL
+      search_projection: nil # No weight - cached associated data (tags)
     }
 
     def self.search_fields = SEARCH_FIELDS
