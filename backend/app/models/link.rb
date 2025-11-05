@@ -29,6 +29,7 @@ class Link < ApplicationRecord
   # Associations
   has_many :link_tags, dependent: :destroy
   has_many :tags, through: :link_tags
+  has_one :content_archive, dependent: :destroy
 
   # Virtual attribute for tag assignment
   attr_accessor :tag_names

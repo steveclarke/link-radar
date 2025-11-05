@@ -36,6 +36,7 @@ RSpec.describe Link, type: :model do
   describe "associations" do
     it { should have_many(:link_tags).dependent(:destroy) }
     it { should have_many(:tags).through(:link_tags) }
+    it { should have_one(:content_archive).dependent(:destroy) }
   end
 
   describe "validations" do
