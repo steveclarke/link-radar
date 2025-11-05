@@ -1,0 +1,33 @@
+# Content Archival Configuration
+#
+# Best practices (see project/guides/backend/configuration-management-guide.md):
+# - Defaults → In code (attr_config)
+# - Environment-specific → YAML files (this file)
+# - Secrets → Rails credentials
+# - Production overrides → Environment variables (last resort)
+
+default: &default # HTTP timeouts (seconds)
+  connect_timeout: 10
+  read_timeout: 15
+
+  # Fetch limits
+  max_redirects: 5
+  max_file_size: 10485760 # 10MB
+
+  # Retry configuration
+  max_retries: 3
+  retry_backoff_base: 2
+
+  # Feature flag
+  enabled: true
+
+development:
+  <<: *default
+
+test:
+  <<: *default
+  enabled: false # Disable archival in tests by default
+
+production:
+  <<: *default
+  # Set user_agent_contact_url in credentials
