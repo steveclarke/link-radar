@@ -8,8 +8,6 @@ module SearchContent
   # - Trigram for fuzzy matching and partial terms
   # - TSearch for word-based content search with prefix matching
   #
-  # Note: Content and title are now stored in ContentArchive model
-  #
   # @example Usage in Link model
   #   class Link < ApplicationRecord
   #     include Searchable
