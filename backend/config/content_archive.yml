@@ -12,7 +12,7 @@ default: &default # HTTP timeouts (seconds)
 
   # Fetch limits
   max_redirects: 5
-  max_file_size: 10485760 # 10MB
+  max_content_size: 10485760 # 10MB
 
   # Retry configuration
   max_retries: 3

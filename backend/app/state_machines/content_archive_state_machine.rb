@@ -27,7 +27,6 @@ class ContentArchiveStateMachine
   state :invalid_url
   state :blocked
 
-  # Define allowed transitions per spec.md#3.2
   transition from: :pending, to: [:processing, :blocked, :invalid_url]
   transition from: :processing, to: [:success, :failed, :blocked]
 end

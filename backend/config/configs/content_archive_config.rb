@@ -23,7 +23,7 @@ class ContentArchiveConfig < ApplicationConfig
 
     # Fetch limits
     max_redirects: 5,           # maximum redirect hops to follow
-    max_file_size: 10_485_760,  # 10MB in bytes
+    max_content_size: 10_485_760,  # 10MB in bytes
 
     # Retry configuration
     max_retries: 3,             # total retry attempts (including initial)
