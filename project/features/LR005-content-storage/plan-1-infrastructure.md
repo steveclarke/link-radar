@@ -43,11 +43,20 @@ Add required external gems and create configuration infrastructure for content a
 
 ```ruby
 # Content archival and extraction
-gem "metainspector"      # OpenGraph/Twitter Card metadata extraction
-gem "ruby-readability"   # Main content extraction (Mozilla Readability algorithm)
-gem "loofah"            # HTML sanitization (XSS protection)
-gem "faraday"           # HTTP client with timeout/redirect support
-gem "addressable"       # URL parsing and normalization
+# OpenGraph/Twitter Card metadata extraction
+gem "metainspector"
+
+# Main content extraction (Mozilla Readability algorithm)
+gem "ruby-readability"
+
+# HTML sanitization (XSS protection)
+gem "loofah"
+
+# HTTP client with timeout/redirect support
+gem "faraday"
+
+# URL parsing and normalization
+gem "addressable"
 ```
 
 - [ ] Run `bundle install` to install new gems
@@ -57,7 +66,21 @@ gem "addressable"       # URL parsing and normalization
 
 **Create `backend/config/configs/content_archive_config.rb`** following ApplicationConfig pattern:
 
-- [ ] Create configuration class
+- [ ] Generate configuration class using Anyway Config
+
+```bash
+rails generate anyway:config content_archive \
+  connect_timeout:integer \
+  read_timeout:integer \
+  max_redirects:integer \
+  max_file_size:integer \
+  max_retries:integer \
+  retry_backoff_base:integer \
+  user_agent_contact_url:string \
+  enabled:boolean
+```
+
+- [ ] Update generated `config/configs/content_archive_config.rb` with defaults, documentation, and custom methods
 
 ```ruby
 # frozen_string_literal: true
@@ -77,6 +100,8 @@ gem "addressable"       # URL parsing and normalization
 #
 class ContentArchiveConfig < ApplicationConfig
   attr_config(
+    :user_agent_contact_url,    # contact URL for User-Agent header
+    
     # HTTP timeouts
     connect_timeout: 10,        # seconds to wait for connection
     read_timeout: 15,           # seconds to wait for response
@@ -89,12 +114,12 @@ class ContentArchiveConfig < ApplicationConfig
     max_retries: 3,             # total retry attempts (including initial)
     retry_backoff_base: 2,      # backoff base in seconds (2s, 4s, 8s...)
     
-    # User-Agent identification
-    :user_agent_contact_url,    # REQUIRED: contact URL for User-Agent header
-    
     # Feature flag
     enabled: true               # global enable/disable for archival
   )
+  
+  # Require user_agent_contact_url in production
+  required :user_agent_contact_url, env: :production
 
   # Builds complete User-Agent string for HTTP requests
   #
@@ -107,38 +132,23 @@ class ContentArchiveConfig < ApplicationConfig
   def user_agent
     "LinkRadar/1.0 (+#{user_agent_contact_url})"
   end
-
-  # Validates that required configuration is present
-  #
-  # @raise [Anyway::Config::ValidationError] if user_agent_contact_url is missing
-  # @return [void]
-  def validate!
-    super
-    if user_agent_contact_url.blank?
-      raise Anyway::Config::ValidationError,
-        "user_agent_contact_url is required for ContentArchiveConfig"
-    end
-  end
 end
 ```
 
-### 1.3 Create Configuration YAML
+### 1.3 Update Configuration YAML
 
-**Create `backend/config/content_archive.yml`** with development defaults:
+**Update generated `backend/config/content_archive.yml`** with development defaults:
 
-- [ ] Create YAML configuration file
+- [ ] Update generated YAML configuration file with defaults and documentation
 
 ```yaml
 # Content Archival Configuration
 #
-# These are default values. Override via environment variables:
-#   CONTENT_ARCHIVE_CONNECT_TIMEOUT=15
-#   CONTENT_ARCHIVE_USER_AGENT_CONTACT_URL=https://your-site.com
-#
-# Or via Rails credentials:
-#   rails credentials:edit
-#   content_archive:
-#     user_agent_contact_url: https://your-site.com
+# Best practices (see project/guides/backend/configuration-management-guide.md):
+# - Defaults → In code (attr_config)
+# - Environment-specific → YAML files (this file)
+# - Secrets → Rails credentials
+# - Production overrides → Environment variables (last resort)
 
 default: &default
   # HTTP timeouts (seconds)
@@ -153,10 +163,6 @@ default: &default
   max_retries: 3
   retry_backoff_base: 2
   
-  # User-Agent contact URL (REQUIRED - set via environment or credentials)
-  # Example: https://github.com/yourusername/link-radar
-  user_agent_contact_url: <%= ENV['CONTENT_ARCHIVE_USER_AGENT_CONTACT_URL'] %>
-  
   # Feature flag
   enabled: true
 
@@ -169,6 +175,7 @@ test:
 
 production:
   <<: *default
+  # Set user_agent_contact_url in credentials
 ```
 
 ### 1.4 Verify Statesman Configuration
@@ -210,8 +217,12 @@ class CreateContentArchives < ActiveRecord::Migration[8.1]
     create_table :content_archives, id: false do |t|
       t.uuid :id, primary_key: true, default: -> { "uuidv7()" }, null: false
 
-      # Foreign key to links (one-to-one)
-      t.uuid :link_id, null: false
+      # Foreign key to links (one-to-one with cascade delete)
+      t.references :link,
+        type: :uuid,
+        null: false,
+        foreign_key: { on_delete: :cascade },
+        index: { unique: true }
 
       # Error tracking
       t.text :error_message
@@ -232,19 +243,15 @@ class CreateContentArchives < ActiveRecord::Migration[8.1]
       t.timestamps
     end
 
-    # Indexes
-    add_index :content_archives, :link_id, unique: true
+    # Additional indexes
     add_index :content_archives, :metadata, using: :gin
     add_index :content_archives, :content_text, using: :gin, opclass: :gin_trgm_ops
-
-    # Foreign key with cascade delete
-    add_foreign_key :content_archives, :links, on_delete: :cascade
   end
 end
 ```
 
 **Note on indexes:**
-- `link_id` (unique): Enforces one-to-one relationship, used for lookups
+- `link_id` (unique): Created by `t.references`, enforces one-to-one relationship
 - `metadata` (GIN): Enables efficient JSONB queries (future use)
 - `content_text` (GIN trigram): Enables full-text search (future use, requires pg_trgm extension)
 
@@ -268,13 +275,12 @@ class CreateContentArchives < ActiveRecord::Migration[8.1]
       t.remove :fetched_at
       t.remove :image_url
       t.remove :title
+      t.remove :fetch_state
       # Keep metadata column on links for future non-archive metadata
-      # Keep fetch_state enum for backward compatibility during transition
     end
 
-    # Drop the fetch_state enum (no longer needed)
-    execute "DROP TYPE link_fetch_state"
-    remove_column :links, :fetch_state
+    # Drop the fetch_state enum type
+    drop_enum :link_fetch_state
   end
 end
 ```
@@ -282,7 +288,43 @@ end
 - [ ] Run migration: `rails db:migrate`
 - [ ] Verify schema updated: `rails db:migrate:status`
 
-### 2.3 Generate State Machine
+### 2.3 Create ContentArchive Model
+
+**Create `app/models/content_archive.rb`** with basic structure (Statesman code will be added by generator):
+
+- [ ] Create model file
+
+```ruby
+# frozen_string_literal: true
+
+# Represents archived web page content for a Link
+#
+# ContentArchive stores extracted content, metadata, and tracks archival status
+# through a Statesman state machine. Each Link has one ContentArchive (one-to-one).
+class ContentArchive < ApplicationRecord
+  # =============================================================================
+  # Associations
+  # =============================================================================
+  
+  belongs_to :link
+
+  # =============================================================================
+  # Statesman State Machine Integration
+  # =============================================================================
+  # This section will be generated by: rails generate link_radar:state_machine ContentArchive
+  # (See next step)
+
+  # =============================================================================
+  # Validations
+  # =============================================================================
+
+  validates :link_id, presence: true
+  validates :title, length: {maximum: 500}, allow_nil: true
+  validates :image_url, length: {maximum: 2048}, allow_nil: true
+end
+```
+
+### 2.4 Generate State Machine
 
 **Run state machine generator** from spec.md#5.4:
 
@@ -294,8 +336,10 @@ end
   - `spec/factories/content_archive_transitions.rb`
   - `spec/models/content_archive_transition_spec.rb`
   - `spec/models/content_archive_state_machine_spec.rb`
+- [ ] Verify Statesman code was added to `app/models/content_archive.rb`
+- [ ] Run migration for transitions table: `rails db:migrate`
 
-### 2.4 Customize State Machine Transitions
+### 2.5 Customize State Machine Transitions
 
 **Edit `app/state_machines/content_archive_state_machine.rb`** to define allowed transitions per spec.md#3.2:
 
@@ -336,112 +380,6 @@ class ContentArchiveStateMachine
   transition from: :processing, to: [:success, :failed, :blocked]
 end
 ```
-
-### 2.5 Create ContentArchive Model
-
-**Create `app/models/content_archive.rb`** with state machine integration:
-
-- [ ] Create model file
-
-```ruby
-# frozen_string_literal: true
-
-# Represents archived web page content for a Link
-#
-# ContentArchive stores extracted content, metadata, and tracks archival status
-# through a Statesman state machine. Each Link has one ContentArchive (one-to-one).
-#
-# == Schema Information
-#
-# Table name: content_archives
-#
-#  id             :uuid             not null, primary key
-#  link_id        :uuid             not null
-#  error_message  :text
-#  content_html   :text
-#  content_text   :text
-#  title          :string(500)
-#  description    :text
-#  image_url      :string(2048)
-#  metadata       :jsonb
-#  fetched_at     :datetime
-#  created_at     :datetime         not null
-#  updated_at     :datetime         not null
-#
-# Indexes
-#
-#  index_content_archives_on_link_id       (link_id) UNIQUE
-#  index_content_archives_on_metadata      (metadata) USING gin
-#  index_content_archives_on_content_text  (content_text) USING gin
-#
-# Foreign Keys
-#
-#  fk_rails_...  (link_id => links.id) ON DELETE CASCADE
-#
-class ContentArchive < ApplicationRecord
-  # =============================================================================
-  # Associations
-  # =============================================================================
-  
-  belongs_to :link
-
-  # =============================================================================
-  # Statesman State Machine Integration
-  # =============================================================================
-  # This section was generated by: rails generate link_radar:state_machine ContentArchive
-  #
-  # State machine: ContentArchiveStateMachine
-  # Transition model: ContentArchiveTransition
-  #
-  # Documentation:
-  #   - Statesman gem: https://github.com/gocardless/statesman
-  #   - LinkRadar guide: project/guides/backend/state-machines-guide.md
-  #
-  # Usage:
-  #   archive.current_state
-  #   archive.transition_to!(:processing)
-  #   ContentArchive.in_state(:pending)
-  # =============================================================================
-
-  # Association to transition records
-  has_many :content_archive_transitions, autosave: false, dependent: :destroy
-
-  # Statesman query scopes and integration
-  include Statesman::Adapters::ActiveRecordQueries[
-    transition_class: ContentArchiveTransition,
-    initial_state: :pending
-  ]
-
-  # State machine instance
-  def state_machine
-    @state_machine ||= ContentArchiveStateMachine.new(
-      self,
-      transition_class: ContentArchiveTransition,
-      association_name: :content_archive_transitions
-    )
-  end
-
-  # Convenience delegate methods for easier access
-  delegate :current_state, :can_transition_to?, :transition_to!,
-    :allowed_transitions, to: :state_machine
-
-  # =============================================================================
-  # End Statesman State Machine Integration
-  # =============================================================================
-
-  # =============================================================================
-  # Validations
-  # =============================================================================
-
-  validates :link_id, presence: true
-  validates :title, length: {maximum: 500}, allow_nil: true
-  validates :image_url, length: {maximum: 2048}, allow_nil: true
-end
-```
-
-- [ ] Run migration for transitions table: `rails db:migrate`
-- [ ] Verify ContentArchiveTransition model exists
-- [ ] Update schema annotations: `bundle exec annotaterb models`
 
 ### 2.6 Update Link Model Integration
 
