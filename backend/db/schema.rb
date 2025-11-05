@@ -10,15 +10,11 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_11_04_223341) do
+ActiveRecord::Schema[8.1].define(version: 2025_11_05_020107) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
   enable_extension "unaccent"
-
-  # Custom types defined in this database.
-  # Note that some types may not work with other database engines. Be careful if changing database.
-  create_enum "link_fetch_state", ["pending", "success", "failed"]
 
   create_table "active_storage_attachments", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
     t.uuid "blob_id", null: false
@@ -53,6 +49,23 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_04_223341) do
     t.uuid "model_id"
     t.datetime "updated_at", null: false
     t.index ["model_id"], name: "index_chats_on_model_id"
+  end
+
+  create_table "content_archives", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
+    t.text "content_html"
+    t.text "content_text"
+    t.datetime "created_at", null: false
+    t.text "description"
+    t.text "error_message"
+    t.datetime "fetched_at"
+    t.string "image_url", limit: 2048
+    t.uuid "link_id", null: false
+    t.jsonb "metadata", default: {}
+    t.string "title", limit: 500
+    t.datetime "updated_at", null: false
+    t.index ["content_text"], name: "index_content_archives_on_content_text", opclass: :gin_trgm_ops, using: :gin
+    t.index ["link_id"], name: "index_content_archives_on_link_id", unique: true
+    t.index ["metadata"], name: "index_content_archives_on_metadata", using: :gin
   end
 
   create_table "good_job_batches", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
@@ -157,22 +170,14 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_04_223341) do
   end
 
   create_table "links", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
-    t.text "content_text"
     t.datetime "created_at", null: false
-    t.text "fetch_error"
-    t.enum "fetch_state", default: "pending", null: false, enum_type: "link_fetch_state"
-    t.datetime "fetched_at"
-    t.string "image_url", limit: 2048
     t.jsonb "metadata", default: {}
     t.text "note"
-    t.text "raw_html"
     t.text "search_projection"
     t.string "submitted_url", limit: 2048, null: false
-    t.string "title", limit: 500
     t.datetime "updated_at", null: false
     t.string "url", limit: 2048, null: false
     t.index ["created_at"], name: "index_links_on_created_at"
-    t.index ["fetch_state"], name: "index_links_on_fetch_state"
     t.index ["metadata"], name: "index_links_on_metadata", using: :gin
     t.index ["url"], name: "index_links_on_url", unique: true
   end
@@ -245,6 +250,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_04_223341) do
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "chats", "models"
+  add_foreign_key "content_archives", "links", on_delete: :cascade
   add_foreign_key "link_tags", "links"
   add_foreign_key "link_tags", "tags"
   add_foreign_key "messages", "chats"
