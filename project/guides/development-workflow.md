@@ -30,6 +30,8 @@ Let's walk through how we do this.
     - [Examples](#examples)
     - [Writing Good Commit Messages](#writing-good-commit-messages)
     - [Commit Frequency](#commit-frequency)
+    - [Validation](#validation)
+    - [Fixing Invalid Commits](#fixing-invalid-commits)
   - [Pull Request Process](#pull-request-process)
     - [The Complete Workflow](#the-complete-workflow)
     - [Benefits of Early Draft PRs](#benefits-of-early-draft-prs)
@@ -204,6 +206,29 @@ git commit -m "docs(backend): document archival API endpoint"
 ```
 
 Each commit represents a coherent piece of work that can stand on its own.
+
+### Validation
+
+Every pull request runs the **Conventional Commits** GitHub Action. It appears as a required status check named `Conventional Commits` and blocks merges until all commit messages pass. When the check fails, the workflow posts a guidance comment with the required format and quick remediation steps, plus a link back to this section.
+
+### Fixing Invalid Commits
+
+Use these commands to clean up problem commits that the check surfaces:
+
+- **Latest commit**
+  ```bash
+  git commit --amend -m "type(scope): concise subject"
+  git push --force-with-lease
+  ```
+- **Older commits**
+  ```bash
+  git rebase -i HEAD~3      # adjust the range as needed
+  # Change `pick` to `reword` for commits you need to edit
+  # Save, update the messages when prompted, then:
+  git push --force-with-lease
+  ```
+
+After rewriting messages, push the updates and the status check will rerun automatically. If it still fails, re-open the workflow comment for the specific issues it flagged.
 
 ## Pull Request Process
 
