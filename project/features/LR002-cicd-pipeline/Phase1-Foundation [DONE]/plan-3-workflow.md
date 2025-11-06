@@ -1,7 +1,7 @@
 # Plan 3: Development Workflow Documentation
 
 **Feature:** LR002 - CI/CD Pipeline & Deployment Automation  
-**Superthread Card:** [LR002-P3: Document Development Workflow](https://clevertakes.superthread.com/card/130)  
+**Superthread Card:** Card #130 — LR002-P3: Phase 1 – Development Workflow Documentation  
 **Status:** ✅ Complete
 
 ## Goal

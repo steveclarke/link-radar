@@ -1,7 +1,7 @@
 # Plan 4: Branch Protection Configuration
 
 **Feature:** LR002 - CI/CD Pipeline & Deployment Automation  
-**Superthread Card:** [LR002-P4: Configure Branch Protections](https://clevertakes.superthread.com/card/131)  
+**Superthread Card:** Card #131 — LR002-P4: Phase 1 – Branch Protection Configuration  
 **Status:** Ready to Execute
 
 ## Goal

@@ -1,7 +1,8 @@
 # Plan 4: Require Status Checks in Branch Protection
 
 **Feature:** LR002 - CI/CD Pipeline & Deployment Automation  
-**Superthread Card:** TBD  
+**Superthread Card:** Card #153 — LR002-P10: Phase 2 – Require Status Checks  
+**Doc Reference:** `project/features/LR002-cicd-pipeline/Phase2-CI-Validation/plan-4-require-status-checks.md`  
 **Status:** Ready to Execute (after Plans 1-3)
 
 ## Goal

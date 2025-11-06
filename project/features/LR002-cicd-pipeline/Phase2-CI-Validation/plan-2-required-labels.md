@@ -1,7 +1,8 @@
 # Plan 2: Required Labels Checker
 
 **Feature:** LR002 - CI/CD Pipeline & Deployment Automation  
-**Superthread Card:** TBD  
+**Superthread Card:** Card #151 — LR002-P8: Phase 2 – Required Labels Checker  
+**Doc Reference:** `project/features/LR002-cicd-pipeline/Phase2-CI-Validation/plan-2-required-labels.md`  
 **Status:** Ready to Execute
 
 ## Goal

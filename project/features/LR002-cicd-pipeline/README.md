@@ -21,6 +21,14 @@ This feature establishes a complete CI/CD pipeline for LinkRadar that enforces c
 4. ✅ Branch Protection (with ruleset JSON)
 5. ✅ Actions Permissions
 
+**Superthread cards:**
+- Card #128 — LR002-P1: Phase 1 – PR Template
+- Card #129 — LR002-P2: Phase 1 – GitHub Labels
+- Card #130 — LR002-P3: Phase 1 – Development Workflow Documentation
+- Card #131 — LR002-P4: Phase 1 – Branch Protection Configuration
+- Card #132 — LR002-P5: Phase 1 – GitHub Actions Permissions
+- Card #133 — LR002-P6: Phase 1 – Consolidate Docs
+
 **Deliverables:**
 - GitHub labels taxonomy created
 - PR template with label checklist
@@ -41,6 +49,12 @@ This feature establishes a complete CI/CD pipeline for LinkRadar that enforces c
 3. ⏳ Lint Checker (~4.5h)
 4. ⏳ Require Status Checks (~2.5h)
 
+**Superthread cards:**
+- Card #150 — LR002-P7: Phase 2 – Conventional Commits Checker
+- Card #151 — LR002-P8: Phase 2 – Required Labels Checker
+- Card #152 — LR002-P9: Phase 2 – Lint Checker
+- Card #153 — LR002-P10: Phase 2 – Require Status Checks
+
 **Deliverables:**
 - 3 validation workflows (commits, labels, linting)
 - Configuration files for linters
@@ -59,6 +73,10 @@ This feature establishes a complete CI/CD pipeline for LinkRadar that enforces c
 **Plans:**
 1. ⏳ Staging Placeholder (~3h)
 2. ⏳ Production Placeholder (~3.5h)
+
+**Superthread cards:**
+- Card #154 — LR002-P11: Phase 3 – Staging Deployment Placeholder
+- Card #155 — LR002-P12: Phase 3 – Production Deployment Placeholder
 
 **Deliverables:**
 - Staging deployment trigger (merge to master)

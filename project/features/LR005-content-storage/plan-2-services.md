@@ -72,10 +72,7 @@ module LinkRadar
     # 1. URL scheme validation (only http/https allowed)
     # 2. Private IP detection via DNS resolution (prevents SSRF attacks)
     #
-    # SSRF Prevention Strategy:
-    # Uses the private_address_check gem to detect if a hostname resolves to
-    # private/internal IP ranges. This prevents attackers from using the
-    # archival system to probe internal networks or services.
+    # SSRF Prevention: Validates URLs resolve to public IPs only.
     #
     # The gem automatically handles all RFC-defined private ranges including:
     # - IPv4: 10.0.0.0/8, 127.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12, 169.254.0.0/16
@@ -277,29 +274,28 @@ require "faraday"
 
 module LinkRadar
   module ContentArchiving
+    # Value object for fetched HTTP response
+    FetchedContent = Data.define(
+      :body,         # Response body as string
+      :status,       # HTTP status code as integer
+      :final_url,    # Final URL after redirects as string
+      :content_type  # Content-Type header value as string
+    )
+
     # Self-validating HTTP client that fetches web pages with SSRF protection
     #
-    # SECURITY BOUNDARY: This service is the security boundary for external HTTP requests.
-    # It validates all URLs (initial and redirects) internally before making requests,
-    # preventing SSRF attacks even if called directly from other parts of the codebase.
+    # Validates initial URL and all redirect targets to prevent SSRF attacks.
     #
     # Features:
-    # - Validates initial URL for scheme and private IPs before fetching
-    # - Manually follows redirects, validating each redirect target
-    # - Connect and read timeouts from ContentArchiveConfig
-    # - Content-Length header checking before download
+    # - Validates initial URL and all redirects for scheme and private IPs
+    # - Configurable timeouts and content size limits
     # - Custom User-Agent identifying LinkRadar
-    #
-    # SSRF Protection Strategy:
-    # 1. Validates initial URL using UrlValidator
-    # 2. Manually handles HTTP redirects (not automatic)
-    # 3. Validates each redirect target before following
-    # 4. Blocks redirect chains to private IPs
     #
     # @example Successful fetch
     #   result = HttpFetcher.new("https://example.com/article").call
     #   result.success? # => true
-    #   result.data     # => {body: "<html>...</html>", status: 200, final_url: "..."}
+    #   result.data     # => FetchedContent instance
+    #   result.data.body # => "<html>...</html>"
     #
     # @example Content too large
     #   result = HttpFetcher.new("https://example.com/huge.html").call
@@ -325,17 +321,15 @@ module LinkRadar
 
       # Fetches the URL content with validation
       #
-      # @return [LinkRadar::Result] success with response data or failure with error
-      #   - On success: data contains {body: String, status: Integer, final_url: String}
-      #   - On failure: errors contains descriptive error message
+      # @return [LinkRadar::Result] success with FetchedContent or failure with error
       def call
-        # SECURITY: Validate initial URL before making any requests
+        # Validate initial URL before making any requests
         validation_result = validate_url(url)
         return validation_result if validation_result.failure?
 
         # Check content size before downloading (best effort)
-        size_check_result = check_content_length(url)
-        return size_check_result if size_check_result.failure?
+        length_check_result = check_content_length(url)
+        return length_check_result if length_check_result.failure?
 
         # Perform HTTP request with redirect validation
         response = fetch_with_redirect_validation(url)
@@ -345,10 +339,12 @@ module LinkRadar
 
         if final_response.success?
           success(
-            body: final_response.body,
-            status: final_response.status,
-            final_url: final_response.env.url.to_s,
-            content_type: final_response.headers["content-type"]
+            FetchedContent.new(
+              body: final_response.body,
+              status: final_response.status,
+              final_url: final_response.env.url.to_s,
+              content_type: final_response.headers["content-type"]
+            )
           )
         else
           failure(
@@ -411,7 +407,7 @@ module LinkRadar
           # Resolve relative URLs to absolute
           redirect_url = resolve_redirect_url(url, redirect_url)
 
-          # SECURITY: Validate redirect target before following
+          # Validate redirect target before following
           validation_result = validate_url(redirect_url)
           if validation_result.failure?
             return failure(
@@ -495,8 +491,9 @@ end
 
 **Test HttpFetcher in Rails console:**
 
-- [ ] Test real URL: `LinkRadar::ContentArchiving::HttpFetcher.new("https://example.com").call`
-- [ ] Verify response includes body, status, final_url
+- [ ] Test real URL: `result = LinkRadar::ContentArchiving::HttpFetcher.new("https://example.com").call`
+- [ ] Verify response is FetchedContent: `result.data.class.name` (should be "LinkRadar::ContentArchiving::FetchedContent")
+- [ ] Check fields: `result.data.body`, `result.data.status`, `result.data.final_url`, `result.data.content_type`
 - [ ] Test 404: `LinkRadar::ContentArchiving::HttpFetcher.new("https://example.com/nonexistent").call`
 - [ ] Test redirect: `LinkRadar::ContentArchiving::HttpFetcher.new("http://example.com").call` (should follow to https)
 - [ ] **Test SSRF protection:**
@@ -515,7 +512,8 @@ end
 describe LinkRadar::ContentArchiving::HttpFetcher
   describe "#call"
     context "with successful HTTP requests"
-      it "returns success with body, status, final_url, and content_type"
+      it "returns success with FetchedContent value object"
+      it "FetchedContent includes body, status, final_url, and content_type"
       it "fetches HTML content successfully"
       it "handles 200 OK responses"
       it "includes final URL in response data"
@@ -623,9 +621,7 @@ module LinkRadar
 
     # Extracts content and metadata from HTML using multiple strategies
     #
-    # SECURITY: This service automatically sanitizes all extracted HTML content
-    # to remove XSS vectors (script tags, event handlers, etc.) before returning.
-    # The output is safe to store and display without additional sanitization.
+    # Automatically sanitizes all HTML output to remove XSS vectors.
     #
     # Orchestrates three operations:
     # 1. MetaInspector - Extracts OpenGraph/Twitter Card metadata
@@ -836,7 +832,7 @@ end
 
 **Test ContentExtractor in Rails console:**
 
-- [ ] Fetch sample HTML: `html = LinkRadar::ContentArchiving::HttpFetcher.new("https://example.com").call.data[:body]`
+- [ ] Fetch sample HTML: `html = LinkRadar::ContentArchiving::HttpFetcher.new("https://example.com").call.data.body`
 - [ ] Extract content: `result = LinkRadar::ContentArchiving::ContentExtractor.new(html: html, url: "https://example.com").call`
 - [ ] Verify result is ParsedContent: `parsed = result.data; parsed.class.name` (should be "LinkRadar::ContentArchiving::ParsedContent")
 - [ ] Check fields: `parsed.title`, `parsed.content_html`, `parsed.content_text`, `parsed.description`, `parsed.image_url`
