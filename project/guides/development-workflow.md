@@ -42,6 +42,10 @@ Let's walk through how we do this.
     - [Area Labels](#area-labels)
     - [Common Combinations](#common-combinations)
     - [Automated Validation](#automated-validation)
+  - [Linting](#linting)
+    - [Checks We Run](#checks-we-run)
+    - [Running Locally](#running-locally)
+    - [Fixing Common Issues](#fixing-common-issues)
   - [Code Review](#code-review)
     - [Before Requesting Review](#before-requesting-review)
     - [Self-Review Checklist](#self-review-checklist)
@@ -369,6 +373,56 @@ If either rule fails, the workflow blocks the PR from merging, updates a single 
 - Use `gh pr edit --add-label "<label>"` from the CLI
 
 After updating labels, the workflow reruns automatically; no manual re-trigger needed.
+
+## Linting
+
+Continuous linting keeps workflows, configuration files, and documentation healthy. The `Lint` GitHub Actions workflow runs on every pull request and on pushes to `master`, so a bad change cannot slip through even if it lands outside a PR.
+
+### Checks We Run
+
+- **GitHub Actions syntax (`actionlint`)** – Catches YAML and shell mistakes inside `.github/workflows/*.yml`. Inline review comments appear on PRs when issues are found.
+- **General YAML (`yamllint`)** – Uses `.yamllint.yml` to enforce 2-space indentation, sensible line length (120 warning), and ignores `truthy` complaints that conflict with GitHub workflow syntax.
+- **Markdown (`markdownlint-cli2`)** – Uses `.markdownlint.json` to validate heading structure, spacing, and formatting across every `*.md` file (line length relaxed to 120, inline HTML allowed).
+
+If any job fails, the `Lint` status check blocks merging until the problem is fixed.
+
+### Running Locally
+
+Use these one-liners when you want fast feedback without waiting for CI:
+
+```bash
+# GitHub workflow validations
+bash -c "curl -sSf https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | bash" && ./actionlint
+
+# Yamllint (installs once and caches in your Python environment)
+python3 -m pip install --user yamllint
+python3 -m yamllint .
+
+# Markdown lint
+npm install -g markdownlint-cli2
+markdownlint-cli2 '**/*.md' --config .markdownlint.json
+```
+
+The repo-level configs ensure local runs match CI. If you install the VS Code `YAML` and `markdownlint` extensions, they will also pick up these files automatically.
+
+### Fixing Common Issues
+
+- **Actionlint complains about `run:` blocks** – Quote multiline scripts with `|` and ensure shell commands are valid Bash.
+- **Yamllint line-length warnings** – Break long strings using folded scalars:
+  ```yaml
+  description: >
+    This is a longer sentence that wraps at 120 characters.
+  ```
+- **Markdownlint MD013 (line length)** – Wrap text or temporarily disable around long tables:
+  ```markdown
+  <!-- markdownlint-disable MD013 -->
+  | Long | Table | Header |
+  | ---- | ----- | ------ |
+  <!-- markdownlint-enable MD013 -->
+  ```
+- **Markdownlint MD033 (inline HTML)** – Allowed globally; if you prefer to keep the rules strict in a file, re-enable with `<!-- markdownlint-enable MD033 -->` after the HTML snippet.
+
+Fix the reported issues, push an update, and the workflow will re-run automatically.
 
 ## Code Review
 
