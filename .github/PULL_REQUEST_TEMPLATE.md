@@ -30,7 +30,6 @@ Before merging, ensure these labels are applied:
 
 - [ ] Tested locally
 - [ ] All tests pass
-- [ ] Lint checks pass (YAML/Markdown workflows)
 
 ## Additional Notes
 
