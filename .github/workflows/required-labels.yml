@@ -1,0 +1,77 @@
+name: Required Labels
+
+on:
+  pull_request:
+    types:
+      - opened
+      - labeled
+      - unlabeled
+      - synchronize
+      - reopened
+
+jobs:
+  verify-required-labels:
+    name: Verify Required Labels
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+      statuses: write
+    steps:
+      - name: Check for Type Label
+        id: check-type
+        uses: mheap/github-action-required-labels@v5
+        with:
+          mode: exactly
+          count: 1
+          labels: |
+            type: feat
+            type: fix
+            type: docs
+            type: style
+            type: refactor
+            type: test
+            type: chore
+          add_comment: true
+          message: |
+            ## ❌ Missing Type Label
+
+            Exactly one type label is required on every PR:
+            - `type: feat` — New features
+            - `type: fix` — Bug fixes
+            - `type: docs` — Documentation
+            - `type: style` — Formatting-only changes
+            - `type: refactor` — Code restructuring
+            - `type: test` — Test-only changes
+            - `type: chore` — Build, tooling, or dependency updates
+
+            Apply (or remove extras) and re-run this check.
+
+      - name: Check for Area Label
+        id: check-area
+        uses: mheap/github-action-required-labels@v5
+        with:
+          mode: minimum
+          count: 1
+          labels: |
+            area: backend
+            area: extension
+            area: frontend
+            area: cli
+            area: infrastructure
+            area: project
+          add_comment: true
+          message: |
+            ## ❌ Missing Area Label
+
+            At least one area label is required on every PR:
+            - `area: backend` — Rails API backend
+            - `area: extension` — Browser extension
+            - `area: frontend` — Frontend SPA
+            - `area: cli` — CLI tool
+            - `area: infrastructure` — Docker, deployment, CI/CD
+            - `area: project` — Project documentation
+
+            Multiple area labels are welcome if the PR spans several parts of the codebase.
+

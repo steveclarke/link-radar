@@ -41,6 +41,7 @@ Let's walk through how we do this.
     - [Type Labels](#type-labels)
     - [Area Labels](#area-labels)
     - [Common Combinations](#common-combinations)
+    - [Automated Validation](#automated-validation)
   - [Code Review](#code-review)
     - [Before Requesting Review](#before-requesting-review)
     - [Self-Review Checklist](#self-review-checklist)
@@ -354,6 +355,20 @@ Multiple area labels are fine if your change spans modules. For example, a refac
 - `type: refactor` + `area: backend` + `area: extension` - Cross-cutting refactor
 
 > **Reference:** See `project/guides/github/setup/labels/guide.md` for the complete label taxonomy.
+
+### Automated Validation
+
+The `Required Labels` GitHub Actions workflow enforces these rules on every pull request. The check runs whenever a PR is opened, labels are added/removed, or new commits land. It evaluates two things:
+
+1. Exactly one `type:` label must be applied  
+2. At least one `area:` label must be applied
+
+If either rule fails, the workflow blocks the PR from merging, updates a single guidance comment that lists what is missing, and removes the comment again once the PR is compliant. To unblock the check:
+
+- Add the missing labels via the sidebar in the GitHub UI, or
+- Use `gh pr edit --add-label "<label>"` from the CLI
+
+After updating labels, the workflow reruns automatically; no manual re-trigger needed.
 
 ## Code Review
 
