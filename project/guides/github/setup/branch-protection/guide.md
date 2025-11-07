@@ -65,9 +65,9 @@ Bypass modes:
 - **For pull requests only** - Can bypass when merging PRs in GitHub UI
 - **Exempt** - Never subject to the ruleset at all
 
-**Why we use it:** **Repository admin with "For pull requests only"** gives an emergency escape hatch without allowing command-line bypasses.
+**Why we use it:** **Repository admin with "Always"** keeps an escape hatch for senior maintainers (tiny hotfix pushes) while still logging each bypass.
 
-**How it works:** When you try an action that violates rules, you'll see a checkbox to bypass (if you have permission).
+**How it works:** When you try an action that violates rules, you'll see a warning with a bypass checkbox (CLI prompt or PR UI) if you have permission.
 
 ### Rules
 
@@ -131,7 +131,7 @@ Parameters:
 | Required approvals | ✅ (1) | Quality gate |
 | Last push approval | ✅ | Re-review after changes |
 | Linear history | ✅ | Clean Git history |
-| Bypass: Admins (PR only) | ✅ | Emergency escape hatch |
+| Bypass: Admins (always) | ✅ | Emergency escape hatch + CLI overrides |
 | Block force pushes | ✅ | Prevent history rewrites |
 | Restrict deletions | ✅ | Prevent accidental deletion |
 | Status checks | ✅ | Enforces commit and label validation |
@@ -164,8 +164,8 @@ Parameters:
    - Click "Add bypass"
    - Select **"Repository admin"**
    - Click the three-dot menu next to it
-   - Select **"For pull requests only"** (NOT "Always")
-   - This allows emergency overrides in PR UI but blocks command-line bypasses
+   - Select **"Always"** so admins may override from either the PR UI _or_ the command line
+   - Use with care—this is meant for senior dev hotfixes, not everyday workflow
 
 ![Add bypass dropdown showing role options](02-add-bypass-dropdown.png)
 
@@ -271,7 +271,7 @@ cd project/guides/github/branch-protection
 1. **Creates ruleset via API** - Uses `gh api repos/{repo}/rulesets` endpoint
 2. **Sets enforcement to active** - Ruleset is immediately enforced
 3. **Targets default branch** - Uses `~DEFAULT_BRANCH` special token
-4. **Configures bypass** - Actor ID 5 (Repository Admin) with `pull_request` mode
+4. **Configures bypass** - Actor ID 5 (Repository Admin) with `always` mode
 5. **Applies all rules** - Deletion, linear history, PR requirements, force push blocking
 
 ### Script Breakdown
@@ -294,11 +294,11 @@ gh api repos/"$REPO"/rulesets --method POST
 {
   "actor_id": 5,
   "actor_type": "RepositoryRole",
-  "bypass_mode": "pull_request"
+  "bypass_mode": "always"
 }
 ```
 - Actor ID 5 = Repository Admin role
-- `pull_request` mode = bypass only in PR context
+- `always` mode = admins see the bypass prompt everywhere (CLI + PR UI)
 
 **Target Configuration:**
 ```json
@@ -404,21 +404,22 @@ Try to approve your own PR in GitHub UI.
 
 Expected: ❌ **Blocked** - "New changes require approval from someone other than the last pusher"
 
-**Test 6: Bypass and Merge (Should Succeed)**
+**Test 6: Bypass and Merge/Push (Should Succeed)**
 
-In GitHub UI, check the "Merge without waiting for requirements to be met" checkbox and merge.
+- In GitHub UI, check the "Merge without waiting for requirements to be met" checkbox and merge.
+- Or from CLI, follow the GH013 prompt to confirm the bypass push.
 
-Expected: ✅ **Succeeds** - admin bypass works in PR context
+Expected: ✅ **Succeeds** - admin bypass works in both contexts (logged by GitHub)
 
 ### Expected Behavior
 
 **What You'll See:**
 
-- Command-line pushes to master are **hard-blocked** (even for admins)
+- Command-line pushes to master show a bypass warning; admins can confirm to continue
 - Feature branches can be pushed normally
 - PRs can be created without restrictions
 - Merge button is **disabled** until requirements met
-- A **bypass checkbox** appears if you're an admin (only in PR UI)
+- A **bypass checkbox** appears in PR UI, and CLI pushes offer a bypass prompt for admins
 - Self-approval fails with clear error message
 
 **Protection Messages:**
@@ -494,18 +495,18 @@ With rulesets active, your workflow becomes:
 
 **How to Bypass (Admin Only):**
 
-In the GitHub PR UI, you'll see:
-```
-☐ Merge without waiting for requirements to be met (bypass rules)
-```
-
-Check this box to bypass the ruleset rules.
+- **From the PR UI:** you'll see
+  ```
+  ☐ Merge without waiting for requirements to be met (bypass rules)
+  ```
+  Check this box, then merge.
+- **From the command line:** pushes to protected refs will display a warning (GH013) followed by a prompt offering `--force-with-lease --bypass` behavior; confirm to proceed.
 
 **Important:**
 
 - Only available to users with bypass permission (admins in our case)
-- Only works in PR context (not command-line)
-- Use sparingly - defeats the purpose of protection
+- CLI bypass is now possible because bypass mode is “Always”
+- Use sparingly—every override is logged and should be for emergencies or tiny fixes
 
 ### Understanding Enforcement Modes
 

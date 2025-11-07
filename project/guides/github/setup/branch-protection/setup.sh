@@ -25,7 +25,7 @@ gh api repos/"$REPO"/rulesets \
   -f name="Master Branch Protection" \
   -f enforcement="active" \
   -f target="branch" \
-  -f bypass_actors='[{"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "pull_request"}]' \
+  -f bypass_actors='[{"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always"}]' \
   -f conditions='{"ref_name": {"include": ["~DEFAULT_BRANCH"], "exclude": []}}' \
   -f rules='[
     {
@@ -71,7 +71,7 @@ echo "  ✓ Dismiss stale reviews on new commits"
 echo "  ✓ Require last push approval"
 echo "  ✓ Require linear history"
 echo "  ✓ Require status checks: conventional-commits, required-labels"
-echo "  ✓ Repository admins can bypass (in PRs only)"
+echo "  ✓ Repository admins can bypass (always)"
 echo "  ✓ Block force pushes"
 echo "  ✓ Restrict deletions"
 echo ""
@@ -79,7 +79,7 @@ echo "View settings: https://github.com/$REPO/settings/rules"
 echo ""
 echo "Notes:"
 echo "  • Actor ID 5 = Repository Admin role"
-echo "  • Bypass mode 'pull_request' = bypass only available in PR context"
+echo "  • Bypass mode 'always' = admins get a bypass prompt everywhere"
 echo "  • ~DEFAULT_BRANCH = targets whatever branch is set as default"
 echo "  • Status checks are enforced with strict up-to-date policy"
 
