@@ -32,6 +32,9 @@ gh api repos/"$REPO"/rulesets \
       "type": "deletion"
     },
     {
+      "type": "non_fast_forward"
+    },
+    {
       "type": "required_linear_history"
     },
     {
@@ -41,11 +44,19 @@ gh api repos/"$REPO"/rulesets \
         "dismiss_stale_reviews_on_push": true,
         "require_code_owner_review": false,
         "require_last_push_approval": true,
-        "required_review_thread_resolution": false
+        "required_review_thread_resolution": false,
+        "allowed_merge_methods": ["merge", "squash", "rebase"]
       }
     },
     {
-      "type": "non_fast_forward"
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": true,
+        "required_status_checks": [
+          {"context": "conventional-commits"},
+          {"context": "required-labels"}
+        ]
+      }
     }
   ]' > /dev/null
 
@@ -59,12 +70,10 @@ echo "  ✓ Require pull requests with 1 approval"
 echo "  ✓ Dismiss stale reviews on new commits"
 echo "  ✓ Require last push approval"
 echo "  ✓ Require linear history"
+echo "  ✓ Require status checks: conventional-commits, required-labels"
 echo "  ✓ Repository admins can bypass (in PRs only)"
 echo "  ✓ Block force pushes"
 echo "  ✓ Restrict deletions"
-echo ""
-echo "⚠️  Status checks NOT configured yet (no CI workflows exist)"
-echo "    Will be added in Phase 2: conventional-commits, required-labels, yaml-lint"
 echo ""
 echo "View settings: https://github.com/$REPO/settings/rules"
 echo ""
@@ -72,5 +81,5 @@ echo "Notes:"
 echo "  • Actor ID 5 = Repository Admin role"
 echo "  • Bypass mode 'pull_request' = bypass only available in PR context"
 echo "  • ~DEFAULT_BRANCH = targets whatever branch is set as default"
-echo "  • Status checks rule excluded - add in Phase 2 when CI workflows exist"
+echo "  • Status checks are enforced with strict up-to-date policy"
 

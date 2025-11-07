@@ -113,16 +113,15 @@ Parameters:
 
 **How it works:** Any force push attempt is rejected.
 
-#### Require Status Checks (Phase 2)
+#### Require Status Checks
 
 **What it does:** CI workflows must pass before merging.
 
-**Why we defer it:** No CI workflows exist yet. Will add in Phase 2 with:
-- conventional-commits
-- required-labels  
-- yaml-lint
+**Why we use it:** Blocks merges until:
+- `conventional-commits` confirms every commit message is formatted correctly.
+- `required-labels` confirms each PR carries exactly one type label and at least one area label.
 
-**How it will work:** PRs can't be merged until all required checks pass.
+**How it works:** PRs can't be merged until both checks report success, and GitHub also enforces that branches are up to date with master before merging.
 
 ## Settings Summary
 
@@ -135,7 +134,7 @@ Parameters:
 | Bypass: Admins (PR only) | ✅ | Emergency escape hatch |
 | Block force pushes | ✅ | Prevent history rewrites |
 | Restrict deletions | ✅ | Prevent accidental deletion |
-| Status checks | ⚠️ Phase 2 | Will add when CI workflows exist |
+| Status checks | ✅ | Enforces commit and label validation |
 
 ## Manual Setup (Learning Path)
 
@@ -194,8 +193,12 @@ Check these boxes in order:
 
 ![Pull request rule settings showing approval requirements](04-pull-request-rules.png)
 
-☐ **Require status checks to pass** - Leave UNCHECKED (Phase 2)
-  - Will add later when CI workflows exist
+☑ **Require status checks to pass** - Add both checks
+  - `conventional-commits`
+  - `required-labels`
+  - Enable “Require branches to be up to date before merging”
+
+![Required status checks configuration showing conventional-commits and required-labels](05-required-status-checks.png)
 
 ☑ **Block force pushes** - Prevents history rewrites
 
@@ -335,7 +338,7 @@ gh api repos/"$REPO"/rulesets --method POST
 }
 ```
 
-**Add status checks (Phase 2):**
+**Update required status checks:**
 ```json
 {
   "type": "required_status_checks",
@@ -343,8 +346,7 @@ gh api repos/"$REPO"/rulesets --method POST
     "strict_required_status_checks_policy": true,
     "required_status_checks": [
       {"context": "conventional-commits"},
-      {"context": "required-labels"},
-      {"context": "yaml-lint"}
+      {"context": "required-labels"}
     ]
   }
 }
@@ -522,18 +524,14 @@ Check this box to bypass the ruleset rules.
 - No checking or enforcement
 - Useful for temporarily disabling without deleting
 
-### Status Checks (Phase 2)
+### Required Status Checks
 
-Once CI workflows are added, you'll need to:
+Our ruleset already enforces two checks:
 
-1. **Edit the ruleset** in GitHub UI
-2. **Enable "Require status checks to pass"**
-3. **Add required checks:**
-   - conventional-commits
-   - required-labels
-   - yaml-lint
+- `conventional-commits`
+- `required-labels`
 
-Or run an updated version of the automation script that includes status checks.
+If a workflow name changes, update the ruleset (UI import or `setup.sh`) so the new context appears. Always leave “Require branches to be up to date before merging” enabled alongside the checks.
 
 ## Common Issues
 
@@ -566,8 +564,6 @@ git push origin feat/my-feature
 - Check that you have the right permissions
 
 ### Status Checks Never Complete
-
-(This will be relevant in Phase 2)
 
 **Error:** PR shows "Waiting for status checks"
 
@@ -683,7 +679,7 @@ After setting up branch protection:
 
 1. **Verify with test PR** - Run the testing checklist above
 2. **Update your workflow** - Get used to PR-based development
-3. **Prepare for Phase 2** - CI checks will be added to the ruleset
+3. **Audit required checks periodically** - Update ruleset if workflow names or requirements change
 4. **Document your learnings** - Note any surprises or adjustments
 
 ## References
