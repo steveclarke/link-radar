@@ -1,0 +1,178 @@
+name: Deploy to Staging (Placeholder)
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  staging-deployment-placeholder:
+    name: Create staging deployment issue
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create staging deployment issue
+        id: create_issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const LABEL_NAME = 'deployment: staging';
+            const LABEL_COLOR = 'FFA500';
+            const LABEL_DESCRIPTION = 'Staging deployment tracking';
+
+            async function ensureLabel() {
+              try {
+                await github.rest.issues.getLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: LABEL_NAME,
+                });
+              } catch (error) {
+                if (error.status !== 404) {
+                  core.error(`Failed to look up label "${LABEL_NAME}": ${error.message}`);
+                  throw error;
+                }
+
+                await github.rest.issues.createLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: LABEL_NAME,
+                  color: LABEL_COLOR,
+                  description: LABEL_DESCRIPTION,
+                });
+              }
+            }
+
+            async function getPullRequestNumber(sha) {
+              try {
+                const { data: pulls } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  commit_sha: sha,
+                });
+
+                if (Array.isArray(pulls) && pulls.length > 0) {
+                  return pulls[0].number;
+                }
+              } catch (error) {
+                core.warning(`Unable to resolve pull request for commit ${sha}: ${error.message}`);
+              }
+
+              const commitMessage = context.payload.head_commit?.message ?? '';
+              const match = commitMessage.match(/\(#(\d+)\)/);
+              if (match) {
+                return match[1];
+              }
+
+              return null;
+            }
+
+            function getCommitMetadata() {
+              const sha = context.sha;
+              const shortSha = sha.slice(0, 7);
+              const headCommit = context.payload.head_commit;
+              const commitUrl = headCommit?.url ?? `${context.payload.repository.html_url}/commit/${sha}`;
+              const commitMessage = headCommit?.message?.split('\n')[0] ?? 'Commit message unavailable';
+              const author = headCommit?.author?.name ?? context.actor;
+              const timestamp = headCommit?.timestamp ?? new Date().toISOString();
+
+              return {
+                sha,
+                shortSha,
+                commitUrl,
+                commitMessage,
+                author,
+                timestamp,
+              };
+            }
+
+            function escapeBackticks(value) {
+              return String(value ?? '').replace(/`/g, '\\`');
+            }
+
+            await ensureLabel();
+
+            const metadata = getCommitMetadata();
+            const prNumber = await getPullRequestNumber(metadata.sha);
+            const repoUrl = context.payload.repository.html_url;
+            const defaultBranch = context.payload.repository.default_branch ?? 'master';
+            const docUrl = `${repoUrl}/blob/${defaultBranch}/project/guides/deployment/staging-trigger.md`;
+
+            const issueTitle = `[Staging] Deploy ${metadata.shortSha} - ${metadata.commitMessage}`;
+
+            const issueBody = `## 🚀 Staging Deployment Ready
+
+            **Deployment Type:** Placeholder (Issue Creation Only)
+
+            ### Deployment Metadata
+
+            | Field | Value |
+            |-------|-------|
+            | **Commit SHA** | \`${metadata.shortSha}\` ([full commit](${metadata.commitUrl})) |
+            | **Commit Message** | ${escapeBackticks(metadata.commitMessage)} |
+            | **Author** | ${escapeBackticks(metadata.author)} |
+            | **Triggered At** | ${metadata.timestamp} |
+            | **Source PR** | ${prNumber ? `#${prNumber}` : 'Direct push'} |
+            | **Branch** | \`${defaultBranch}\` |
+
+            ### What Would Happen (Real Deployment)
+
+            When real deployment automation is enabled:
+
+            1. **Build Docker images:**
+               - \`backend:sha-${metadata.shortSha}\`
+               - \`backend:${defaultBranch}\`
+
+            2. **Push to container registry:**
+               - Images tagged with SHA and branch name
+               - Image digests stored for reproducibility
+
+            3. **Deploy to staging environment:**
+               - Update staging environment with new images
+               - Run database migrations if needed
+               - Verify deployment health
+
+            4. **Report status:**
+               - Update this issue with deployment results
+               - Comment on source PR if applicable
+
+            ### Current Status
+
+            ✅ Trigger mechanism verified
+            🔷 Placeholder only - no actual deployment
+            ⏭️  Real deployment automation comes in future feature
+
+            ### Next Steps for Real Deployment
+
+            To activate real deployments:
+            1. Replace issue creation with deployment steps
+            2. Add Docker build job
+            3. Add image push to registry
+            4. Add deployment to staging environment
+            5. Add health checks
+
+            See [staging trigger guide](${docUrl}) for the activation checklist.
+
+            ---
+
+            *This issue was created automatically by the staging deployment trigger workflow. It demonstrates that merge events are properly captured and can trigger automation.*`;
+
+            const { data: issue } = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: issueTitle,
+              body: issueBody,
+              labels: [LABEL_NAME],
+            });
+
+            core.notice(`Created staging deployment issue: ${issue.html_url}`);
+
