@@ -31,6 +31,6 @@ class ContentArchiveStateMachine
   state :completed
   state :failed
 
-  transition from: :pending, to: [:processing]
+  transition from: :pending, to: [:processing, :failed]
   transition from: :processing, to: [:completed, :failed]
 end
