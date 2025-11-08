@@ -1,0 +1,47 @@
+{
+  "ignored_warnings": [
+    {
+      "warning_type": "Command Injection",
+      "warning_code": 14,
+      "fingerprint": "d5f7bca4ed1a0671f7ea67a991063883946e29cc53d71bfe9cf7d1d0422cb1b1",
+      "check_name": "Execute",
+      "message": "Possible command injection",
+      "file": "lib/dev/tooling/setup_runner.rb",
+      "line": 207,
+      "link": "https://brakemanscanner.org/docs/warning_types/command_injection/",
+      "code": "system(\"brew list | grep -q #{config[:brew]}\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Dev::Tooling::SetupRunner",
+        "method": "install_brew_packages"
+      },
+      "user_input": "config[:brew]",
+      "confidence": "Medium",
+      "note": "Values are from frozen SYSTEM_PACKAGES constant, not user input. Only runs on local dev systems."
+    },
+    {
+      "warning_type": "Command Injection",
+      "warning_code": 14,
+      "fingerprint": "8d8a1277c50f3e5c23170b4686b1d0d914127cc4ce12df9bd64a3aa93e5a3ec7",
+      "check_name": "Execute",
+      "message": "Possible command injection",
+      "file": "lib/dev/tooling/setup_runner.rb",
+      "line": 259,
+      "link": "https://brakemanscanner.org/docs/warning_types/command_injection/",
+      "code": "system(\"dpkg -s #{pkg}\", [:out, :err] => (File::NULL))",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Dev::Tooling::SetupRunner",
+        "method": "apt_package_installed?"
+      },
+      "user_input": "pkg",
+      "confidence": "Medium",
+      "note": "Values are from frozen SYSTEM_PACKAGES constant, not user input. Only runs on local dev systems."
+    }
+  ],
+  "updated": "2025-11-08 19:05:00 -0330",
+  "brakeman_version": "7.1.1"
+}
+

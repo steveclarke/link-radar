@@ -39,9 +39,15 @@ class Link < ApplicationRecord
 
   # Custom scope for sorting by tag count
   scope :sorted_by_tag_count, ->(direction) {
+    # Validate direction to prevent SQL injection
+    validated_direction = direction.to_s.upcase
+    unless %w[ASC DESC].include?(validated_direction)
+      raise ArgumentError, "Invalid sort direction: #{direction}. Must be ASC or DESC"
+    end
+
     left_joins(:link_tags)
       .group("links.id")
-      .order(Arel.sql("COUNT(link_tags.id) #{direction}, links.created_at #{direction}"))
+      .order(Arel.sql("COUNT(link_tags.id) #{validated_direction}, links.created_at #{validated_direction}"))
   }
 
   # Fetch state enum backed by Postgres enum type
