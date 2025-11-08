@@ -12,11 +12,13 @@ This plan implements the content extraction pipeline with security built into ea
 - LinkRadar::ContentArchiving::UrlValidator - URL scheme and private IP validation
 - LinkRadar::ContentArchiving::HttpFetcher - Self-validating HTTP client (validates initial URL and all redirects)
 - LinkRadar::ContentArchiving::ContentExtractor - Metadata/content extraction with built-in sanitization (secure by default)
+- Value Objects: FetchedContent, FetchError (HttpFetcher), ParsedContent, ContentMetadata, ExtractionError (ContentExtractor)
 
 **Architecture Pattern**: 
 - HttpFetcher is a **security boundary** - internally validates all URLs (initial + redirects)
 - ContentExtractor is **secure by default** - automatically sanitizes HTML output (XSS protection built-in)
 - All services follow LinkRadar::Resultable pattern for consistent return values
+- All services return typed value objects (FetchedContent, ParsedContent, FetchError, ExtractionError) rather than hashes for type safety and clarity
 
 **Security Model**: 
 - HttpFetcher enforces SSRF protection - safe to use anywhere in codebase
@@ -345,7 +347,8 @@ module LinkRadar
     # - Validates initial URL and all redirects for scheme and private IPs
     # - Configurable timeouts and content size limits
     # - Custom User-Agent identifying LinkRadar
-    # - Returns structured FetchError for failures
+    # - Returns structured FetchError for permanent failures
+    # - Raises Faraday::TimeoutError for transient failures (handled by Job layer)
     #
     # @example Successful fetch
     #   result = HttpFetcher.new("https://example.com/article").call
@@ -353,19 +356,23 @@ module LinkRadar
     #   result.data     # => FetchedContent instance
     #   result.data.body # => "<html>...</html>"
     #
-    # @example Content too large
+    # @example Content too large (permanent failure)
     #   result = HttpFetcher.new("https://example.com/huge.html").call
     #   result.failure? # => true
     #   result.errors   # => ["Content size exceeds 10MB limit"]
     #   result.data     # => FetchError instance
-    #   result.data.error_reason # => :size_limit
+    #   result.data.error_code # => :size_limit
     #
-    # @example Redirect to private IP (SSRF blocked)
+    # @example Redirect to private IP (SSRF blocked, permanent failure)
     #   result = HttpFetcher.new("https://evil.com/redirect-to-localhost").call
     #   result.failure? # => true
     #   result.errors   # => ["Redirect to private IP address blocked"]
     #   result.data     # => FetchError instance
-    #   result.data.error_reason # => :blocked
+    #   result.data.error_code # => :blocked
+    #
+    # @example Timeout (transient failure - raises for Job retry)
+    #   HttpFetcher.new("https://slow-site.com").call
+    #   # => raises Faraday::TimeoutError (caught by ArchiveContentJob for retry)
     #
     class HttpFetcher
       include LinkRadar::Resultable
@@ -422,17 +429,9 @@ module LinkRadar
           url: url
         )
         failure(error.error_message, error)
-      rescue Faraday::TimeoutError => e
-        error = FetchError.new(
-          error_code: :network_error,
-          error_message: "Connection timeout",
-          url: url,
-          details: {
-            connect_timeout: config.connect_timeout,
-            read_timeout: config.read_timeout
-          }
-        )
-        failure(error.error_message, error)
+      rescue Faraday::TimeoutError
+        # Don't catch timeouts - let them propagate to Job layer for retry
+        raise
       rescue => e
         error = FetchError.new(
           error_code: :network_error,
@@ -649,10 +648,10 @@ describe LinkRadar::ContentArchiving::HttpFetcher
       it "continues when HEAD request fails"
       it "continues when Content-Length header is missing"
     
-    context "with timeouts"
-      it "returns failure on connection timeout"
-      it "returns failure on read timeout"
-      it "includes url, connect_timeout, and read_timeout in error data"
+    context "with timeouts (transient failures)"
+      it "raises Faraday::TimeoutError on connection timeout"
+      it "raises Faraday::TimeoutError on read timeout"
+      it "does not catch timeout (propagates to Job layer)"
     
     context "with connection failures"
       it "returns failure when connection cannot be established"
