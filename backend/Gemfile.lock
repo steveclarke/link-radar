@@ -153,8 +153,8 @@ GEM
       faraday (>= 0.8)
     faraday-multipart (1.1.1)
       multipart-post (~> 2.0)
-    faraday-net_http (3.4.1)
-      net-http (>= 0.5.0)
+    faraday-net_http (3.4.2)
+      net-http (~> 0.5)
     faraday-retry (2.3.2)
       faraday (~> 2.0)
     fastimage (2.4.0)
@@ -197,7 +197,7 @@ GEM
     jbuilder (2.14.1)
       actionview (>= 7.0.0)
       activesupport (>= 7.0.0)
-    json (2.15.2)
+    json (2.16.0)
     language_server-protocol (3.17.0.5)
     lint_roller (1.1.0)
     logger (1.7.0)
@@ -279,6 +279,7 @@ GEM
       prettyprint
     prettyprint (0.2.0)
     prism (1.6.0)
+    private_address_check (0.5.0)
     psych (5.2.6)
       date
       stringio
@@ -365,7 +366,7 @@ GEM
       rubocop-ast (>= 1.46.0, < 2.0)
       ruby-progressbar (~> 1.7)
       unicode-display_width (>= 2.4.0, < 4.0)
-    rubocop-ast (1.47.1)
+    rubocop-ast (1.48.0)
       parser (>= 3.3.7.2)
       prism (~> 1.4)
     rubocop-performance (1.25.0)
@@ -386,7 +387,7 @@ GEM
     ruby-vips (2.2.5)
       ffi (~> 1.12)
       logger
-    ruby_llm (1.9.0)
+    ruby_llm (1.9.1)
       base64
       event_stream_parser (~> 1)
       faraday (>= 1.10.0)
@@ -465,6 +466,7 @@ DEPENDENCIES
   pagy (~> 43.0)
   pg (~> 1.1)
   pg_search
+  private_address_check (~> 0.5.0)
   puma (>= 5.0)
   rack-cors
   rails (~> 8.1.0)
