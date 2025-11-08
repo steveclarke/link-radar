@@ -3,7 +3,7 @@
 require "rails_helper"
 
 RSpec.describe ContentArchiveStateMachine do
-  let(:content_archive) { create(:content_archive) }
+  let(:content_archive) { create(:content_archive, :without_link_callback) }
   let(:state_machine) { described_class.new(content_archive, transition_class: ContentArchiveTransition, association_name: :content_archive_transitions) }
 
   describe "states" do

@@ -18,9 +18,7 @@ body:json {
   {
     "link": {
       "submitted_url": "https://example.com/cleaned",
-      "title": "Updated Link Title",
       "note": "Updated note",
-      "image_url": "https://example.com/new-image.jpg",
       "tag_names": ["Ruby", "Web Development"]
     }
   }
@@ -28,27 +26,27 @@ body:json {
 
 docs {
   Update an existing link.
-
+  
   Allowed fields:
   - submitted_url: Update the URL (removes tracking params, fixes typos, etc.)
   - title: Link title
   - note: Link note
   - image_url: Link preview image URL
   - tag_names: Array of tag names to assign (replaces existing tags)
-
+  
   Note: If submitted_url is updated, the url field is re-normalized and
   fetch_state is reset to "pending" (fetched data is cleared).
-
+  
   Tag assignment replaces all existing tags with the new set.
   Missing tags are created automatically.
-
+  
   Returns 200 OK on success:
   {
     "data": {
       "link": {updated link object including tags}
     }
   }
-
+  
   Returns 404 Not Found if link doesn't exist.
   Returns 422 Unprocessable Entity on validation errors or duplicate URL.
 }

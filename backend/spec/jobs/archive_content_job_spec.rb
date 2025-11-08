@@ -5,8 +5,8 @@ require "rails_helper"
 RSpec.describe ArchiveContentJob do
   include ActiveJob::TestHelper
 
-  let(:link) { create(:link) }
-  let!(:archive) { create(:content_archive, link: link) }
+  let!(:link) { create(:link) }
+  let(:archive) { link.content_archive }
   let(:archiver) { instance_double(LinkRadar::ContentArchiving::Archiver) }
   let(:captured_archives) { [] }
 

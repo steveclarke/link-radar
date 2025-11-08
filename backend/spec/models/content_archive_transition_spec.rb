@@ -57,7 +57,7 @@ RSpec.describe ContentArchiveTransition, type: :model do
 
   describe "after_destroy callback" do
     it "updates most_recent flag when most recent transition is destroyed" do
-      content_archive = create(:content_archive)
+      content_archive = create(:content_archive, :without_link_callback)
 
       # Manually create multiple transitions to test the callback
       first_transition = create(:content_archive_transition, content_archive: content_archive, to_state: "pending", sort_key: 1, most_recent: false)

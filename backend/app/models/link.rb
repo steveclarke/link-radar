@@ -56,11 +56,35 @@ class Link < ApplicationRecord
   validates :url, presence: true, length: {maximum: 2048}
   validates :submitted_url, presence: true, length: {maximum: 2048}
 
+  after_create :create_content_archive_and_enqueue_job
   # Callbacks
   # Check @tag_names (instance variable) to distinguish: nil (not provided) vs [] (clear tags)
   after_save :process_tag_names, if: -> { !@tag_names.nil? }
 
   private
+
+  # Creates ContentArchive and enqueues background archival job
+  #
+  # This callback is triggered after a Link is created. It:
+  # 1. Checks if content archival is enabled (early return if disabled)
+  # 2. Creates a ContentArchive record (initial state: pending)
+  # 3. Enqueues ArchiveContentJob to process content asynchronously
+  #
+  # Archival failures never block link creation - if archival is disabled,
+  # callback returns silently. Job failures are handled gracefully by the Archiver service.
+  #
+  # @return [void]
+  def create_content_archive_and_enqueue_job
+    config = ContentArchiveConfig.new
+    return unless config.enabled
+
+    archive = ContentArchive.create!(link: self)
+    ArchiveContentJob.perform_later(link_id: id)
+
+    Rails.logger.info "ContentArchive #{archive.id} created and job enqueued for Link #{id}"
+  rescue => e
+    Rails.logger.error "Failed to create ContentArchive for Link #{id}: #{e.message}"
+  end
 
   # Callback orchestrator for processing tag names after save
   #

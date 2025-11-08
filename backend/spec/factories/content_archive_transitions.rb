@@ -23,8 +23,8 @@
 #
 FactoryBot.define do
   factory :content_archive_transition do
-    # Associations
-    content_archive
+    # Associations - use the trait to avoid duplicate ContentArchive creation
+    content_archive { FactoryBot.create(:content_archive, :without_link_callback) }
 
     # Required fields
     to_state { "pending" }

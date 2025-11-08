@@ -4,8 +4,8 @@ require "rails_helper"
 
 RSpec.describe LinkRadar::ContentArchiving::Archiver do
   describe "#call" do
-    let(:link) { create(:link, url: "https://example.com/article") }
-    let(:archive) { create(:content_archive, link: link) }
+    let!(:link) { create(:link, url: "https://example.com/article") }
+    let(:archive) { link.content_archive }
     let(:config) { instance_double(ContentArchiveConfig, enabled: true) }
     let(:archiver) { described_class.new(archive: archive, config: config) }
 
