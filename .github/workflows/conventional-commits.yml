@@ -34,7 +34,7 @@ jobs:
 
       - name: Comment with Conventional Commits guidance
         if: failure()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const marker = '<!-- conventional-commits-check -->';
