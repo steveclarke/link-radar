@@ -60,10 +60,6 @@ This gem provides comprehensive RFC-compliant private IP detection, automaticall
 
 ```ruby
 # frozen_string_literal: true
-
-require "addressable/uri"
-require "private_address_check"
-
 module LinkRadar
   module ContentArchiving
     # Validates URLs for content archival with SSRF attack prevention
@@ -269,9 +265,6 @@ This ensures HttpFetcher is safe to use anywhere in the codebase - it cannot be 
 
 ```ruby
 # frozen_string_literal: true
-
-require "faraday"
-
 module LinkRadar
   module ContentArchiving
     # Value object for fetched HTTP response
@@ -594,12 +587,6 @@ Creates secure-by-default content extraction service with built-in HTML sanitiza
 
 ```ruby
 # frozen_string_literal: true
-
-require "metainspector"
-require "ruby-readability"
-require "loofah"
-require "nokogiri"
-
 module LinkRadar
   module ContentArchiving
     # Value object for parsed content metadata
@@ -871,14 +858,12 @@ describe LinkRadar::ContentArchiving::ContentExtractor
       it "extracts og:image"
       it "extracts og:type"
       it "extracts og:url"
-      it "includes all OpenGraph data in metadata"
     
     context "with Twitter Card metadata"
       it "extracts twitter:card"
       it "extracts twitter:title"
       it "extracts twitter:description"
       it "extracts twitter:image"
-      it "includes all Twitter Card data in metadata"
     
     context "with minimal HTML"
       it "handles HTML with no metadata gracefully"
