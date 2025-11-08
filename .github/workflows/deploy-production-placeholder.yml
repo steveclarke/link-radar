@@ -1,0 +1,212 @@
+name: Deploy to Production (Placeholder)
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  production-deployment-placeholder:
+    name: Create production deployment issue
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Get tag information
+        id: tag
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+
+          # Get tag message if annotated tag
+          TAG_MESSAGE=$(git tag -l --format='%(contents)' "$TAG_NAME" || echo "")
+          echo "tag_message<<EOF" >> $GITHUB_OUTPUT
+          echo "$TAG_MESSAGE" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          # Get tagged commit
+          COMMIT_SHA=$(git rev-list -n 1 "$TAG_NAME")
+          echo "commit_sha=$COMMIT_SHA" >> $GITHUB_OUTPUT
+
+      - name: Get changelog since last tag
+        id: changelog
+        run: |
+          TAG_NAME="${{ steps.tag.outputs.tag_name }}"
+
+          # Get previous tag
+          PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -v "^${TAG_NAME}$" | head -1 || echo "")
+
+          if [ -z "$PREVIOUS_TAG" ]; then
+            # First tag - get all history
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges "$TAG_NAME" | head -50)
+          else
+            # Get commits since previous tag
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges "${PREVIOUS_TAG}..${TAG_NAME}")
+          fi
+
+          # Save to file to handle multiline
+          echo "$CHANGELOG" > changelog.txt
+
+          # Also save previous tag for reference
+          echo "previous_tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
+
+      - name: Create production deployment issue
+        id: create_issue
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            const LABEL_NAME = 'deployment: production';
+            const LABEL_COLOR = 'DC143C';
+            const LABEL_DESCRIPTION = 'Production deployment tracking';
+
+            async function ensureLabel() {
+              try {
+                await github.rest.issues.getLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: LABEL_NAME,
+                });
+              } catch (error) {
+                if (error.status !== 404) {
+                  core.error(`Failed to look up label "${LABEL_NAME}": ${error.message}`);
+                  throw error;
+                }
+
+                await github.rest.issues.createLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: LABEL_NAME,
+                  color: LABEL_COLOR,
+                  description: LABEL_DESCRIPTION,
+                });
+              }
+            }
+
+            function escapeBackticks(value) {
+              return String(value ?? '').replace(/`/g, '\\`');
+            }
+
+            await ensureLabel();
+
+            const tagName = '${{ steps.tag.outputs.tag_name }}';
+            const commitSha = '${{ steps.tag.outputs.commit_sha }}';
+            const shortSha = commitSha.substring(0, 7);
+            const tagMessage = `${{ steps.tag.outputs.tag_message }}`.trim();
+            const previousTag = '${{ steps.changelog.outputs.previous_tag }}';
+            const timestamp = new Date().toISOString();
+            const repoUrl = context.payload.repository.html_url;
+            const defaultBranch = context.payload.repository.default_branch ?? 'master';
+            const docUrl = `${repoUrl}/blob/${defaultBranch}/project/guides/deployment/release-process.md`;
+
+            let changelog = '';
+            try {
+              changelog = fs.readFileSync('changelog.txt', 'utf8').trim();
+            } catch (error) {
+              changelog = 'No commits found (check manually)';
+            }
+
+            const issueTitle = `[Production] Release ${tagName} - ${shortSha}`;
+
+            const issueBody = `## 🚀 Production Release Ready
+
+            **Release Version:** ${tagName}
+            **Deployment Type:** Placeholder (Issue Creation Only)
+
+            ### Release Metadata
+
+            | Field | Value |
+            |-------|-------|
+            | **Version Tag** | \`${tagName}\` |
+            | **Commit SHA** | \`${shortSha}\` ([full commit](${repoUrl}/commit/${commitSha})) |
+            | **Tagged At** | ${timestamp} |
+            | **Previous Version** | ${previousTag || 'N/A (first release)'} |
+
+            ${tagMessage ? `### Tag Message\n\n${escapeBackticks(tagMessage)}\n` : ''}
+
+            ### Changes Since Last Release
+
+            ${changelog || 'No commits found (check manually)'}
+
+            ### What Would Happen (Real Deployment)
+
+            When real production deployment is enabled:
+
+            1. **Verify tag format:**
+               - Must match semver: \`vMAJOR.MINOR.PATCH\`
+               - Tag must be on ${defaultBranch} branch
+
+            2. **Build Docker images:**
+               - \`backend:${tagName}\`
+               - \`backend:sha-${shortSha}\`
+               - \`backend:latest\`
+
+            3. **Push to container registry:**
+               - Images tagged with version and SHA
+               - Extract and store image digests
+
+            4. **Validate images:**
+               - Run smoke tests against images
+               - Verify health endpoints
+
+            5. **Deploy to production:**
+               - Use image digests (not tags) for reproducibility
+               - Apply database migrations with backup
+               - Monitor deployment health
+               - Gradual rollout if configured
+
+            6. **Verify deployment:**
+               - Run smoke tests
+               - Check health endpoints
+               - Monitor error rates
+
+            7. **Update this issue:**
+               - Deployment status (success/failure)
+               - Deployed image digests
+               - Rollback instructions if needed
+
+            ### Current Status
+
+            ✅ Tag trigger mechanism verified
+            🔷 Placeholder only - no actual deployment
+            ⏭️  Real deployment automation comes in future feature
+
+            ### Next Steps for Real Deployment
+
+            To activate production deployments:
+            1. Implement staging deployment first
+            2. Verify staging automation stable
+            3. Replace this placeholder with real deployment steps
+            4. Add production health monitoring
+            5. Implement rollback procedures
+
+            See [release process guide](${docUrl}) for the full production deployment checklist.
+
+            ---
+
+            *This issue was created automatically by the production deployment trigger workflow. It demonstrates that tag push events are properly captured and can trigger automation.*`;
+
+            const { data: issue } = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: issueTitle,
+              body: issueBody,
+              labels: [LABEL_NAME],
+            });
+
+            core.notice(`Created production deployment issue: ${issue.html_url}`);
+            core.setOutput('issue_url', issue.html_url);
+            core.setOutput('issue_number', issue.number);
+
+      - name: Summary
+        run: |
+          echo "🚀 Production deployment placeholder created"
+          echo "Issue: ${{ steps.create_issue.outputs.issue_url }}"
+
