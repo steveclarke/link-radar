@@ -74,6 +74,9 @@ group :development, :test do
 
   # Factory Bot for test data generation
   gem "factory_bot_rails"
+
+  # HTTP request stubbing for tests
+  gem "webmock"
 end
 
 group :development do
