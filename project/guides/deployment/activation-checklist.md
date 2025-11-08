@@ -9,12 +9,20 @@ This checklist guides you through converting placeholder workflows to real deplo
 Before activating deployment automation:
 
 - [x] **Docker build automation** - Images built and pushed to GHCR automatically ✅
+- [x] **Production environment exists** - Running on production server ✅
+- [x] **Using SHA-based tags** - Production using `master` tag temporarily ⚠️
 - [ ] Staging environment exists and is accessible
-- [ ] Production environment exists and is accessible
 - [ ] Database backup/restore procedures documented
 - [ ] Rollback procedures tested
 - [ ] Monitoring and alerting configured
 - [ ] Team trained on deployment process
+
+### ⚠️ Current Production Setup
+
+**Temporary configuration:**
+- Production server manually pulling `ghcr.io/steveclarke/lr-backend:master`
+- Should migrate to SHA-based tags for immutability
+- No automated deployment yet - manual `docker pull` and restart
 
 ### ✅ Completed: Docker Build Automation
 
