@@ -48,7 +48,7 @@ Creates the Archiver service that orchestrates the content archival pipeline and
 
 **Create `backend/lib/link_radar/content_archiving/archiver.rb`** - the orchestration service:
 
-- [ ] Create service file
+- [x] Create service file
 
 ```ruby
 # frozen_string_literal: true
@@ -338,7 +338,7 @@ end
 
 **Create `backend/app/jobs/archive_content_job.rb`** - simplified job that calls the Archiver:
 
-- [ ] Create job file
+- [x] Create job file
 
 ```ruby
 # frozen_string_literal: true
@@ -497,14 +497,14 @@ Integrates archival with Link creation and performs end-to-end testing of the co
 
 **Edit `app/models/link.rb`** to add after_create callback:
 
-- [ ] Add the callback registration (add to existing callbacks section):
+- [x] Add the callback registration (add to existing callbacks section):
 
 ```ruby
   # Callbacks
 after_create :create_content_archive_and_enqueue_job
 ```
 
-- [ ] Add the callback method (add to private methods section):
+- [x] Add the callback method (add to private methods section):
 
 ```ruby
   private
@@ -543,26 +543,26 @@ after_create :create_content_archive_and_enqueue_job
 ## Completion Checklist
 
 Orchestration and integration complete when:
-- [ ] Archiver service successfully orchestrates the full pipeline
-- [ ] Archiver handles HTML content (full extraction) and non-HTML content (metadata only)
-- [ ] Archiver handles all failure scenarios with appropriate error_reason values
-- [ ] Archiver manages all state machine transitions
-- [ ] ArchiveContentJob successfully calls Archiver service
-- [ ] Job retry logic works for timeout errors (exponential backoff)
-- [ ] Link callback checks if archival is enabled before creating archive or enqueuing job
-- [ ] Link creation automatically creates archive and enqueues job (when enabled)
-- [ ] Link creation skips archival silently when archival is disabled
-- [ ] Archiver includes defensive check for disabled archival (safety net)
-- [ ] State machine uses 4 states: pending, processing, completed, failed
-- [ ] Archive metadata includes content_type for completed archives
-- [ ] Transition metadata includes error_reason for failed archives
-- [ ] RSpec tests implemented for Archiver service following spec structure
-- [ ] RSpec tests implemented for ArchiveContentJob following spec structure
-- [ ] All specs passing with coverage of HTML, non-HTML, and failure scenarios
-- [ ] Manual testing passes for all test cases
-- [ ] Cascade delete works (link deletion removes archive and transitions)
-- [ ] Sample data created and verified
-- [ ] Configuration requirements documented
+- [x] Archiver service successfully orchestrates the full pipeline
+- [x] Archiver handles HTML content (full extraction) and non-HTML content (metadata only)
+- [x] Archiver handles all failure scenarios with appropriate error_reason values
+- [x] Archiver manages all state machine transitions
+- [x] ArchiveContentJob successfully calls Archiver service
+- [x] Job retry logic works for timeout errors (exponential backoff)
+- [x] Link callback checks if archival is enabled before creating archive or enqueuing job
+- [x] Link creation automatically creates archive and enqueues job (when enabled)
+- [x] Link creation skips archival silently when archival is disabled
+- [x] Archiver includes defensive check for disabled archival (safety net)
+- [x] State machine uses 4 states: pending, processing, completed, failed
+- [x] Archive metadata includes content_type for completed archives
+- [x] Transition metadata includes error_reason for failed archives
+- [x] RSpec tests implemented for Archiver service following spec structure
+- [x] RSpec tests implemented for ArchiveContentJob following spec structure
+- [x] All specs passing with coverage of HTML, non-HTML, and failure scenarios
+- [x] Manual testing passes for all test cases
+- [x] Cascade delete works (link deletion removes archive and transitions)
+- [x] Sample data created and verified
+- [x] Configuration requirements documented
 
 **Implementation Complete!** Content archival system is fully functional with clean separation between job infrastructure and business logic.
 

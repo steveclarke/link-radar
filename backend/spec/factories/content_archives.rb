@@ -29,6 +29,19 @@
 #
 FactoryBot.define do
   factory :content_archive do
+    # Default: just reference a link. The Link callback will create the ContentArchive.
+    # Most specs should use create(:link).content_archive instead of this factory.
     link
+
+    # Trait for edge cases that need to create a ContentArchive without the Link callback
+    # (e.g., testing state machine or transitions in isolation)
+    trait :without_link_callback do
+      link do
+        Link.skip_callback(:create, :after, :create_content_archive_and_enqueue_job)
+        FactoryBot.create(:link)
+      ensure
+        Link.set_callback(:create, :after, :create_content_archive_and_enqueue_job)
+      end
+    end
   end
 end

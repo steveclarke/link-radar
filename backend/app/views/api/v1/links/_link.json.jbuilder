@@ -1,4 +1,4 @@
-json.extract! link, :id, :url, :title, :note
+json.extract! link, :id, :url, :note
 
 json.tags do
   json.array! link.tags do |tag|
