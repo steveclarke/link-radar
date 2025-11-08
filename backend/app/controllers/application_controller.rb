@@ -1,6 +1,7 @@
 class ApplicationController < ActionController::API
   include ActionController::HttpAuthentication::Token::ControllerMethods
   include Pagy::Method
+  include VersionHeader
 
   before_action :authenticate_api_request!
 

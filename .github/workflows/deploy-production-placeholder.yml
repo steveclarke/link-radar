@@ -202,11 +202,10 @@ jobs:
             });
 
             core.notice(`Created production deployment issue: ${issue.html_url}`);
-            core.setOutput('issue_url', issue.html_url);
-            core.setOutput('issue_number', issue.number);
+            return issue.html_url;
 
       - name: Summary
         run: |
           echo "🚀 Production deployment placeholder created"
-          echo "Issue: ${{ steps.create_issue.outputs.issue_url }}"
+          echo "Issue: ${{ steps.create_issue.outputs.result }}"
 
