@@ -147,8 +147,8 @@ jobs:
 
             ### Current Status
 
-            ✅ Trigger mechanism verified
-            🔷 Placeholder only - no actual deployment
+            ✅ Trigger mechanism verified  
+            🔷 Placeholder only - no actual deployment  
             ⏭️  Real deployment automation comes in future feature
 
             ### Next Steps for Real Deployment
