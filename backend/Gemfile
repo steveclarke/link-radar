@@ -43,6 +43,9 @@ gem "faraday"
 # URL parsing and normalization
 gem "addressable"
 
+# SSRF protection via private IP detection
+gem "private_address_check", "~> 0.5.0"
+
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
   gem "debug", platforms: %i[mri windows], require: "debug/prelude"
@@ -71,6 +74,9 @@ group :development, :test do
 
   # Factory Bot for test data generation
   gem "factory_bot_rails"
+
+  # HTTP request stubbing for tests
+  gem "webmock"
 end
 
 group :development do
