@@ -1,0 +1,189 @@
+name: Build and Push Docker Images
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: lr-backend
+  PLATFORMS: linux/amd64
+
+jobs:
+  build-and-push:
+    name: Build and push Docker images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      sha_tag: ${{ steps.meta.outputs.sha_tag }}
+      image_digest: ${{ steps.build.outputs.digest }}
+      image_ref: ${{ steps.meta.outputs.image_ref }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata and generate tags
+        id: meta
+        run: |
+          # Read version from VERSION file
+          VERSION=$(cat backend/VERSION | tr -d '[:space:]')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+          # Get short commit SHA
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "sha_tag=sha-${SHORT_SHA}" >> $GITHUB_OUTPUT
+
+          # Build image reference
+          IMAGE_BASE="${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}"
+          echo "image_ref=${IMAGE_BASE}" >> $GITHUB_OUTPUT
+
+          # Determine tags based on trigger
+          TAGS=""
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            # Tag push: use version tag, latest tag, and SHA tag
+            TAG_VERSION=${GITHUB_REF#refs/tags/}
+            TAGS="${IMAGE_BASE}:${TAG_VERSION}"
+            TAGS="${TAGS},${IMAGE_BASE}:latest"
+            TAGS="${TAGS},${IMAGE_BASE}:sha-${SHORT_SHA}"
+            echo "trigger=tag" >> $GITHUB_OUTPUT
+            echo "tag_version=${TAG_VERSION}" >> $GITHUB_OUTPUT
+          else
+            # Branch push: use master tag and SHA tag
+            TAGS="${IMAGE_BASE}:master"
+            TAGS="${TAGS},${IMAGE_BASE}:sha-${SHORT_SHA}"
+            echo "trigger=branch" >> $GITHUB_OUTPUT
+          fi
+
+          echo "tags=${TAGS}" >> $GITHUB_OUTPUT
+
+          # Log what we're building
+          echo "::notice::Building version ${VERSION} (SHA: ${SHORT_SHA})"
+          echo "::notice::Tags: ${TAGS}"
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          platforms: ${{ env.PLATFORMS }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
+
+      - name: Output build summary
+        run: |
+          echo "## Docker Image Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** \`${{ steps.meta.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**SHA Tag:** \`${{ steps.meta.outputs.sha_tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Image Digest:** \`${{ steps.build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Tags Pushed:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta.outputs.tags }}" | tr ',' '\n' >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Pull Image:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ${{ steps.meta.outputs.image_ref }}:${{ steps.meta.outputs.sha_tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "[View on GitHub Container Registry](https://github.com/${{ github.repository_owner }}/link-radar/pkgs/container/${{ env.IMAGE_NAME }})" >> $GITHUB_STEP_SUMMARY
+
+  update-deployment-issues:
+    name: Update deployment placeholder issues with image info
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Find and update deployment issues
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const sha = context.sha.substring(0, 7);
+            const imageRef = '${{ needs.build-and-push.outputs.image_ref }}';
+            const shaTag = '${{ needs.build-and-push.outputs.sha_tag }}';
+            const digest = '${{ needs.build-and-push.outputs.image_digest }}';
+            const version = '${{ needs.build-and-push.outputs.version }}';
+
+            // Determine which label to search for
+            let label = '';
+            if (context.ref.startsWith('refs/tags/')) {
+              label = 'deployment: production';
+            } else if (context.ref === 'refs/heads/master') {
+              label = 'deployment: staging';
+            }
+
+            if (!label) return;
+
+            // Find recent issues with the deployment label
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: label,
+              state: 'open',
+              sort: 'created',
+              direction: 'desc',
+              per_page: 5
+            });
+
+            // Find the issue for this commit
+            const targetIssue = issues.find(issue =>
+              issue.body && issue.body.includes(sha)
+            );
+
+            if (!targetIssue) {
+              console.log(`No ${label} issue found for commit ${sha}`);
+              return;
+            }
+
+            // Add comment with image information
+            const comment = "## 🐋 Docker Image Built\n\n" +
+              "**Image:** `" + imageRef + ":" + shaTag + "`\n" +
+              "**Digest:** `" + digest + "`\n" +
+              "**Version:** `" + version + "`\n\n" +
+              "### Pull Command:\n" +
+              "```bash\n" +
+              "docker pull " + imageRef + ":" + shaTag + "\n" +
+              "```\n\n" +
+              "### Deploy with Digest (Immutable):\n" +
+              "```bash\n" +
+              "docker pull " + imageRef + "@" + digest + "\n" +
+              "```\n\n" +
+              "**Image is ready for deployment!** 🚀";
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: targetIssue.number,
+              body: comment
+            });
+
+            console.log(`Updated issue #${targetIssue.number} with image information`);

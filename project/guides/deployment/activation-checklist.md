@@ -8,25 +8,39 @@ This checklist guides you through converting placeholder workflows to real deplo
 
 Before activating deployment automation:
 
+- [x] **Docker build automation** - Images built and pushed to GHCR automatically ✅
 - [ ] Staging environment exists and is accessible
 - [ ] Production environment exists and is accessible
-- [ ] Container registry configured (Docker Hub, GitHub Packages, etc.)
-- [ ] Registry credentials stored in GitHub secrets
 - [ ] Database backup/restore procedures documented
 - [ ] Rollback procedures tested
 - [ ] Monitoring and alerting configured
 - [ ] Team trained on deployment process
 
+### ✅ Completed: Docker Build Automation
+
+The following are already automated and working:
+
+- Docker images built on every master merge and version tag
+- Images pushed to GitHub Container Registry (GHCR)
+- Semantic tagging: `master`, `v1.0.0`, `sha-abc123`, `latest`
+- Build metadata captured (digest, version, tags)
+- Deployment placeholder issues updated with image information
+- Build cache optimization for faster builds
+
+See [Docker Automation Documentation](./docker-automation.md) for details.
+
 ## Staging Deployment Activation
 
 - [ ] Update `.github/workflows/deploy-staging-placeholder.yml`
-- [ ] Add Docker build job
-- [ ] Add image push to registry job
-- [ ] Add deployment to staging job
+- [x] ~~Add Docker build job~~ - Already automated in `docker-build-push.yml` ✅
+- [x] ~~Add image push to registry job~~ - Already automated in `docker-build-push.yml` ✅
+- [ ] Add SSH deployment to staging server
 - [ ] Add health check verification
 - [ ] Test with actual deployment
 - [ ] Update documentation with real process
 - [ ] Rename file to `deploy-staging.yml`
+
+**Note:** Docker builds are already automated. You just need to add the deployment step to pull and run the pre-built images.
 
 ## Production Deployment Activation
 
@@ -34,14 +48,16 @@ Before activating deployment automation:
 - [ ] Production environment fully configured
 - [ ] Database migration procedures tested
 - [ ] Update `.github/workflows/deploy-production-placeholder.yml`
-- [ ] Add Docker build job
-- [ ] Add image push to registry job
-- [ ] Add deployment to production job
+- [x] ~~Add Docker build job~~ - Already automated in `docker-build-push.yml` ✅
+- [x] ~~Add image push to registry job~~ - Already automated in `docker-build-push.yml` ✅
+- [ ] Add SSH deployment to production server
 - [ ] Add health check verification
 - [ ] Add rollback procedures
 - [ ] Test with controlled release
 - [ ] Update documentation with real process
 - [ ] Rename file to `deploy-production.yml`
+
+**Note:** Docker builds are already automated. You just need to add the deployment step to pull and run the pre-built images.
 
 ## Verification
 
@@ -63,43 +79,52 @@ If real deployments cause issues:
 
 ## Example: Converting Staging Placeholder to Real Deployment
 
-### Current Placeholder Structure
+### Current Structure (Phase 4 Complete)
 
+✅ **Automated Docker builds** (separate workflow):
 ```yaml
+# .github/workflows/docker-build-push.yml
+jobs:
+  build-and-push:
+    steps:
+      - name: Build Docker image
+      - name: Push to GHCR
+      - name: Output metadata
+```
+
+⏳ **Staging placeholder** (needs conversion):
+```yaml
+# .github/workflows/deploy-staging-placeholder.yml
 jobs:
   staging-deployment-placeholder:
     steps:
       - name: Create staging deployment issue
-        uses: actions/github-script@v8
-        # Creates GitHub issue
 ```
 
-### Real Deployment Structure
+### Target Structure (After Activation)
 
 ```yaml
+# .github/workflows/deploy-staging.yml
 jobs:
-  build:
-    steps:
-      - name: Build Docker image
-      - name: Push to registry
-  
   deploy:
-    needs: build
     steps:
-      - name: Deploy to staging
+      - name: Pull pre-built image from GHCR
+      - name: SSH to staging server
+      - name: Deploy with deploy/bin/deploy script
       - name: Run migrations
       - name: Health checks
       - name: Update deployment issue
 ```
 
+**Key difference:** No need to rebuild Docker images during deployment. They're already built and ready in GHCR.
+
 ## Configuration Secrets Required
 
 Add these to GitHub repository secrets before activation:
 
-**Container Registry:**
-- `REGISTRY_URL` - Container registry URL
-- `REGISTRY_USERNAME` - Registry username
-- `REGISTRY_PASSWORD` - Registry password/token
+**Container Registry:** ✅ Not needed
+- GHCR authentication uses `GITHUB_TOKEN` (automatically provided)
+- No manual secrets required for Docker builds
 
 **Staging Environment:**
 - `STAGING_DEPLOY_KEY` - SSH key or deployment token
