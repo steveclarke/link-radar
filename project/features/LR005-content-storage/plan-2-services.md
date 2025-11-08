@@ -128,29 +128,45 @@ module LinkRadar
 
       # Parses the URL using Addressable
       #
-      # @return [LinkRadar::Result] success with parsed URL or failure with error
+      # @return [LinkRadar::Result] success with parsed URL or failure with FetchError
       def parse_url
         parsed = Addressable::URI.parse(url)
 
         if parsed.nil? || parsed.host.nil?
-          return failure("Invalid URL format", {url: url})
+          error = FetchError.new(
+            error_code: :invalid_url,
+            error_message: "Invalid URL format",
+            url: url
+          )
+          return failure(error.error_message, error)
         end
 
         success(parsed)
       rescue Addressable::URI::InvalidURIError => e
-        failure("Malformed URL: #{e.message}", {url: url})
+        error = FetchError.new(
+          error_code: :invalid_url,
+          error_message: "Malformed URL: #{e.message}",
+          url: url
+        )
+        failure(error.error_message, error)
       end
 
       # Validates URL scheme is http or https
       #
       # @param parsed_url [Addressable::URI] the parsed URL
-      # @return [LinkRadar::Result] success or failure with error
+      # @return [LinkRadar::Result] success or failure with FetchError
       def validate_scheme(parsed_url)
         unless ALLOWED_SCHEMES.include?(parsed_url.scheme&.downcase)
-          return failure(
-            "URL scheme must be http or https",
-            {scheme: parsed_url.scheme, allowed_schemes: ALLOWED_SCHEMES, url: parsed_url.to_s}
+          error = FetchError.new(
+            error_code: :invalid_url,
+            error_message: "URL scheme must be http or https",
+            url: parsed_url.to_s,
+            details: {
+              scheme: parsed_url.scheme,
+              allowed_schemes: ALLOWED_SCHEMES
+            }
           )
+          return failure(error.error_message, error)
         end
 
         success
@@ -165,21 +181,35 @@ module LinkRadar
       # The gem handles DNS resolution and checks against all RFC-defined private ranges.
       #
       # @param parsed_url [Addressable::URI] the parsed URL
-      # @return [LinkRadar::Result] success or failure if private IP detected
+      # @return [LinkRadar::Result] success or failure with FetchError if private IP detected
       def check_for_private_ips(parsed_url)
         hostname = parsed_url.host
 
         if PrivateAddressCheck.resolves_to_private_address?(hostname)
-          return failure(
-            "URL resolves to private IP address (SSRF protection)",
-            {validation_reason: "private_ip", hostname: hostname, url: parsed_url.to_s}
+          error = FetchError.new(
+            error_code: :blocked,
+            error_message: "URL resolves to private IP address (SSRF protection)",
+            url: parsed_url.to_s,
+            details: {
+              hostname: hostname,
+              validation_reason: "private_ip"
+            }
           )
+          return failure(error.error_message, error)
         end
 
         success
       rescue SocketError => e
         # DNS resolution failed - could be invalid hostname
-        failure("DNS resolution failed: #{e.message}", {hostname: hostname, url: parsed_url.to_s})
+        error = FetchError.new(
+          error_code: :invalid_url,
+          error_message: "DNS resolution failed: #{e.message}",
+          url: parsed_url.to_s,
+          details: {
+            hostname: hostname
+          }
+        )
+        failure(error.error_message, error)
       end
     end
   end
@@ -275,6 +305,38 @@ module LinkRadar
       :content_type  # Content-Type header value as string
     )
 
+    # Value object for fetch errors
+    #
+    # Provides structured error information from HttpFetcher and UrlValidator
+    # instead of forcing consumers to parse error message strings.
+    #
+    # @example Network error
+    #   error = FetchError.new(
+    #     error_code: :network_error,
+    #     error_message: "HTTP 404: Not Found",
+    #     url: "https://example.com/missing",
+    #     http_status: 404
+    #   )
+    #
+    # @example SSRF blocked
+    #   error = FetchError.new(
+    #     error_code: :blocked,
+    #     error_message: "URL resolves to private IP address",
+    #     url: "http://192.168.1.1",
+    #     details: { hostname: "192.168.1.1" }
+    #   )
+    FetchError = Data.define(
+      :error_code,      # Symbol: :blocked, :invalid_url, :network_error, :size_limit
+      :error_message,   # String: human-readable error message
+      :url,            # String: the URL that failed
+      :http_status,    # Integer: HTTP status code (optional, nil for non-HTTP errors)
+      :details         # Hash: additional context (optional)
+    ) do
+      def initialize(error_code:, error_message:, url:, http_status: nil, details: {})
+        super
+      end
+    end
+
     # Self-validating HTTP client that fetches web pages with SSRF protection
     #
     # Validates initial URL and all redirect targets to prevent SSRF attacks.
@@ -283,6 +345,7 @@ module LinkRadar
     # - Validates initial URL and all redirects for scheme and private IPs
     # - Configurable timeouts and content size limits
     # - Custom User-Agent identifying LinkRadar
+    # - Returns structured FetchError for failures
     #
     # @example Successful fetch
     #   result = HttpFetcher.new("https://example.com/article").call
@@ -294,11 +357,15 @@ module LinkRadar
     #   result = HttpFetcher.new("https://example.com/huge.html").call
     #   result.failure? # => true
     #   result.errors   # => ["Content size exceeds 10MB limit"]
+    #   result.data     # => FetchError instance
+    #   result.data.error_reason # => :size_limit
     #
     # @example Redirect to private IP (SSRF blocked)
     #   result = HttpFetcher.new("https://evil.com/redirect-to-localhost").call
     #   result.failure? # => true
-    #   result.errors   # => ["Redirect to private IP address blocked (SSRF protection)"]
+    #   result.errors   # => ["Redirect to private IP address blocked"]
+    #   result.data     # => FetchError instance
+    #   result.data.error_reason # => :blocked
     #
     class HttpFetcher
       include LinkRadar::Resultable
@@ -314,7 +381,7 @@ module LinkRadar
 
       # Fetches the URL content with validation
       #
-      # @return [LinkRadar::Result] success with FetchedContent or failure with error
+      # @return [LinkRadar::Result] success with FetchedContent or failure with FetchError
       def call
         # Validate initial URL before making any requests
         validation_result = validate_url(url)
@@ -340,20 +407,39 @@ module LinkRadar
             )
           )
         else
-          failure(
-            "HTTP #{final_response.status}: #{final_response.reason_phrase}",
-            {http_status: final_response.status, url: url}
+          error = FetchError.new(
+            error_code: :network_error,
+            error_message: "HTTP #{final_response.status}: #{final_response.reason_phrase}",
+            url: url,
+            http_status: final_response.status
           )
+          failure(error.error_message, error)
         end
       rescue Faraday::ConnectionFailed => e
-        failure("Connection failed: #{e.message}", {url: url})
-      rescue Faraday::TimeoutError => e
-        failure(
-          "Connection timeout",
-          {url: url, connect_timeout: config.connect_timeout, read_timeout: config.read_timeout}
+        error = FetchError.new(
+          error_code: :network_error,
+          error_message: "Connection failed: #{e.message}",
+          url: url
         )
+        failure(error.error_message, error)
+      rescue Faraday::TimeoutError => e
+        error = FetchError.new(
+          error_code: :network_error,
+          error_message: "Connection timeout",
+          url: url,
+          details: {
+            connect_timeout: config.connect_timeout,
+            read_timeout: config.read_timeout
+          }
+        )
+        failure(error.error_message, error)
       rescue => e
-        failure("HTTP fetch error: #{e.message}", {url: url})
+        error = FetchError.new(
+          error_code: :network_error,
+          error_message: "HTTP fetch error: #{e.message}",
+          url: url
+        )
+        failure(error.error_message, error)
       end
 
       private
@@ -454,26 +540,37 @@ module LinkRadar
       # This prevents wasting bandwidth on content that exceeds size limits.
       #
       # @param url [String] the URL to check
-      # @return [LinkRadar::Result] success or failure if content too large
+      # @return [LinkRadar::Result] success or failure with FetchError if content too large
       def check_content_length(url)
         response = http_client.head(url)
         content_length = response.headers["content-length"]&.to_i
 
         if content_length && content_length > config.max_content_size
-          max_size = ActiveSupport::NumberHelper.number_to_human_size(config.max_content_size)
-          return failure(
-            "Content size exceeds #{max_size} limit",
-            {content_length: content_length, max_size: config.max_content_size}
+          max_size_mb = (config.max_content_size / (1024.0 * 1024)).round(1)
+          error = FetchError.new(
+            error_code: :size_limit,
+            error_message: "Content size exceeds #{max_size_mb}MB limit",
+            url: url,
+            details: {
+              content_length: content_length,
+              max_size: config.max_content_size
+            }
           )
+          return failure(error.error_message, error)
         end
 
         success
       rescue => e
         # Fail if we can't check content size - don't risk downloading huge files
-        failure(
-          "Unable to check content size: #{e.message}",
-          {url: url, error_class: e.class.name}
+        error = FetchError.new(
+          error_code: :network_error,
+          error_message: "Unable to check content size: #{e.message}",
+          url: url,
+          details: {
+            error_class: e.class.name
+          }
         )
+        failure(error.error_message, error)
       end
     end
   end
@@ -590,10 +687,16 @@ Creates secure-by-default content extraction service with built-in HTML sanitiza
 module LinkRadar
   module ContentArchiving
     # Value object for parsed content metadata
+    #
+    # Contains all metadata extracted from HTML content, including
+    # OpenGraph, Twitter Cards, canonical URL, and context about
+    # where the content came from.
     ContentMetadata = Data.define(
       :opengraph,      # OpenGraph metadata hash (or nil)
       :twitter,        # Twitter Card metadata hash (or nil)
-      :canonical_url   # Canonical URL string (or nil)
+      :canonical_url,  # Canonical URL string (or nil)
+      :final_url,      # Final URL after redirects (source URL)
+      :content_type    # Content type (always "html" for ContentExtractor)
     )
 
     # Value object for parsed web content
@@ -605,6 +708,27 @@ module LinkRadar
       :image_url,      # Featured image URL string (or nil)
       :metadata        # ContentMetadata instance
     )
+
+    # Value object for extraction errors
+    #
+    # Provides structured error information from ContentExtractor.
+    #
+    # @example Extraction error
+    #   error = ExtractionError.new(
+    #     error_code: :extraction_error,
+    #     error_message: "Failed to parse HTML",
+    #     url: "https://example.com/article"
+    #   )
+    ExtractionError = Data.define(
+      :error_code,      # Symbol: :extraction_error
+      :error_message,   # String: human-readable error message
+      :url,            # String: the URL being extracted
+      :details         # Hash: additional context (optional)
+    ) do
+      def initialize(error_code:, error_message:, url:, details: {})
+        super
+      end
+    end
 
     # Extracts content and metadata from HTML using multiple strategies
     #
@@ -640,7 +764,7 @@ module LinkRadar
 
       # Extracts content and metadata from HTML
       #
-      # @return [LinkRadar::Result] success with extracted data or failure with error
+      # @return [LinkRadar::Result] success with ParsedContent or failure with ExtractionError
       def call
         # Extract metadata using MetaInspector
         metadata_result = extract_metadata
@@ -666,7 +790,12 @@ module LinkRadar
           )
         )
       rescue => e
-        failure("Content extraction error: #{e.message}")
+        error = ExtractionError.new(
+          error_code: :extraction_error,
+          error_message: "Content extraction error: #{e.message}",
+          url: url
+        )
+        failure(error.error_message, error)
       end
 
       private
@@ -680,7 +809,7 @@ module LinkRadar
       # 2. Twitter Card (twitter:title, twitter:description)
       # 3. HTML meta tags (<title>, <meta name="description">)
       #
-      # @return [LinkRadar::Result] success with metadata or failure
+      # @return [LinkRadar::Result] success with metadata or failure with ExtractionError
       def extract_metadata
         # MetaInspector expects to fetch the page itself, but we already have HTML
         # Use document: option to provide pre-fetched HTML
@@ -693,7 +822,12 @@ module LinkRadar
           metadata: build_metadata(page)
         )
       rescue => e
-        failure("Metadata extraction error: #{e.message}")
+        error = ExtractionError.new(
+          error_code: :extraction_error,
+          error_message: "Metadata extraction error: #{e.message}",
+          url: url
+        )
+        failure(error.error_message, error)
       end
 
       # Extracts main content using Ruby-Readability
@@ -701,7 +835,7 @@ module LinkRadar
       # Readability strips ads, navigation, footers, and extracts the main
       # article content. Also generates plain text version for search.
       #
-      # @return [LinkRadar::Result] success with content or failure
+      # @return [LinkRadar::Result] success with content or failure with ExtractionError
       def extract_content
         doc = Readability::Document.new(html, tags: %w[div p article section])
 
@@ -713,7 +847,12 @@ module LinkRadar
           content_text: content_text
         )
       rescue => e
-        failure("Content extraction error: #{e.message}")
+        error = ExtractionError.new(
+          error_code: :extraction_error,
+          error_message: "Content extraction error: #{e.message}",
+          url: url
+        )
+        failure(error.error_message, error)
       end
 
       # Extracts title with fallback priority
@@ -742,13 +881,18 @@ module LinkRadar
 
       # Builds ContentMetadata value object
       #
+      # Includes OpenGraph, Twitter Card, canonical URL, plus context
+      # about where the content came from (final_url, content_type).
+      #
       # @param page [MetaInspector::Document] the MetaInspector page object
-      # @return [ContentMetadata] structured metadata value object
+      # @return [ContentMetadata] structured metadata value object with all fields
       def build_metadata(page)
         ContentMetadata.new(
           opengraph: extract_opengraph(page),
           twitter: extract_twitter_card(page),
-          canonical_url: page.meta_tags["canonical"]&.first
+          canonical_url: page.meta_tags["canonical"]&.first,
+          final_url: url,          # The URL we extracted from (already final after redirects)
+          content_type: "html"     # ContentExtractor only processes HTML
         )
       end
 
@@ -789,12 +933,17 @@ module LinkRadar
       # Preserves safe HTML structure for display purposes.
       #
       # @param html [String] the HTML content to sanitize
-      # @return [LinkRadar::Result] success with sanitized HTML or failure with error
+      # @return [LinkRadar::Result] success with sanitized HTML or failure with ExtractionError
       def sanitize_html(html)
         sanitized = Loofah.fragment(html).scrub!(:prune).to_s
         success(sanitized)
       rescue => e
-        failure("HTML sanitization error: #{e.message}")
+        error = ExtractionError.new(
+          error_code: :extraction_error,
+          error_message: "HTML sanitization error: #{e.message}",
+          url: url
+        )
+        failure(error.error_message, error)
       end
 
       # Extracts plain text from HTML for search indexing
