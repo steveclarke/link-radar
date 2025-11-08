@@ -8,6 +8,8 @@ This plan implements the content extraction pipeline with security built into ea
 - Content extraction orchestrating metainspector, ruby-readability, and loofah
 - HTML sanitization integrated into extraction (XSS protection by default)
 
+**Status:** ✅ Completed (2025-11-08)
+
 **Key components created:**
 - LinkRadar::ContentArchiving::UrlValidator - URL scheme and private IP validation
 - LinkRadar::ContentArchiving::HttpFetcher - Self-validating HTTP client (validates initial URL and all redirects)
@@ -49,8 +51,8 @@ Creates URL validation service with SSRF attack prevention through DNS resolutio
 
 **Add to `backend/Gemfile`**:
 
-- [ ] Add gem dependency: `gem "private_address_check", "~> 0.5.0"`
-- [ ] Run: `bundle install`
+- [x] Add gem dependency: `gem "private_address_check", "~> 0.5.0"`
+- [x] Run: `bundle install`
 
 This gem provides comprehensive RFC-compliant private IP detection, automatically maintained with updates.
 
@@ -58,7 +60,7 @@ This gem provides comprehensive RFC-compliant private IP detection, automaticall
 
 **Create `backend/lib/link_radar/content_archiving/url_validator.rb`** with full SSRF prevention logic:
 
-- [ ] Create service file with complete implementation
+- [x] Create service file with complete implementation
 
 ```ruby
 # frozen_string_literal: true
@@ -222,12 +224,12 @@ end
 
 **Test UrlValidator in Rails console:**
 
-- [ ] Start console: `rails console`
-- [ ] Test valid URL: `LinkRadar::ContentArchiving::UrlValidator.new("https://example.com").call`
-- [ ] Test invalid scheme: `LinkRadar::ContentArchiving::UrlValidator.new("ftp://example.com").call`
-- [ ] Test localhost: `LinkRadar::ContentArchiving::UrlValidator.new("http://localhost").call`
-- [ ] Test private IP: `LinkRadar::ContentArchiving::UrlValidator.new("http://192.168.1.1").call`
-- [ ] Test malformed URL: `LinkRadar::ContentArchiving::UrlValidator.new("not a url").call`
+- [x] Start console: `rails console`
+- [x] Test valid URL: `LinkRadar::ContentArchiving::UrlValidator.new("https://example.com").call`
+- [x] Test invalid scheme: `LinkRadar::ContentArchiving::UrlValidator.new("ftp://example.com").call`
+- [x] Test localhost: `LinkRadar::ContentArchiving::UrlValidator.new("http://localhost").call`
+- [x] Test private IP: `LinkRadar::ContentArchiving::UrlValidator.new("http://192.168.1.1").call`
+- [x] Test malformed URL: `LinkRadar::ContentArchiving::UrlValidator.new("not a url").call`
 
 ### 1.4 Spec Structure
 
@@ -293,7 +295,7 @@ This ensures HttpFetcher is safe to use anywhere in the codebase - it cannot be 
 
 **Create `backend/lib/link_radar/content_archiving/http_fetcher.rb`**:
 
-- [ ] Create service file
+- [x] Create service file
 
 ```ruby
 # frozen_string_literal: true
@@ -580,16 +582,16 @@ end
 
 **Test HttpFetcher in Rails console:**
 
-- [ ] Test real URL: `result = LinkRadar::ContentArchiving::HttpFetcher.new("https://example.com").call`
-- [ ] Verify response is FetchedContent: `result.data.class.name` (should be "LinkRadar::ContentArchiving::FetchedContent")
-- [ ] Check fields: `result.data.body`, `result.data.status`, `result.data.final_url`, `result.data.content_type`
-- [ ] Test 404: `LinkRadar::ContentArchiving::HttpFetcher.new("https://example.com/nonexistent").call`
-- [ ] Test redirect: `LinkRadar::ContentArchiving::HttpFetcher.new("http://example.com").call` (should follow to https)
-- [ ] **Test SSRF protection:**
-  - Test private IP blocked: `LinkRadar::ContentArchiving::HttpFetcher.new("http://192.168.1.1").call`
-  - Verify returns failure with "private IP" error
-  - Test localhost blocked: `LinkRadar::ContentArchiving::HttpFetcher.new("http://localhost").call`
-  - Verify returns failure with "private IP" error
+- [x] Test real URL: `result = LinkRadar::ContentArchiving::HttpFetcher.new("https://example.com").call`
+- [x] Verify response is FetchedContent: `result.data.class.name` (should be "LinkRadar::ContentArchiving::FetchedContent")
+- [x] Check fields: `result.data.body`, `result.data.status`, `result.data.final_url`, `result.data.content_type`
+- [x] Test 404: `LinkRadar::ContentArchiving::HttpFetcher.new("https://example.com/nonexistent").call`
+- [x] Test redirect: `LinkRadar::ContentArchiving::HttpFetcher.new("http://example.com").call` (should follow to https)
+- [x] **Test SSRF protection:**
+  - [x] Test private IP blocked: `LinkRadar::ContentArchiving::HttpFetcher.new("http://192.168.1.1").call`
+  - [x] Verify returns failure with "private IP" error
+  - [x] Test localhost blocked: `LinkRadar::ContentArchiving::HttpFetcher.new("http://localhost").call`
+  - [x] Verify returns failure with "private IP" error
 
 **Note:** HttpFetcher validates all URLs internally, so it's safe to use anywhere in the codebase.
 
@@ -679,7 +681,7 @@ Creates secure-by-default content extraction service with built-in HTML sanitiza
 
 **Create `backend/lib/link_radar/content_archiving/content_extractor.rb`** orchestrating metainspector and ruby-readability:
 
-- [ ] Create service file
+- [x] Create service file
 
 ```ruby
 # frozen_string_literal: true
@@ -967,18 +969,18 @@ end
 
 **Test ContentExtractor in Rails console:**
 
-- [ ] Fetch sample HTML: `html = LinkRadar::ContentArchiving::HttpFetcher.new("https://example.com").call.data.body`
-- [ ] Extract content: `result = LinkRadar::ContentArchiving::ContentExtractor.new(html: html, url: "https://example.com").call`
-- [ ] Verify result is ParsedContent: `parsed = result.data; parsed.class.name` (should be "LinkRadar::ContentArchiving::ParsedContent")
-- [ ] Check fields: `parsed.title`, `parsed.content_html`, `parsed.content_text`, `parsed.description`, `parsed.image_url`
-- [ ] Check metadata: `parsed.metadata.class.name` (should be "LinkRadar::ContentArchiving::ContentMetadata")
-- [ ] Check nested metadata: `parsed.metadata.opengraph`, `parsed.metadata.twitter`, `parsed.metadata.canonical_url`
-- [ ] **Verify sanitization:**
-  - Test with dangerous HTML: `html_with_xss = '<div onclick="alert()"><script>alert()</script><p>Safe content</p></div>'`
-  - Extract: `result = LinkRadar::ContentArchiving::ContentExtractor.new(html: html_with_xss, url: "https://example.com").call`
-  - Verify `result.data.content_html` has no `onclick` attribute
-  - Verify `result.data.content_html` has no `<script>` tags
-  - Verify safe content (`<p>Safe content</p>`) is preserved
+- [x] Fetch sample HTML: `html = LinkRadar::ContentArchiving::HttpFetcher.new("https://example.com").call.data.body`
+- [x] Extract content: `result = LinkRadar::ContentArchiving::ContentExtractor.new(html: html, url: "https://example.com").call`
+- [x] Verify result is ParsedContent: `parsed = result.data; parsed.class.name` (should be "LinkRadar::ContentArchiving::ParsedContent")
+- [x] Check fields: `parsed.title`, `parsed.content_html`, `parsed.content_text`, `parsed.description`, `parsed.image_url`
+- [x] Check metadata: `parsed.metadata.class.name` (should be "LinkRadar::ContentArchiving::ContentMetadata")
+- [x] Check nested metadata: `parsed.metadata.opengraph`, `parsed.metadata.twitter`, `parsed.metadata.canonical_url`
+- [x] **Verify sanitization:**
+  - [x] Test with dangerous HTML: `html_with_xss = '<div onclick="alert()"><script>alert()</script><p>Safe content</p></div>'`
+  - [x] Extract: `result = LinkRadar::ContentArchiving::ContentExtractor.new(html: html_with_xss, url: "https://example.com").call`
+  - [x] Verify `result.data.content_html` has no `onclick` attribute
+  - [x] Verify `result.data.content_html` has no `<script>` tags
+  - [x] Verify safe content (`<p>Safe content</p>`) is preserved
 
 ### 3.3 Spec Structure
 
@@ -1064,31 +1066,41 @@ describe LinkRadar::ContentArchiving::ContentExtractor
 ## Completion Checklist
 
 Services complete when:
-- [ ] `private_address_check` gem added to Gemfile and installed
-- [ ] UrlValidator successfully validates URLs and blocks private IPs (using gem)
-- [ ] HttpFetcher is self-validating (validates initial URL + all redirects internally)
-- [ ] HttpFetcher can be safely used anywhere in codebase (security boundary)
-- [ ] ContentExtractor extracts content/metadata AND sanitizes HTML (secure by default)
-- [ ] ContentExtractor output is XSS-safe without additional sanitization needed
-- [ ] All services follow Result pattern (success/failure return values)
-- [ ] All services include comprehensive YARD documentation
-- [ ] All failures return structured error data for debugging and logging
-- [ ] Manual console testing passes for all services
-- [ ] SSRF protection verified (HttpFetcher blocks private IPs and redirect chains)
-- [ ] XSS protection verified (ContentExtractor sanitizes all HTML output)
-- [ ] RSpec tests implemented for UrlValidator following spec structure
-- [ ] RSpec tests implemented for HttpFetcher following spec structure
-- [ ] RSpec tests implemented for ContentExtractor following spec structure (including sanitization tests)
-- [ ] All specs passing with good coverage of success and failure cases
+- [x] `private_address_check` gem added to Gemfile and installed
+- [x] UrlValidator successfully validates URLs and blocks private IPs (using gem)
+- [x] HttpFetcher is self-validating (validates initial URL + all redirects internally)
+- [x] HttpFetcher can be safely used anywhere in codebase (security boundary)
+- [x] ContentExtractor extracts content/metadata AND sanitizes HTML (secure by default)
+- [x] ContentExtractor output is XSS-safe without additional sanitization needed
+- [x] All services follow Result pattern (success/failure return values)
+- [x] All services include comprehensive YARD documentation
+- [x] All failures return structured error data for debugging and logging
+- [x] Manual console testing passes for all services
+- [x] SSRF protection verified (HttpFetcher blocks private IPs and redirect chains)
+- [x] XSS protection verified (ContentExtractor sanitizes all HTML output)
+- [x] RSpec tests implemented for UrlValidator following spec structure
+- [x] RSpec tests implemented for HttpFetcher following spec structure
+- [x] RSpec tests implemented for ContentExtractor following spec structure (including sanitization tests)
+- [x] All specs passing with good coverage of success and failure cases
 
 **Architecture Verified:**
-- [ ] HttpFetcher internally uses UrlValidator (dependency enforced)
-- [ ] ContentExtractor internally sanitizes HTML (XSS protection built-in)
-- [ ] Security boundaries are enforced within services (SSRF + XSS protection)
-- [ ] Services are secure by default - safe to use anywhere in codebase
-- [ ] "Pit of success" design prevents accidental security vulnerabilities
+- [x] HttpFetcher internally uses UrlValidator (dependency enforced)
+- [x] ContentExtractor internally sanitizes HTML (XSS protection built-in)
+- [x] Security boundaries are enforced within services (SSRF + XSS protection)
+- [x] Services are secure by default - safe to use anywhere in codebase
+- [x] "Pit of success" design prevents accidental security vulnerabilities
 
 **Next:** Proceed to [plan-3-orchestration.md](plan-3-orchestration.md) to implement the background job and Link integration.
 
 **Note:** The orchestrator (ArchiveContentJob) does NOT need to validate URLs or sanitize HTML - HttpFetcher and ContentExtractor handle security automatically.
+
+---
+
+## Implementation Summary (2025-11-08)
+
+- `private_address_check` gem added and installed; WebMock configured for test stubbing.
+- Implemented `LinkRadar::ContentArchiving::UrlValidator`, `HttpFetcher`, and `ContentExtractor` with their value objects (`FetchError`, `FetchedContent`, `ParsedContent`, `ContentMetadata`, `ExtractionError`).
+- Comprehensive RSpec coverage added for all services, including SSRF and XSS protections.
+- Manual console verification performed for each service (valid/invalid URLs, redirect chains, sanitization).
+- Plan 2 services are production-ready; proceed to orchestration (Plan 3).
 
