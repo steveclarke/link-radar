@@ -15,7 +15,9 @@
 #
 class ContentArchiveConfig < ApplicationConfig
   attr_config(
-    :user_agent_contact_url,    # contact URL for User-Agent header
+    # Contact URL for User-Agent header
+    # Default works for development, should be overridden in production
+    user_agent_contact_url: "https://github.com/steveclarke/link-radar",
 
     # HTTP timeouts
     connect_timeout: 10,        # seconds to wait for connection
@@ -32,9 +34,6 @@ class ContentArchiveConfig < ApplicationConfig
     # Feature flag
     enabled: true               # global enable/disable for archival
   )
-
-  # Require user_agent_contact_url in production
-  required :user_agent_contact_url, env: :production
 
   # Builds complete User-Agent string for HTTP requests
   #
