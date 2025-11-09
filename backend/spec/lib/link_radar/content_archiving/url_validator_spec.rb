@@ -5,6 +5,12 @@ require "rails_helper"
 RSpec.describe LinkRadar::ContentArchiving::UrlValidator do
   describe "#call" do
     context "with valid URLs" do
+      before do
+        # Stub DNS resolution to avoid network calls in tests
+        # Valid public domains should not resolve to private addresses
+        allow(PrivateAddressCheck).to receive(:resolves_to_private_address?).and_return(false)
+      end
+
       it "returns success for https URLs" do
         result = described_class.new("https://example.com").call
         expect(result).to be_success
@@ -101,6 +107,12 @@ RSpec.describe LinkRadar::ContentArchiving::UrlValidator do
     end
 
     context "with private IP addresses (SSRF protection)" do
+      before do
+        # Stub DNS resolution to avoid network calls in tests
+        # Private addresses and localhost should resolve to private IPs
+        allow(PrivateAddressCheck).to receive(:resolves_to_private_address?).and_return(true)
+      end
+
       it "returns failure for localhost" do
         result = described_class.new("http://localhost/admin").call
         expect(result).to be_failure
@@ -134,15 +146,13 @@ RSpec.describe LinkRadar::ContentArchiving::UrlValidator do
       it "returns failure for IPv6 localhost (::1)" do
         result = described_class.new("http://[::1]/admin").call
         expect(result).to be_failure
-        # IPv6 bracket notation may fail at DNS or private IP check
-        expect(result.errors.first).to match(/private IP address|DNS resolution failed/)
+        expect(result.errors.first).to include("private IP address")
       end
 
       it "returns failure for IPv6 private addresses (fc00::/7)" do
         result = described_class.new("http://[fc00::1]/internal").call
         expect(result).to be_failure
-        # IPv6 bracket notation may fail at DNS or private IP check
-        expect(result.errors.first).to match(/private IP address|DNS resolution failed/)
+        expect(result.errors.first).to include("private IP address")
       end
 
       it "includes validation_reason, hostname, and url in error data" do
@@ -159,6 +169,13 @@ RSpec.describe LinkRadar::ContentArchiving::UrlValidator do
     end
 
     context "with DNS resolution failures" do
+      before do
+        # Stub DNS resolution to raise SocketError for non-existent domains
+        # This simulates what happens when DNS lookup fails
+        allow(PrivateAddressCheck).to receive(:resolves_to_private_address?)
+          .and_raise(SocketError.new("nodename nor servname provided, or not known"))
+      end
+
       it "returns failure for non-existent domains" do
         result = described_class.new("http://this-definitely-does-not-exist-12345.com").call
         expect(result).to be_failure
@@ -178,11 +195,16 @@ RSpec.describe LinkRadar::ContentArchiving::UrlValidator do
     end
 
     context "with edge cases" do
+      before do
+        # Stub DNS resolution to avoid network calls in tests
+        allow(PrivateAddressCheck).to receive(:resolves_to_private_address?).and_return(false)
+      end
+
       it "handles URLs with international domain names" do
         result = described_class.new("https://münchen.de").call
-        # Should succeed (IDN domains are valid, private_address_check handles them)
-        # Note: This may fail DNS resolution in test environment, which is expected
-        expect(result.failure?).to be(true).or be(false)
+        # Should succeed (IDN domains are valid when DNS resolves)
+        expect(result).to be_success
+        expect(result.data).to eq("https://münchen.de")
       end
 
       it "handles URLs with very long paths" do
