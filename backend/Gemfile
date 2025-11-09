@@ -77,6 +77,9 @@ group :development, :test do
 
   # HTTP request stubbing for tests
   gem "webmock"
+
+  # ActiveRecord Doctor for database schema analysis
+  gem "active_record_doctor"
 end
 
 group :development do

@@ -5,7 +5,7 @@
 # Table name: tags
 #
 #  id           :uuid             not null, primary key
-#  description  :text
+#  description  :string(500)
 #  last_used_at :datetime
 #  name         :string(100)      not null
 #  slug         :string(100)      not null

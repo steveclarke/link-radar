@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_11_05_021935) do
+ActiveRecord::Schema[8.1].define(version: 2025_11_09_175856) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -238,7 +238,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_05_021935) do
 
   create_table "tags", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
     t.datetime "created_at", null: false
-    t.text "description"
+    t.string "description", limit: 500
     t.datetime "last_used_at"
     t.string "name", limit: 100, null: false
     t.string "slug", limit: 100, null: false

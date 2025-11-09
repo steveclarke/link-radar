@@ -5,7 +5,7 @@
 # Table name: tags
 #
 #  id           :uuid             not null, primary key
-#  description  :text
+#  description  :string(500)
 #  last_used_at :datetime
 #  name         :string(100)      not null
 #  slug         :string(100)      not null
@@ -34,8 +34,9 @@ class Tag < ApplicationRecord
 
   # Validations
   validates :name, presence: true, length: {maximum: 100}
-  validates :slug, presence: true, uniqueness: true
-  validates :description, length: {maximum: 500}
+  validates :slug, presence: true, uniqueness: true, length: {maximum: 100}
+  validates :description, length: {maximum: 500}, allow_blank: true
+  validates :usage_count, presence: true
 
   # Callbacks
   before_validation :generate_slug, if: -> { name_changed? }
