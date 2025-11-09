@@ -59,7 +59,7 @@ class Link < ApplicationRecord
   # }, prefix: true
 
   # Validations
-  validates :url, presence: true, length: {maximum: 2048}
+  validates :url, presence: true, length: {maximum: 2048}, uniqueness: true
   validates :submitted_url, presence: true, length: {maximum: 2048}
 
   after_create :create_content_archive_and_enqueue_job
