@@ -41,7 +41,7 @@ module Api
 
       # DELETE /api/v1/links/:id
       def destroy
-        @link.destroy
+        @link.destroy!
         head :no_content
       end
 

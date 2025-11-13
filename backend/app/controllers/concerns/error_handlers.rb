@@ -77,5 +77,15 @@ module ErrorHandlers
         status: :unprocessable_entity
       )
     end
+
+    # Handles ActiveRecord::RecordNotDestroyed exceptions
+    # Raised when destroy! fails due to callbacks returning false or validation errors
+    rescue_from ActiveRecord::RecordNotDestroyed do |e|
+      render_error(
+        code: :record_not_destroyed,
+        message: e.message,
+        status: :unprocessable_entity
+      )
+    end
   end
 end
