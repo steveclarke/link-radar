@@ -62,8 +62,6 @@ module Api
 
       def set_tag
         @tag = Tag.find(params[:id])
-      rescue ActiveRecord::RecordNotFound
-        render json: {error: "Tag not found"}, status: :not_found
       end
 
       def tag_params

@@ -21,7 +21,11 @@ module Api
       # Find a specific link by URL
       def by_url
         if params[:url].blank?
-          render json: {error: "URL parameter is required"}, status: :bad_request
+          render_error(
+            code: :missing_parameter,
+            message: "URL parameter is required",
+            status: :bad_request
+          )
           return
         end
 
@@ -30,7 +34,7 @@ module Api
         if @link
           render :show
         else
-          head :not_found
+          render_not_found
         end
       end
 
@@ -43,8 +47,6 @@ module Api
         else
           render json: {errors: @link.errors.full_messages}, status: :unprocessable_entity
         end
-      rescue ActiveRecord::RecordNotUnique
-        render json: {error: "A link with this URL already exists"}, status: :unprocessable_entity
       end
 
       # PATCH/PUT /api/v1/links/:id
@@ -54,8 +56,6 @@ module Api
         else
           render json: {errors: @link.errors.full_messages}, status: :unprocessable_entity
         end
-      rescue ActiveRecord::RecordNotUnique
-        render json: {error: "A link with this URL already exists"}, status: :unprocessable_entity
       end
 
       # DELETE /api/v1/links/:id
@@ -68,8 +68,6 @@ module Api
 
       def set_link
         @link = Link.find(params[:id])
-      rescue ActiveRecord::RecordNotFound
-        render json: {error: "Link not found"}, status: :not_found
       end
 
       def link_params
