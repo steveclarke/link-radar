@@ -20,42 +20,23 @@ module Api
       # GET /api/v1/links/by_url?url=...
       # Find a specific link by URL
       def by_url
-        if params[:url].blank?
-          render_error(
-            code: :missing_parameter,
-            message: "URL parameter is required",
-            status: :bad_request
-          )
-          return
-        end
+        raise ArgumentError, "URL parameter is required" if params[:url].blank?
 
-        @link = Link.find_by_url(params[:url])
-
-        if @link
-          render :show
-        else
-          render_not_found
-        end
+        @link = Link.find_by_url!(params[:url])
+        render :show
       end
 
       # POST /api/v1/links
       def create
         @link = Link.new(link_params)
-
-        if @link.save
-          render :show, status: :created
-        else
-          render json: {errors: @link.errors.full_messages}, status: :unprocessable_entity
-        end
+        @link.save!
+        render :show, status: :created
       end
 
       # PATCH/PUT /api/v1/links/:id
       def update
-        if @link.update(link_params)
-          render :show
-        else
-          render json: {errors: @link.errors.full_messages}, status: :unprocessable_entity
-        end
+        @link.update!(link_params)
+        render :show
       end
 
       # DELETE /api/v1/links/:id

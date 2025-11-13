@@ -48,6 +48,16 @@ class Link < ApplicationRecord
     nil # Invalid URL returns nil (not found)
   end
 
+  # Find link by URL with normalization (raises exception if not found)
+  # Normalizes the input URL the same way we normalize before saving
+  #
+  # @param url [String] URL to search for (with or without scheme)
+  # @return [Link] found link
+  # @raise [ActiveRecord::RecordNotFound] if link is not found
+  def self.find_by_url!(url)
+    find_by_url(url) || raise(ActiveRecord::RecordNotFound, "Couldn't find Link with URL: #{url}")
+  end
+
   # Normalize a URL string
   # Adds HTTPS scheme if missing and applies Addressable normalization
   #

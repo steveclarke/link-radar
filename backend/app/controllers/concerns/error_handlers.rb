@@ -14,6 +14,16 @@ module ErrorHandlers
   include ::ResponseHelpers
 
   included do
+    # Handles ArgumentError exceptions
+    # Raised when invalid arguments are passed to a method
+    rescue_from ArgumentError do |e|
+      render_error(
+        code: :invalid_argument,
+        message: e.message,
+        status: :bad_request
+      )
+    end
+
     # Handles ActiveRecord::RecordNotFound exceptions
     # Raised when a record cannot be found by ID or other finder methods
     rescue_from ActiveRecord::RecordNotFound do |e|
