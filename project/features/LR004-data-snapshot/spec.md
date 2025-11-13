@@ -46,9 +46,8 @@ The system consists of four main components:
 
 **Import Pipeline:**
 1. **Import Service** (`LinkRadar::DataImport::Importer`) - Orchestrates import with transaction safety
-2. **Importer DSL** (`LinkRadar::DataImport::ImporterDefinition`) - Field mapping and transformation layer
-3. **Import API Endpoint** (`Api::V1::DataController#import`) - Handles HTTP import requests
-4. **Import Rake Task** (`linkradar:data:import`) - CLI interface
+2. **Import API Endpoint** (`Api::V1::DataController#import`) - Handles HTTP import requests
+3. **Import Rake Task** (`linkradar:data:import`) - CLI interface
 
 **Shared Infrastructure:**
 1. **File Management** - `data/exports/` and `data/imports/` directories (Docker volume compatible)
@@ -72,9 +71,8 @@ The system consists of four main components:
 - Mode selection at import time
 
 **External System Support:**
-- Ruby DSL for flexible field mapping
-- Support for lambda transformations
-- Reusable importer definitions per external source
+- Not included in v1 (one-off rake tasks for external imports)
+- Focus on LinkRadar native format for reliable round-trip
 
 ---
 
@@ -310,20 +308,18 @@ When zero links exist:
 **Class:** `LinkRadar::DataImport::Importer`
 
 **Responsibilities:**
-1. Parse JSON import file
-2. Validate format structure
-3. Apply importer field mappings
-4. Process each link within transaction
-5. Handle duplicate detection and mode logic
-6. Create/update links and tags
-7. Return Result with import statistics
+1. Parse JSON import file (LinkRadar native format only)
+2. Validate format structure and version
+3. Process each link within transaction
+4. Handle duplicate detection and mode logic
+5. Create/update links and tags
+6. Return Result with import statistics
 
 **Initialization:**
 ```ruby
 # @param file_path [String] Full path to import file
-# @param importer_name [String] Name of importer definition to use
 # @param mode [Symbol] :skip or :update for duplicate handling
-def initialize(file_path:, importer_name:, mode: :skip)
+def initialize(file_path:, mode: :skip)
 ```
 
 **Method Signature:**
@@ -343,61 +339,24 @@ LinkRadar::Result.success(data: {
 })
 
 # Failure case:
-LinkRadar::Result.failure(errors: ["Invalid JSON format", "Line 42: Invalid URL"])
+LinkRadar::Result.failure(errors: ["Invalid JSON format", "Unsupported version: 2.0"])
 ```
 
-### 6.2. Importer DSL Architecture
+### 6.2. Supported Import Format
 
-**Base Class:** `LinkRadar::DataImport::ImporterDefinition`
+**Only LinkRadar native JSON format is supported** (see Section 4.2 for structure).
 
-**DSL Methods:**
-- `source_format(name)` - Identifies the source system
-- `map(source_field, to: target_field, transform: lambda)` - Field mapping with optional transformation
+**External System Imports:**
+- Write one-off rake tasks as needed (e.g., `rake import:notion_csv`)
+- Place in `lib/tasks/import/` directory
+- Use standard CSV/JSON parsing libraries
+- Map fields directly to Link model attributes
 
-**Field Mapping Contract:**
-- `source_field` - Symbol representing field in source data
-- `target_field` - Symbol representing Link model attribute (`:url`, `:note`, `:tags`)
-- `transform` - Optional lambda/proc for data transformation
-
-**Example Importer Definitions:**
-
-```ruby
-# lib/link_radar/importers/linkradar.rb
-module LinkRadar
-  module DataImport
-    module Importers
-      class Linkradar < ImporterDefinition
-        source_format :linkradar
-
-        map :url, to: :url
-        map :note, to: :note
-        map :tags, to: :tags
-        map :created_at, to: :created_at
-      end
-    end
-  end
-end
-
-# lib/link_radar/importers/notion.rb
-module LinkRadar
-  module DataImport
-    module Importers
-      class Notion < ImporterDefinition
-        source_format :notion
-
-        map :url, to: :url
-        map :description, to: :note
-        map :tags, to: :tags, transform: ->(tags) { tags.map { |t| { name: t.downcase } } }
-      end
-    end
-  end
-end
-```
-
-**Importer Discovery:**
-- Importers located in `lib/link_radar/importers/`
-- Follows Zeitwerk autoloading conventions
-- Importer name maps to class name (e.g., "linkradar" → `Linkradar`)
+**Rationale:**
+- External imports are one-time operations
+- Each external system has unique structure (CSV vs JSON, different fields)
+- Premature to abstract into DSL framework
+- Simple rake tasks are more maintainable
 
 ### 6.3. Import Process Flow
 
@@ -405,19 +364,17 @@ end
 
 **Process Steps:**
 1. Parse JSON file
-2. Validate basic structure (version, links array)
-3. Load importer definition by name
-4. Begin database transaction
-5. For each link in import:
-   - Apply field mappings via importer
+2. Validate structure (version, links array, required fields)
+3. Begin database transaction
+4. For each link in import:
    - Normalize URL
    - Check for duplicate by normalized URL
    - Apply duplicate handling mode (skip or update)
    - Process tags (find or create by name)
    - Create or update Link record
    - Update tag associations
-6. Commit transaction
-7. Return statistics
+5. Commit transaction
+6. Return statistics
 
 **Error Handling:**
 - Any error rolls back entire transaction
@@ -532,8 +489,7 @@ Error (500 Internal Server Error):
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `file` | file | Yes | JSON file to import |
-| `importer` | string | No | Importer name (defaults to "linkradar") |
+| `file` | file | Yes | JSON file to import (LinkRadar format) |
 | `mode` | string | No | "skip" or "update" (defaults to "skip") |
 
 **Response Structure:**
@@ -576,7 +532,7 @@ Error (400 Bad Request):
 **Permitted Parameters:**
 ```ruby
 def import_params
-  params.permit(:file, :importer, :mode)
+  params.permit(:file, :mode)
 end
 ```
 
@@ -652,15 +608,13 @@ export type ImportMode = 'skip' | 'update'
 export async function exportLinks(): Promise<ExportResult>
 
 /**
- * Import links from uploaded file
+ * Import links from uploaded file (LinkRadar format only)
  * @param file - JSON file to import
- * @param importer - Importer name (defaults to "linkradar")
  * @param mode - Import mode: skip or update (defaults to "skip")
  * @returns Import statistics
  */
 export async function importLinks(
   file: File,
-  importer: string = 'linkradar',
   mode: ImportMode = 'skip'
 ): Promise<ImportResult>
 ```
@@ -686,7 +640,7 @@ export async function importLinks(
 **User Flow - Import:**
 1. User selects mode from dropdown ("Skip duplicates" default)
 2. User selects file from file picker
-3. Component calls `importLinks(file, 'linkradar', mode)`
+3. Component calls `importLinks(file, mode)`
 4. Backend processes import
 5. Toast shows "Imported 38 links, 12 new tags"
 
@@ -711,13 +665,11 @@ backend/
 │   │   ├── data_export/
 │   │   │   └── exporter.rb                     # Export service
 │   │   └── data_import/
-│   │       ├── importer.rb                     # Import service
-│   │       ├── importer_definition.rb          # DSL base class
-│   │       └── importers/
-│   │           ├── linkradar.rb                # Native format importer
-│   │           └── notion.rb                   # Example external importer
+│   │       └── importer.rb                     # Import service
 │   └── tasks/
-│       └── data.rake                           # Rake tasks (export/import)
+│       ├── data.rake                           # Rake tasks (export/import)
+│       └── import/                             # Optional: one-off external import tasks
+│           └── notion_csv.rake                 # Example: Notion CSV import
 └── db/
     └── migrate/
         └── YYYYMMDDHHMMSS_remove_submitted_url_from_links.rb
@@ -796,11 +748,14 @@ data/
 # Export
 rake linkradar:data:export
 
-# Import with defaults (skip mode, linkradar format)
+# Import with defaults (skip mode)
 rake linkradar:data:import[filename.json]
 
-# Import with full options
-rake linkradar:data:import[filename.json,notion,update]
+# Import with update mode
+rake linkradar:data:import[filename.json,update]
+
+# One-off external imports (write custom tasks as needed)
+rake import:notion_csv
 ```
 
 **Extension Interface:**
@@ -816,10 +771,11 @@ rake linkradar:data:import[filename.json,notion,update]
 
 ### 10.4. Extensibility
 
-**Importer DSL:**
-- Simple to add new external system importers
-- Reusable definitions in predictable location
-- Support for common transformations
+**External System Imports:**
+- Write simple one-off rake tasks as needed
+- Place in `lib/tasks/import/` directory
+- Use standard Ruby libraries (CSV, JSON)
+- No framework overhead
 
 **Format Versioning:**
 - Export includes `version` field
@@ -832,6 +788,7 @@ rake linkradar:data:import[filename.json,notion,update]
 - Compression support
 - Multiple export formats
 - Filtering/selective export
+- Generic importer DSL (only if pattern emerges)
 
 ### 10.5. Performance
 
