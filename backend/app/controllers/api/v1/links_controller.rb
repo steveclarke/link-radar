@@ -47,9 +47,9 @@ module Api
       def create
         @link = Link.new(link_params)
 
-        # Normalize submitted_url to url
+        # Normalize url before saving
         begin
-          @link.url = normalize_url(@link.submitted_url)
+          @link.url = normalize_url(@link.url)
         rescue URI::InvalidURIError => e
           render json: {error: "Invalid URL: #{e.message}"}, status: :unprocessable_entity
           return
@@ -66,19 +66,13 @@ module Api
 
       # PATCH/PUT /api/v1/links/:id
       def update
-        # If submitted_url is being updated, re-normalize and reset fetch state
-        if link_update_params[:submitted_url].present?
+        # If url is being updated, re-normalize
+        if link_update_params[:url].present?
           begin
-            normalized_url = normalize_url(link_update_params[:submitted_url])
+            normalized_url = normalize_url(link_update_params[:url])
 
-            # Reset fetch state since URL changed
             @link.assign_attributes(
-              link_update_params.merge(
-                url: normalized_url,
-                fetch_state: :pending,
-                fetched_at: nil,
-                fetch_error: nil
-              )
+              link_update_params.merge(url: normalized_url)
             )
           rescue URI::InvalidURIError => e
             render json: {error: "Invalid URL: #{e.message}"}, status: :unprocessable_entity
@@ -112,11 +106,11 @@ module Api
       end
 
       def link_params
-        params.require(:link).permit(:submitted_url, :note, tag_names: [])
+        params.require(:link).permit(:url, :note, tag_names: [])
       end
 
       def link_update_params
-        params.require(:link).permit(:submitted_url, :note, tag_names: [])
+        params.require(:link).permit(:url, :note, tag_names: [])
       end
 
       def normalize_url(url)
