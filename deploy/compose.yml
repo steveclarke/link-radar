@@ -115,4 +115,3 @@ networks:
   caddy_net:
     external: true
     name: caddy_net
-
