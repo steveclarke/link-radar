@@ -42,12 +42,12 @@ The system consists of four main components:
 **Export Pipeline:**
 1. **Export Service** (`LinkRadar::DataExport::Exporter`) - Queries data, serializes to JSON, writes to file
 2. **Export API Endpoint** (`Api::V1::DataController#export`) - Handles HTTP export requests
-3. **Export Rake Task** (`linkradar:data:export`) - CLI interface
+3. **Export Rake Task** (`data:export`) - CLI interface
 
 **Import Pipeline:**
 1. **Import Service** (`LinkRadar::DataImport::Importer`) - Orchestrates import with transaction safety
 2. **Import API Endpoint** (`Api::V1::DataController#import`) - Handles HTTP import requests
-3. **Import Rake Task** (`linkradar:data:import`) - CLI interface
+3. **Import Rake Task** (`data:import`) - CLI interface
 
 **Shared Infrastructure:**
 1. **File Management** - `data/exports/` and `data/imports/` directories (Docker volume compatible)
@@ -76,9 +76,9 @@ The system consists of four main components:
 
 ---
 
-## 3. URL Field Simplification
+## 3. Schema Simplification
 
-### 3.1. Current vs New Architecture
+### 3.1. URL Field Cleanup
 
 **Current State (Being Removed):**
 - `submitted_url` - Original user input
@@ -87,12 +87,23 @@ The system consists of four main components:
 **New State (Single Field):**
 - `url` - Normalized URL (only field stored)
 
-### 3.2. Migration Strategy
+### 3.2. Metadata Field Cleanup
+
+**Current State (Being Removed):**
+- `metadata` - Unused jsonb field with GIN index
+
+**Rationale:**
+- Field is not populated or used anywhere in the codebase
+- Adds unnecessary schema complexity
+- No planned usage
+
+### 3.3. Migration Strategy
 
 **Database Changes:**
 1. Remove `submitted_url` column from links table
-2. Update Link model to remove `submitted_url` references
-3. Update validations to only validate `url` field
+2. Remove `metadata` column and its GIN index from links table
+3. Update Link model to remove field references
+4. Update validations to only validate `url` field
 
 **Controller Changes:**
 1. LinksController accepts `url` parameter (instead of `submitted_url`)
@@ -104,17 +115,18 @@ The system consists of four main components:
 - Parse and validate URI format
 - Preserve path, query, and other components
 
-### 3.3. Migration Notes
+### 3.4. Migration Notes
 
 **Data Preservation:**
 - Existing `url` values already contain normalized data
-- No data migration needed (just drop `submitted_url` column)
+- No data migration needed (just drop unused columns)
 - System has no production data, safe to remove
 
 **Rationale:**
-- Simplifies mental model (one URL field)
+- Simplifies mental model (one URL field, no unused fields)
 - Original user input not needed for bookmark manager
 - Reduces export/import complexity
+- Removes unused infrastructure (metadata jsonb + GIN index)
 - Aligns with YAGNI principle
 
 ---
@@ -123,12 +135,11 @@ The system consists of four main components:
 
 ### 4.1. Database Schema
 
-**Links Table (After URL Simplification):**
+**Links Table (After Schema Simplification):**
 ```
 id              uuid            PK
 url             string(2048)    NOT NULL, UNIQUE
 note            text
-metadata        jsonb
 search_projection text
 created_at      datetime        NOT NULL
 updated_at      datetime        NOT NULL
@@ -196,7 +207,7 @@ updated_at      datetime        NOT NULL
 |-------|------|----------|-------------|
 | `version` | string | Yes | Format version for future compatibility |
 | `exported_at` | ISO8601 | Yes | Timestamp of export operation |
-| `metadata.link_count` | integer | Yes | Total links in export |
+| `metadata.link_count` | integer | Yes | Total links in export (excludes `~temp~` tagged links) |
 | `metadata.tag_count` | integer | Yes | Unique tags across all links |
 | `links` | array | Yes | Array of link objects |
 | `links[].url` | string | Yes | Normalized URL |
@@ -209,9 +220,9 @@ updated_at      datetime        NOT NULL
 **Excluded Fields:**
 - Link `id` (UUIDs regenerated on import)
 - Link `updated_at` (recalculated on import)
+- Link `search_projection` (recalculated on import)
 - Tag `id`, `slug`, `usage_count`, `last_used_at` (regenerated/recalculated)
 - Content archives (out of scope for v1)
-- Metadata jsonb field (not populated in current system)
 
 ### 4.3. Import Data Requirements
 
@@ -241,10 +252,11 @@ updated_at      datetime        NOT NULL
 
 **Responsibilities:**
 1. Query all links with tags for current user
-2. Serialize to nested JSON format
-3. Generate timestamped filename
-4. Write to `data/exports/` directory
-5. Return file path via Result object
+2. Filter out links with reserved tags (`~temp~`)
+3. Serialize to nested JSON format
+4. Generate timestamped filename with UUID
+5. Write to `data/exports/` directory
+6. Return file path via Result object
 
 **Method Signature:**
 ```ruby
@@ -256,7 +268,7 @@ def call
 ```ruby
 # Success case:
 LinkRadar::Result.success(data: {
-  file_path: "/path/to/data/exports/linkradar-export-2025-11-12-143022.json",
+  file_path: "/path/to/data/exports/linkradar-export-2025-11-12-143022-a1b2c3d4-e5f6-7890-abcd-ef1234567890.json",
   link_count: 42,
   tag_count: 15
 })
@@ -267,24 +279,56 @@ LinkRadar::Result.failure(errors: ["Error message"])
 
 ### 5.2. Filename Convention
 
-**Pattern:** `linkradar-export-YYYY-MM-DD-HHMMSS.json`
+**Pattern:** `linkradar-export-YYYY-MM-DD-HHMMSS-{UUID}.json`
 
-**Example:** `linkradar-export-2025-11-12-143022.json`
+**Example:** `linkradar-export-2025-11-12-143022-a1b2c3d4-e5f6-7890-abcd-ef1234567890.json`
 
-**Timestamp:** UTC time in ISO8601-compatible format (suitable for filenames)
+**Components:**
+- **Timestamp:** UTC time in ISO8601-compatible format (suitable for filenames)
+- **UUID:** Random UUID (SecureRandom.uuid) for unguessable download URLs
+
+**Security:**
+- UUID makes filename effectively unguessable (2^128 possible values)
+- No authentication required on download endpoint
+- Security through unguessability (sufficient for personal use)
 
 ### 5.3. Export Process Flow
 
 1. Query `Link.includes(:tags).all` to eager-load associations
-2. Build JSON structure with metadata and links array
-3. For each link, extract URL, note, created_at, and tags
-4. For each tag, extract name and description
-5. Generate timestamped filename
-6. Ensure `data/exports/` directory exists
-7. Write JSON to file with pretty formatting
-8. Return Result with file path and counts
+2. Filter out links that have the `~temp~` tag
+3. Build JSON structure with metadata and links array
+4. For each link, extract URL, note, created_at, and tags
+5. For each tag, extract name and description
+6. Generate timestamped filename with UUID (SecureRandom.uuid)
+7. Ensure `data/exports/` directory exists
+8. Write JSON to file with pretty formatting
+9. Return Result with file path and counts
 
-### 5.4. Empty Export Handling
+### 5.4. Reserved Tags
+
+**Tag:** `~temp~`
+
+**Purpose:** Mark test/temporary links that should never be exported
+
+**Behavior:**
+- Links tagged with `~temp~` are excluded from all exports
+- Use for testing in production, temporary link captures, or throwaway data
+- Tag is case-sensitive (must be exactly `~temp~`)
+- No special treatment during import (if imported, becomes a regular tag)
+
+**Query Pattern:**
+```ruby
+# Exclude links with ~temp~ tag
+Link.includes(:tags)
+  .where.not(id: Link.joins(:tags).where(tags: { name: '~temp~' }))
+```
+
+**Use Cases:**
+- Testing link creation in production without polluting backups
+- Temporary reference links that shouldn't be preserved
+- Development/debugging links on production instance
+
+### 5.5. Empty Export Handling
 
 When zero links exist:
 ```json
@@ -381,36 +425,52 @@ LinkRadar::Result.failure(errors: ["Invalid JSON format", "Unsupported version: 
 - Return specific error message with context
 - No partial imports
 
-### 6.4. Duplicate Detection Logic
+### 6.4. Duplicate Detection and Mode Behavior
 
 **Normalization Rules:**
 - Parse URL with URI library
 - Add `http://` if scheme missing
 - Compare normalized URLs for exact match
 
-**Skip Mode (Default):**
+**Skip Mode (Default) - "Don't touch existing links":**
 ```ruby
 if Link.exists?(url: normalized_url)
+  # Link exists: skip entirely, no changes to link or tags
   # Increment skip counter, continue to next link
   next
 end
-# Create new link
+# Link is new: create with imported data (url, note, tags, created_at)
 ```
 
-**Update Mode:**
+**Behavior:**
+- Existing links: **Unchanged** (including tags)
+- New links: Created with imported data
+
+**Update Mode - "Make existing links match import data":**
 ```ruby
 link = Link.find_or_initialize_by(url: normalized_url)
 if link.persisted?
-  # Update all fields except created_at
+  # Link exists: update all fields except created_at
   link.assign_attributes(url: normalized_url, note: note, created_at: link.created_at)
+  # Tags will be REPLACED (see §6.5)
 else
-  # Create new link with imported created_at
+  # Link is new: create with imported created_at
   link.assign_attributes(url: normalized_url, note: note, created_at: created_at)
 end
 link.save!
+# Process tags (creates/updates associations)
 ```
 
+**Behavior:**
+- Existing links: **Updated** (note, tags replaced with import data)
+- Existing links: **Preserve** original created_at timestamp
+- New links: Created with imported data (including imported created_at)
+
 ### 6.5. Tag Matching and Creation
+
+**Applies to:**
+- New links in both modes
+- Updated links in update mode only
 
 **Case-Insensitive Matching:**
 ```ruby
@@ -426,10 +486,23 @@ else
 end
 ```
 
-**Tag Association:**
-- Replace link's tags array with imported tags
+**Tag Association (Replacement Strategy):**
+```ruby
+# Replace link's entire tag collection with imported tags
+link.tags = imported_tag_objects
+```
+
+**Behavior:**
+- **Replaces** existing tag associations (does not merge)
 - Follows existing Link model `assign_tags` pattern
-- Usage count incremented automatically via callbacks
+- Tag `usage_count` recalculated automatically via callbacks
+- Removed associations decrement old tag usage counts
+- New associations increment new tag usage counts
+
+**Example:**
+- Link currently has tags: `[ruby, rails, api]`
+- Import data has tags: `[ruby, docker]`
+- **Result after update mode:** `[ruby, docker]` (rails, api removed)
 
 ---
 
@@ -457,10 +530,10 @@ Success (200 OK):
 ```json
 {
   "data": {
-    "file_path": "linkradar-export-2025-11-12-143022.json",
+    "file_path": "linkradar-export-2025-11-12-143022-a1b2c3d4-e5f6-7890-abcd-ef1234567890.json",
     "link_count": 42,
     "tag_count": 15,
-    "download_url": "/api/v1/data/exports/linkradar-export-2025-11-12-143022.json"
+    "download_url": "/api/v1/data/exports/linkradar-export-2025-11-12-143022-a1b2c3d4-e5f6-7890-abcd-ef1234567890.json"
   }
 }
 ```
@@ -473,9 +546,10 @@ Error (500 Internal Server Error):
 ```
 
 **File Download:**
-- Export creates file in `data/exports/`
-- Response includes download URL
+- Export creates file in `data/exports/` with UUID in filename
+- Response includes download URL with UUID
 - Separate GET endpoint serves the file: `GET /api/v1/data/exports/:filename`
+- **No authentication required** on download endpoint (secured by unguessable UUID)
 
 ### 7.3. Import Endpoint Contract
 
@@ -746,13 +820,13 @@ data/
 **CLI Interface:**
 ```bash
 # Export
-rake linkradar:data:export
+rake data:export
 
 # Import with defaults (skip mode)
-rake linkradar:data:import[filename.json]
+rake data:import[filename.json]
 
 # Import with update mode
-rake linkradar:data:import[filename.json,update]
+rake data:import[filename.json,update]
 
 # One-off external imports (write custom tasks as needed)
 rake import:notion_csv
