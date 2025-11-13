@@ -34,6 +34,33 @@ class Link < ApplicationRecord
   # Configure sortable columns
   sort_by_columns :created_at, :updated_at, :c_tag_count
 
+  # Find link by URL with normalization
+  # Normalizes the input URL the same way we normalize before saving
+  #
+  # @param url [String] URL to search for (with or without scheme)
+  # @return [Link, nil] found link or nil
+  def self.find_by_url(url)
+    return nil if url.blank?
+
+    normalized_url = normalize_url_string(url)
+    find_by(url: normalized_url)
+  rescue Addressable::URI::InvalidURIError
+    nil # Invalid URL returns nil (not found)
+  end
+
+  # Normalize a URL string
+  # Adds HTTPS scheme if missing and applies Addressable normalization
+  #
+  # @param url [String] URL to normalize
+  # @return [String] normalized URL
+  # @raise [Addressable::URI::InvalidURIError] if URL is invalid
+  def self.normalize_url_string(url)
+    url_with_scheme = url.match?(/\A[a-z][a-z0-9+\-.]*:/i) ? url : "https://#{url}"
+    uri = Addressable::URI.parse(url_with_scheme)
+    uri.normalize!
+    uri.to_s
+  end
+
   # Custom scope for sorting by tag count
   scope :sorted_by_tag_count, ->(direction) {
     # Validate direction to prevent SQL injection
@@ -57,9 +84,12 @@ class Link < ApplicationRecord
 
   # Validations
   validates :url, presence: true, length: {maximum: 2048}, uniqueness: true
+  validate :url_must_be_valid
+
+  # Callbacks
+  before_validation :normalize_url, if: :url_changed?
 
   after_create :create_content_archive_and_enqueue_job
-  # Callbacks
   # Check @tag_names (instance variable) to distinguish: nil (not provided) vs [] (clear tags)
   after_save :process_tag_names, if: -> { !@tag_names.nil? }
 
@@ -125,5 +155,27 @@ class Link < ApplicationRecord
 
     # Replace existing tags with new set (including empty array to clear all)
     self.tags = new_tags
+  end
+
+  # Normalize URL by ensuring scheme is present and applying standard normalization
+  # Defaults to HTTPS (industry standard in 2025) if no scheme provided
+  # Uses Addressable for robust parsing and normalization
+  # Runs automatically before validation when URL changes
+  def normalize_url
+    return if url.blank?
+
+    self.url = self.class.normalize_url_string(url)
+  rescue Addressable::URI::InvalidURIError
+    # Let the validation handle the error message
+    # Don't modify invalid URLs
+  end
+
+  # Custom validation for URL format
+  def url_must_be_valid
+    return if url.blank? # presence validation handles this
+
+    Addressable::URI.parse(url)
+  rescue Addressable::URI::InvalidURIError => e
+    errors.add(:url, "is not a valid URL: #{e.message}")
   end
 end

@@ -42,8 +42,17 @@ RSpec.describe Link, type: :model do
     subject { build(:link) }
 
     it { should validate_presence_of(:url) }
-    it { should validate_length_of(:url).is_at_most(2048) }
     it { should validate_uniqueness_of(:url) }
+
+    # Custom test since shoulda matchers don't work well with normalization callbacks
+    it "validates url is not too long" do
+      link = build(:link, url: "https://example.com/" + "a" * 2000)
+      expect(link).to be_valid
+
+      link = build(:link, url: "https://example.com/" + "a" * 3000)
+      expect(link).not_to be_valid
+      expect(link.errors[:url]).to be_present
+    end
   end
 
   describe "after_create :create_content_archive_and_enqueue_job" do

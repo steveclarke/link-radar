@@ -8,14 +8,6 @@ module Api
       has_scope :search, only: [:index]
 
       # GET /api/v1/links
-      # Supports sorting via ?sort=column:direction
-      # Supports optional ?search= query parameter for full-text search
-      # Examples:
-      #   ?sort=title:asc
-      #   ?sort=created_at:desc
-      #   ?sort=title:asc,created_at:desc
-      #   ?sort=c_tag_count:desc (sort by tag count)
-      #   ?search=ruby programming
       def index
         links = apply_scopes(Link.all)
         @pagination, @links = pagy(links)
@@ -33,8 +25,7 @@ module Api
           return
         end
 
-        normalized_query_url = normalize_url(params[:url])
-        @link = Link.find_by(url: normalized_query_url)
+        @link = Link.find_by_url(params[:url])
 
         if @link
           render :show
@@ -47,14 +38,6 @@ module Api
       def create
         @link = Link.new(link_params)
 
-        # Normalize url before saving
-        begin
-          @link.url = normalize_url(@link.url)
-        rescue URI::InvalidURIError => e
-          render json: {error: "Invalid URL: #{e.message}"}, status: :unprocessable_entity
-          return
-        end
-
         if @link.save
           render :show, status: :created
         else
@@ -66,23 +49,7 @@ module Api
 
       # PATCH/PUT /api/v1/links/:id
       def update
-        # If url is being updated, re-normalize
-        if link_update_params[:url].present?
-          begin
-            normalized_url = normalize_url(link_update_params[:url])
-
-            @link.assign_attributes(
-              link_update_params.merge(url: normalized_url)
-            )
-          rescue URI::InvalidURIError => e
-            render json: {error: "Invalid URL: #{e.message}"}, status: :unprocessable_entity
-            return
-          end
-        else
-          @link.assign_attributes(link_update_params)
-        end
-
-        if @link.save
+        if @link.update(link_params)
           render :show
         else
           render json: {errors: @link.errors.full_messages}, status: :unprocessable_entity
@@ -106,18 +73,7 @@ module Api
       end
 
       def link_params
-        params.require(:link).permit(:url, :note, tag_names: [])
-      end
-
-      def link_update_params
-        params.require(:link).permit(:url, :note, tag_names: [])
-      end
-
-      def normalize_url(url)
-        uri = URI.parse(url)
-        # Ensure scheme is present
-        uri = URI.parse("http://#{url}") unless uri.scheme
-        uri.to_s
+        params.expect(link: [:url, :note, {tag_names: []}])
       end
     end
   end
