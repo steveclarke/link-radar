@@ -26,7 +26,7 @@ RSpec.describe "API: Fetch Tags", type: :request do
         it "returns all tags in alphabetical order by default" do
           expect(json_response.dig(:data, :tags)).to be_an(Array)
           expect(json_response.dig(:data, :tags).size).to eq(3)
-          
+
           # Should be alphabetically ordered: JavaScript, Python, Ruby
           names = json_response.dig(:data, :tags).map { |t| t[:name] }
           expect(names).to eq(["JavaScript", "Python", "Ruby"])
@@ -73,7 +73,7 @@ RSpec.describe "API: Fetch Tags", type: :request do
           it "returns matching tags" do
             expect(response).to have_http_status(:ok)
             tags = json_response.dig(:data, :tags)
-            
+
             # Should return both JavaScript and Java
             names = tags.map { |t| t[:name] }
             expect(names).to include("JavaScript", "Java")
@@ -82,7 +82,7 @@ RSpec.describe "API: Fetch Tags", type: :request do
 
           it "includes usage_count for each tag" do
             tags = json_response.dig(:data, :tags)
-            
+
             # All tags should have usage_count
             tags.each do |tag|
               expect(tag).to have_key(:usage_count)
@@ -93,9 +93,9 @@ RSpec.describe "API: Fetch Tags", type: :request do
           it "limits results to 20 tags" do
             # Create 25 tags that match
             25.times { |i| create(:tag, name: "JavaScript#{i}") }
-            
+
             get "/api/v1/tags", params: {search: "javascript"}
-            
+
             expect(json_response.dig(:data, :tags).size).to be <= 20
           end
         end

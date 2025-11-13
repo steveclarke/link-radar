@@ -58,7 +58,7 @@ RSpec.describe "API: Fetch One Tag", type: :request do
         it "orders links by created_at descending (newest first)" do
           recent_links = json_response.dig(:data, :recent_links)
           urls = recent_links.map { |l| l[:url] }
-          
+
           # Most recent links should come first
           expect(urls.first).to include("/11")
           expect(urls.last).to include("/2")
