@@ -62,7 +62,7 @@ module LinkRadar
 
     # Validates filename doesn't contain path traversal sequences
     def validate_filename!
-      if filename.nil? || filename.empty?
+      if filename.blank?
         raise SecurityError, "Filename cannot be blank"
       end
 
