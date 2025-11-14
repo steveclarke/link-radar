@@ -89,6 +89,11 @@ group :test do
   # functionality that, if written by hand, would be much longer, more complex,
   # and error-prone.
   gem "shoulda-matchers"
+
+  # Code coverage for tests
+  gem "simplecov", require: false
+  # SimpleCov formatter to generate missing lines errors for reporting tools
+  gem "simplecov-review"
 end
 
 # Configuration library for Ruby gems and applications
