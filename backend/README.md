@@ -26,6 +26,7 @@ Rails 8.1 API backend for LinkRadar - a personal knowledge radar for capturing a
     - [Database Operations](#database-operations)
     - [Code Quality](#code-quality)
     - [API Testing with Bruno](#api-testing-with-bruno)
+    - [Data Export & Import](#data-export--import)
   - [Project Status](#project-status)
   - [Documentation](#documentation)
     - [Backend Guides](#backend-guides)
@@ -300,6 +301,120 @@ Bruno automatically reads variables from the `.env` file and makes them availabl
 - `bruno/Tags/` - Tag management endpoints
 
 **Learn more:** [Bruno DotEnv Documentation](https://docs.usebruno.com/secrets-management/dotenv-file)
+
+### Data Export & Import
+
+LinkRadar provides export and import capabilities for backing up data during development and migrating bookmarks from external systems.
+
+#### CLI Usage
+
+**Export all links:**
+
+```bash
+bin/rake snapshot:export
+```
+
+Creates timestamped JSON file in `snapshots/exports/` directory. Links tagged with `~temp~` are excluded.
+
+**Import from file:**
+
+```bash
+# Import with skip mode (default - skip duplicates)
+bin/rake snapshot:import[filename.json]
+
+# Import with update mode (overwrite existing links)
+bin/rake snapshot:import[filename.json,update]
+```
+
+Files in `snapshots/imports/` can be referenced by filename only. Full paths also supported.
+
+#### Import Modes
+
+- **Skip mode (default)**: Ignore duplicate URLs, preserve existing data
+- **Update mode**: Overwrite existing links completely (except `created_at` timestamp)
+
+Duplicates detected by normalized URL comparison.
+
+#### Reserved Tags
+
+Links tagged with `~temp~` are excluded from all exports. Use this for testing in production without polluting backups.
+
+#### API Endpoints
+
+**Export:**
+```
+POST /api/v1/snapshot/export
+Authorization: Bearer <token>
+
+Response:
+{
+  "data": {
+    "file_path": "linkradar-export-2025-11-12-143022-uuid.json",
+    "link_count": 42,
+    "tag_count": 15,
+    "download_url": "/api/v1/snapshot/exports/linkradar-export-2025-11-12-143022-uuid.json"
+  }
+}
+```
+
+**Download:**
+```
+GET /api/v1/snapshot/exports/:filename
+Authorization: Bearer <token>
+```
+
+**Import:**
+```
+POST /api/v1/snapshot/import
+Authorization: Bearer <token>
+Content-Type: multipart/form-data
+
+Parameters:
+- file: JSON file (LinkRadar format)
+- mode: "skip" or "update" (optional, defaults to "skip")
+
+Response:
+{
+  "data": {
+    "links_imported": 38,
+    "links_skipped": 4,
+    "tags_created": 12,
+    "tags_reused": 8
+  }
+}
+```
+
+#### Data Format
+
+Export files use nested/denormalized JSON format:
+
+```json
+{
+  "version": "1.0",
+  "exported_at": "2025-11-12T14:30:22Z",
+  "metadata": {
+    "link_count": 2,
+    "tag_count": 2
+  },
+  "links": [
+    {
+      "url": "https://example.com",
+      "note": "Example site",
+      "created_at": "2025-11-01T10:00:00Z",
+      "tags": [
+        {"name": "ruby", "description": "Ruby programming language"},
+        {"name": "rails", "description": null}
+      ]
+    }
+  ]
+}
+```
+
+Tags matched by name (case-insensitive) on import. IDs regenerated.
+
+#### Docker Volume Mapping
+
+`snapshots/` directory is mapped as Docker volume for persistence. Export/import files accessible from both container and host system.
 
 ## Project Status
 
