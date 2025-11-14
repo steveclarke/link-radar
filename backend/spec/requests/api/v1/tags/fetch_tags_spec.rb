@@ -28,7 +28,7 @@ RSpec.describe "API: Fetch Tags", type: :request do
           expect(json_response.dig(:data, :tags).size).to eq(3)
 
           # Should be alphabetically ordered: JavaScript, Python, Ruby
-          names = json_response.dig(:data, :tags).map { |t| t[:name] }
+          names = json_response.dig(:data, :tags).pluck(:name)
           expect(names).to eq(["JavaScript", "Python", "Ruby"])
         end
 
@@ -75,7 +75,7 @@ RSpec.describe "API: Fetch Tags", type: :request do
             tags = json_response.dig(:data, :tags)
 
             # Should return both JavaScript and Java
-            names = tags.map { |t| t[:name] }
+            names = tags.pluck(:name)
             expect(names).to include("JavaScript", "Java")
             expect(names).not_to include("Ruby", "Python")
           end
@@ -107,7 +107,7 @@ RSpec.describe "API: Fetch Tags", type: :request do
 
           it "returns all tags alphabetically" do
             expect(json_response.dig(:data, :tags).size).to eq(4)
-            names = json_response.dig(:data, :tags).map { |t| t[:name] }
+            names = json_response.dig(:data, :tags).pluck(:name)
             expect(names).to eq(["Java", "JavaScript", "Python", "Ruby"])
           end
         end
@@ -138,7 +138,7 @@ RSpec.describe "API: Fetch Tags", type: :request do
           end
 
           it "returns tags sorted by name" do
-            names = json_response.dig(:data, :tags).map { |t| t[:name] }
+            names = json_response.dig(:data, :tags).pluck(:name)
             expect(names).to eq(["Alpha", "Beta", "Zulu"])
           end
         end
@@ -149,7 +149,7 @@ RSpec.describe "API: Fetch Tags", type: :request do
           end
 
           it "returns tags sorted by name descending" do
-            names = json_response.dig(:data, :tags).map { |t| t[:name] }
+            names = json_response.dig(:data, :tags).pluck(:name)
             expect(names).to eq(["Zulu", "Beta", "Alpha"])
           end
         end
@@ -160,7 +160,7 @@ RSpec.describe "API: Fetch Tags", type: :request do
           end
 
           it "returns tags sorted by usage count" do
-            names = json_response.dig(:data, :tags).map { |t| t[:name] }
+            names = json_response.dig(:data, :tags).pluck(:name)
             expect(names).to eq(["Alpha", "Zulu", "Beta"])
           end
         end
@@ -171,7 +171,7 @@ RSpec.describe "API: Fetch Tags", type: :request do
           end
 
           it "returns tags sorted by creation date (newest first)" do
-            names = json_response.dig(:data, :tags).map { |t| t[:name] }
+            names = json_response.dig(:data, :tags).pluck(:name)
             expect(names).to eq(["Alpha", "Beta", "Zulu"])
           end
         end
