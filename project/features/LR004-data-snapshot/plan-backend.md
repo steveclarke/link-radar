@@ -15,9 +15,9 @@ This plan implements the backend foundation for frictionless data export and fle
 - `Link` model - URL normalization via `before_validation` callback (Addressable gem, defaults to HTTPS)
 - `LinkRadar::DataExport::Exporter` - Export service with `~temp~` tag filtering
 - `LinkRadar::DataImport::Importer` - Import service with skip/update modes (delegates to Link model for normalization)
-- `Api::V1::DataController` - Export/import/download endpoints
-- Rake tasks: `data:export` and `data:import`
-- Data directories: `data/exports/` and `data/imports/`
+- `Api::V1::SnapshotController` - Export/import/download endpoints
+- Rake tasks: `snapshot:export` and `snapshot:import`
+- Snapshot directories: `snapshots/exports/` and `snapshots/imports/`
 
 **Sequencing logic:**
 1. Schema simplification first (foundation for cleaner export/import)
@@ -185,8 +185,8 @@ end
 
 ### 2.1. Create Export Service
 
-- [ ] Create directory: `mkdir -p lib/link_radar/data_export`
-- [ ] Create service file: `lib/link_radar/data_export/exporter.rb`
+- [x] Create directory: `mkdir -p lib/link_radar/data_export`
+- [x] Create service file: `lib/link_radar/data_export/exporter.rb`
 
 ```ruby
 # frozen_string_literal: true
@@ -200,7 +200,7 @@ module LinkRadar
     # 2. Filter out links tagged with ~temp~ (test/temporary data)
     # 3. Serialize to nested JSON format (human-readable, denormalized)
     # 4. Generate timestamped filename with UUID (unguessable for security)
-    # 5. Write to data/exports/ directory
+    # 5. Write to snapshots/exports/ directory
     # 6. Return file path and statistics
     #
     # The export format is nested/denormalized - each link contains embedded
@@ -215,7 +215,7 @@ module LinkRadar
     #   exporter = Exporter.new
     #   result = exporter.call
     #   if result.success?
-    #     puts result.data[:file_path]  # => "data/exports/linkradar-export-2025-11-12-143022-uuid.json"
+    #     puts result.data[:file_path]  # => "snapshots/exports/linkradar-export-2025-11-12-143022-uuid.json"
     #     puts result.data[:link_count] # => 42
     #   end
     #
@@ -223,7 +223,7 @@ module LinkRadar
       include LinkRadar::Resultable
 
       # Export directory path (Docker volume compatible)
-      EXPORT_DIR = Rails.root.join("data", "exports")
+      EXPORT_DIR = Rails.root.join("snapshots", "exports")
 
       # Reserved tag name for excluding links from exports
       TEMP_TAG = "~temp~"
@@ -337,16 +337,16 @@ module LinkRadar
 end
 ```
 
-- [ ] Verify file created and documented
+- [x] Verify file created and documented
 
 ### 2.2. Create Export Rake Task
 
-- [ ] Create file: `lib/tasks/data.rake`
+- [x] Create file: `lib/tasks/snapshot.rake`
 
 ```ruby
 # frozen_string_literal: true
 
-namespace :data do
+namespace :snapshot do
   desc "Export all links to JSON file (excludes ~temp~ tagged links)"
   task export: :environment do
     puts "Exporting links..."
@@ -374,19 +374,19 @@ namespace :data do
 end
 ```
 
-- [ ] Verify task appears in `bin/rake -T data`
+- [x] Verify task appears in `bin/rake -T snapshot`
 
-### 2.3. Create Data Controller - Export Endpoint
+### 2.3. Create Snapshot Controller - Export Endpoint
 
-- [ ] Create file: `app/controllers/api/v1/data_controller.rb`
+- [x] Create file: `app/controllers/api/v1/snapshot_controller.rb`
 
 Follow standard Rails controller pattern from existing controllers (e.g., `links_controller.rb`):
 
 ```ruby
 module Api
   module V1
-    class DataController < ApplicationController
-      # POST /api/v1/data/export
+    class SnapshotController < ApplicationController
+      # POST /api/v1/snapshot/export
       # Export all links to JSON file and return download URL
       def export
         exporter = LinkRadar::DataExport::Exporter.new
@@ -401,7 +401,7 @@ module Api
               file_path: filename,
               link_count: result.data[:link_count],
               tag_count: result.data[:tag_count],
-              download_url: "/api/v1/data/exports/#{filename}"
+              download_url: "/api/v1/snapshot/exports/#{filename}"
             }
           }
         else
@@ -409,15 +409,15 @@ module Api
         end
       end
 
-      # GET /api/v1/data/exports/:filename
-      # Download export file (no authentication - secured by unguessable UUID in filename)
+      # GET /api/v1/snapshot/exports/:filename
+      # Download export file (requires authentication)
       def download
         filename = params[:filename]
-        file_path = Rails.root.join("data", "exports", filename)
+        file_path = Rails.root.join("snapshots", "exports", filename)
 
         # Security: Only allow downloads from exports directory
         # Prevent directory traversal attacks
-        unless file_path.to_s.start_with?(Rails.root.join("data", "exports").to_s)
+        unless file_path.to_s.start_with?(Rails.root.join("snapshots", "exports").to_s)
           render json: {error: "Invalid file path"}, status: :forbidden
           return
         end
@@ -433,7 +433,7 @@ module Api
           filename: filename
       end
 
-      # POST /api/v1/data/import
+      # POST /api/v1/snapshot/import
       # Import links from uploaded JSON file
       def import
         # Implementation in Phase 3
@@ -444,26 +444,26 @@ module Api
 end
 ```
 
-- [ ] Add routes to `config/routes.rb`
+- [x] Add routes to `config/routes.rb`
 
 ```ruby
 namespace :api do
   namespace :v1 do
     # ... existing routes ...
     
-    # Data export/import
-    post "data/export", to: "data#export"
-    post "data/import", to: "data#import"
-    get "data/exports/:filename", to: "data#download"
+    # Snapshot export/import
+    post "snapshot/export", to: "snapshot#export"
+    post "snapshot/import", to: "snapshot#import"
+    get "snapshot/exports/:filename", to: "snapshot#download", constraints: {filename: /[^\\/]+/}, defaults: {format: false}
   end
 end
 ```
 
-- [ ] Verify routes: `bin/rails routes | grep data`
+- [x] Verify routes: `bin/rails routes | grep snapshot`
 
 ### 2.4. Smoke Test - Export Flow
 
-- [ ] Create sample data in Rails console:
+- [x] Create sample data in Rails console:
 
 ```ruby
 # Create a few test links with tags
@@ -481,26 +481,28 @@ temp_link.tag_names = ["~temp~"]
 temp_link.save!
 ```
 
-- [ ] Test rake task: `bin/rake data:export`
-- [ ] Verify file created in `data/exports/` directory
-- [ ] Open file and verify:
-  - Contains 2 links (temp link excluded)
+- [x] Test rake task: `bin/rake snapshot:export`
+- [x] Verify file created in `snapshots/exports/` directory
+- [x] Open file and verify:
+  - Contains links (temp links excluded)
   - Each link has embedded tags array
   - Metadata shows correct counts
   - JSON is pretty-printed and readable
-- [ ] Test API endpoint via curl or Bruno:
+- [x] Test API endpoint via curl or Bruno:
 
 ```bash
 # Export
-curl -X POST http://localhost:3000/api/v1/data/export \
+curl -X POST http://localhost:3000/api/v1/snapshot/export \
   -H "Authorization: Bearer YOUR_API_KEY"
 
 # Download (use filename from export response)
-curl http://localhost:3000/api/v1/data/exports/linkradar-export-YYYY-MM-DD-HHMMSS-uuid.json \
+curl http://localhost:3000/api/v1/snapshot/exports/linkradar-export-YYYY-MM-DD-HHMMSS-uuid.json \
+  -H "Authorization: Bearer YOUR_API_KEY" \
   -o downloaded-export.json
 ```
 
-- [ ] Clean up test data: `Link.destroy_all; Tag.destroy_all`
+- [x] Verify ~temp~ tag filtering works correctly
+- [x] Verify path traversal security protection
 
 ---
 
@@ -541,13 +543,13 @@ module LinkRadar
     # - New tags created with exact capitalization from import
     #
     # @example Import with skip mode (default)
-    #   importer = Importer.new(file_path: "data/imports/export.json")
+    #   importer = Importer.new(file_path: "snapshots/imports/export.json")
     #   result = importer.call
     #   result.data[:links_imported] # => 38
     #   result.data[:links_skipped]  # => 4
     #
     # @example Import with update mode
-    #   importer = Importer.new(file_path: "data/imports/export.json", mode: :update)
+    #   importer = Importer.new(file_path: "snapshots/imports/export.json", mode: :update)
     #   result = importer.call
     #
     class Importer
@@ -789,22 +791,22 @@ end
 
 ### 3.2. Update Rake Task - Add Import
 
-- [ ] Update `lib/tasks/data.rake` to add import task implementation:
+- [ ] Update `lib/tasks/snapshot.rake` to add import task implementation:
 
 ```ruby
 desc "Import links from JSON file"
 task :import, [:file, :mode] => :environment do |_t, args|
   unless args[:file]
-    puts "Usage: rake data:import[filename.json] or rake data:import[filename.json,update]"
+    puts "Usage: rake snapshot:import[filename.json] or rake snapshot:import[filename.json,update]"
     puts "  Mode: skip (default) or update"
     exit 1
   end
 
-  # Determine file path (check data/imports/ directory first, then treat as full path)
+  # Determine file path (check snapshots/imports/ directory first, then treat as full path)
   file_path = if File.exist?(args[:file])
     args[:file]
   else
-    Rails.root.join("data", "imports", args[:file])
+    Rails.root.join("snapshots", "imports", args[:file])
   end
 
   unless File.exist?(file_path)
@@ -834,14 +836,14 @@ task :import, [:file, :mode] => :environment do |_t, args|
 end
 ```
 
-- [ ] Verify task shows usage: `bin/rake data:import`
+- [ ] Verify task shows usage: `bin/rake snapshot:import`
 
-### 3.3. Update Data Controller - Add Import Endpoint
+### 3.3. Update Snapshot Controller - Add Import Endpoint
 
-- [ ] Update `app/controllers/api/v1/data_controller.rb` to implement import action:
+- [ ] Update `app/controllers/api/v1/snapshot_controller.rb` to implement import action:
 
 ```ruby
-# POST /api/v1/data/import
+# POST /api/v1/snapshot/import
 # Import links from uploaded JSON file
 def import
   unless params[:file].present?
@@ -879,25 +881,25 @@ end
 
 ### 3.4. Smoke Test - Import Flow
 
-- [ ] Create `data/imports/` directory: `mkdir -p data/imports`
+- [ ] Create `snapshots/imports/` directory: `mkdir -p snapshots/imports`
 - [ ] Copy an export file to imports directory
 - [ ] Clear database: `Link.destroy_all; Tag.destroy_all` in Rails console
-- [ ] Test import with skip mode: `bin/rake data:import[linkradar-export-*.json]`
+- [ ] Test import with skip mode: `bin/rake snapshot:import[linkradar-export-*.json]`
 - [ ] Verify links and tags imported correctly in Rails console
 - [ ] Test duplicate handling:
-  - Run same import again: `bin/rake data:import[linkradar-export-*.json]`
+  - Run same import again: `bin/rake snapshot:import[linkradar-export-*.json]`
   - Verify `links_skipped` count equals total (all duplicates)
 - [ ] Test update mode:
   - Manually edit a note in database
-  - Run import with update mode: `bin/rake data:import[linkradar-export-*.json,update]`
+  - Run import with update mode: `bin/rake snapshot:import[linkradar-export-*.json,update]`
   - Verify note was overwritten with imported value
   - Verify `created_at` was NOT changed
 - [ ] Test API endpoint via curl or Bruno:
 
 ```bash
-curl -X POST http://localhost:3000/api/v1/data/import \
+curl -X POST http://localhost:3000/api/v1/snapshot/import \
   -H "Authorization: Bearer YOUR_API_KEY" \
-  -F "file=@data/exports/linkradar-export-*.json" \
+  -F "file=@snapshots/exports/linkradar-export-*.json" \
   -F "mode=skip"
 ```
 
@@ -1017,22 +1019,22 @@ LinkRadar provides export and import capabilities for backing up data during dev
 **Export all links:**
 
 ```bash
-bin/rake data:export
+bin/rake snapshot:export
 ```
 
-Creates timestamped JSON file in `data/exports/` directory. Links tagged with `~temp~` are excluded.
+Creates timestamped JSON file in `snapshots/exports/` directory. Links tagged with `~temp~` are excluded.
 
 **Import from file:**
 
 ```bash
 # Import with skip mode (default - skip duplicates)
-bin/rake data:import[filename.json]
+bin/rake snapshot:import[filename.json]
 
 # Import with update mode (overwrite existing links)
-bin/rake data:import[filename.json,update]
+bin/rake snapshot:import[filename.json,update]
 ```
 
-Files in `data/imports/` can be referenced by filename only. Full paths also supported.
+Files in `snapshots/imports/` can be referenced by filename only. Full paths also supported.
 
 ### Import Modes
 
@@ -1049,7 +1051,7 @@ Links tagged with `~temp~` are excluded from all exports. Use this for testing i
 
 **Export:**
 ```
-POST /api/v1/data/export
+POST /api/v1/snapshot/export
 Authorization: Bearer <token>
 
 Response:
@@ -1058,21 +1060,20 @@ Response:
     "file_path": "linkradar-export-2025-11-12-143022-uuid.json",
     "link_count": 42,
     "tag_count": 15,
-    "download_url": "/api/v1/data/exports/linkradar-export-2025-11-12-143022-uuid.json"
+    "download_url": "/api/v1/snapshot/exports/linkradar-export-2025-11-12-143022-uuid.json"
   }
 }
 ```
 
 **Download:**
 ```
-GET /api/v1/data/exports/:filename
+GET /api/v1/snapshot/exports/:filename
+Authorization: Bearer <token>
 ```
-
-No authentication required (secured by unguessable UUID in filename).
 
 **Import:**
 ```
-POST /api/v1/data/import
+POST /api/v1/snapshot/import
 Authorization: Bearer <token>
 Content-Type: multipart/form-data
 
@@ -1121,7 +1122,7 @@ Tags matched by name (case-insensitive) on import. IDs regenerated.
 
 ### Docker Volume Mapping
 
-`data/` directory is mapped as Docker volume for persistence. Export/import files accessible from both container and host system.
+`snapshots/` directory is mapped as Docker volume for persistence. Export/import files accessible from both container and host system.
 ```
 
 - [ ] Verify documentation is accurate and complete
@@ -1138,13 +1139,20 @@ Tags matched by name (case-insensitive) on import. IDs regenerated.
   - Updated to Rails 8 `params.expect` syntax
   - All 182 specs passing
 
+**Completed phases:**
+- ✅ **Phase 2: Export System** - COMPLETE
+  - Export service with ~temp~ tag filtering
+  - Rake task: `snapshot:export`
+  - API endpoints: `POST /api/v1/snapshot/export`, `GET /api/v1/snapshot/exports/:filename`
+  - Directory structure: `snapshots/exports/` with .keep file
+  - All smoke tests passed (102 links exported, temp links excluded, security verified)
+
 **In progress:**
-- 🔄 **Phase 2: Export System** - Files created, not yet tested
+- 🔄 **Phase 3: Import System** - Ready to begin
 
 **Not started:**
-- ⬜ **Phase 3: Import System**
 - ⬜ **Phase 4: Testing & Validation**
 - ⬜ **Phase 5: Documentation**
 
-Next step: Complete Phase 2 testing and continue with implementation
+Next step: Begin Phase 3 - Import System implementation
 

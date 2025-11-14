@@ -41,3 +41,9 @@
 
 # Ignore code coverage reports
 /coverage/
+
+# Ignore snapshot files (exports/imports), but keep the directories
+/snapshots/exports/*
+!/snapshots/exports/.keep
+/snapshots/imports/*
+!/snapshots/imports/.keep
