@@ -26,4 +26,3 @@ namespace :snapshot do
     puts "Import task not yet implemented"
   end
 end
-

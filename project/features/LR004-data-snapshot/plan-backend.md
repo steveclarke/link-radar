@@ -919,7 +919,7 @@ curl -X POST http://localhost:3000/api/v1/snapshot/import \
 
 ### 4.1. Export Service Smoke Tests
 
-- [ ] Create file: `spec/lib/link_radar/data_export/exporter_spec.rb`
+- [x] Create file: `spec/lib/link_radar/data_export/exporter_spec.rb`
 
 Follow standard RSpec pattern from existing service specs. Test outline:
 
@@ -927,13 +927,24 @@ Follow standard RSpec pattern from existing service specs. Test outline:
 - With links and tags:
   - Returns success with file path and counts
   - Creates valid JSON file with correct structure
+  - Generates filename with timestamp and UUID
+  - Creates pretty-printed JSON (human-readable)
 - With ~temp~ tagged links:
   - Excludes ~temp~ tagged links from export
+  - Excludes ~temp~ tag from tag count
 - With empty database:
   - Creates valid empty export
+- Error handling:
+  - Creates directory if it doesn't exist
+  - Returns failure when file write fails
 
-- [ ] Run specs: `bin/rspec spec/lib/link_radar/data_export/`
-- [ ] Verify all tests pass
+**Temp directory handling:**
+- Uses `stub_const` to redirect EXPORT_DIR to `tmp/test_exports`
+- Cleans up temp directory after each test
+- Prevents cluttering `snapshots/exports/` with test files
+
+- [x] Run specs: `bin/rspec spec/lib/link_radar/data_export/`
+- [x] Verify all tests pass (9 examples, 0 failures)
 
 ### 4.2. Import Service Smoke Tests
 
