@@ -31,30 +31,28 @@ module Api
       # GET /api/v1/snapshot/exports/:filename
       # Download export file (requires authentication)
       def download
-        filename = params[:filename]
-        export_dir = LinkRadar::DataExport::Exporter::EXPORT_DIR
-        file_path = export_dir.join(filename)
+        result = LinkRadar::SecureFileDownload.call(
+          filename: params[:filename],
+          allowed_directory: LinkRadar::DataExport::Exporter::EXPORT_DIR
+        )
 
-        # Security: Only allow downloads from snapshots/exports directory
-        # Prevent directory traversal attacks
-        unless file_path.to_s.start_with?(export_dir.to_s)
-          render_error(
-            code: :forbidden,
-            message: "Invalid file path",
-            status: :forbidden
-          )
-          return
+        if result.success?
+          send_file result.data.file_path,
+            type: "application/json",
+            disposition: "attachment",
+            filename: result.data.safe_filename
+        else
+          case result.data.status
+          when :not_found
+            render_not_found
+          when :forbidden
+            render_error(
+              code: :forbidden,
+              message: result.errors.join(", "),
+              status: :forbidden
+            )
+          end
         end
-
-        unless File.exist?(file_path)
-          render_not_found
-          return
-        end
-
-        send_file file_path,
-          type: "application/json",
-          disposition: "attachment",
-          filename: filename
       end
 
       # POST /api/v1/snapshot/import

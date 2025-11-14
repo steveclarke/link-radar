@@ -39,9 +39,32 @@
       "user_input": "pkg",
       "confidence": "Medium",
       "note": "Values are from frozen SYSTEM_PACKAGES constant, not user input. Only runs on local dev systems."
+    },
+    {
+      "warning_type": "File Access",
+      "warning_code": 16,
+      "fingerprint": "1353e845ac44bdb73230543f0b583095970f115190f0f4a9893bc886445da4be",
+      "check_name": "SendFile",
+      "message": "Parameter value used in file name",
+      "file": "app/controllers/api/v1/snapshot_controller.rb",
+      "line": 40,
+      "link": "https://brakemanscanner.org/docs/warning_types/file_access/",
+      "code": "send_file(LinkRadar::SecureFileDownload.call(:filename => params[:filename], :allowed_directory => (LinkRadar::DataExport::Exporter::EXPORT_DIR)).data.file_path, :type => \"application/json\", :disposition => \"attachment\", :filename => LinkRadar::SecureFileDownload.call(:filename => params[:filename], :allowed_directory => (LinkRadar::DataExport::Exporter::EXPORT_DIR)).data.safe_filename)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Api::V1::SnapshotController",
+        "method": "download"
+      },
+      "user_input": "params[:filename]",
+      "confidence": "Weak",
+      "cwe_id": [
+        22
+      ],
+      "note": "False positive. Filename validated by SecureFileDownload service with multiple security layers: 1) rejects path separators and leading dots, 2) File.basename strips path components, 3) realpath verification ensures file is within allowed directory."
     }
   ],
-  "updated": "2025-11-08 19:05:00 -0330",
+  "updated": "2025-11-13 22:58:00 -0330",
   "brakeman_version": "7.1.1"
 }
 
