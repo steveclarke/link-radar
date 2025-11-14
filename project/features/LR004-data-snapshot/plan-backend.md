@@ -514,8 +514,8 @@ curl http://localhost:3000/api/v1/snapshot/exports/linkradar-export-YYYY-MM-DD-H
 
 ### 3.1. Create Import Service
 
-- [ ] Create directory: `mkdir -p lib/link_radar/data_import`
-- [ ] Create service file: `lib/link_radar/data_import/importer.rb`
+- [x] Create directory: `mkdir -p lib/link_radar/data_import`
+- [x] Create service file: `lib/link_radar/data_import/importer.rb`
 
 ```ruby
 # frozen_string_literal: true
@@ -787,11 +787,11 @@ module LinkRadar
 end
 ```
 
-- [ ] Verify file created and documented
+- [x] Verify file created and documented
 
 ### 3.2. Update Rake Task - Add Import
 
-- [ ] Update `lib/tasks/snapshot.rake` to add import task implementation:
+- [x] Update `lib/tasks/snapshot.rake` to add import task implementation:
 
 ```ruby
 desc "Import links from JSON file"
@@ -836,11 +836,11 @@ task :import, [:file, :mode] => :environment do |_t, args|
 end
 ```
 
-- [ ] Verify task shows usage: `bin/rake snapshot:import`
+- [x] Verify task shows usage: `bin/rake snapshot:import`
 
 ### 3.3. Update Snapshot Controller - Add Import Endpoint
 
-- [ ] Update `app/controllers/api/v1/snapshot_controller.rb` to implement import action:
+- [x] Update `app/controllers/api/v1/snapshot_controller.rb` to implement import action:
 
 ```ruby
 # POST /api/v1/snapshot/import
@@ -877,24 +877,24 @@ rescue => e
 end
 ```
 
-- [ ] Update `import_params` if needed (multipart form data handling is automatic)
+- [x] Update `import_params` if needed (multipart form data handling is automatic)
 
 ### 3.4. Smoke Test - Import Flow
 
-- [ ] Create `snapshots/imports/` directory: `mkdir -p snapshots/imports`
-- [ ] Copy an export file to imports directory
-- [ ] Clear database: `Link.destroy_all; Tag.destroy_all` in Rails console
-- [ ] Test import with skip mode: `bin/rake snapshot:import[linkradar-export-*.json]`
-- [ ] Verify links and tags imported correctly in Rails console
-- [ ] Test duplicate handling:
+- [x] Create `snapshots/imports/` directory: `mkdir -p snapshots/imports`
+- [x] Copy an export file to imports directory
+- [x] Clear database: `Link.destroy_all; Tag.destroy_all` in Rails console
+- [x] Test import with skip mode: `bin/rake snapshot:import[linkradar-export-*.json]`
+- [x] Verify links and tags imported correctly in Rails console
+- [x] Test duplicate handling:
   - Run same import again: `bin/rake snapshot:import[linkradar-export-*.json]`
   - Verify `links_skipped` count equals total (all duplicates)
-- [ ] Test update mode:
+- [x] Test update mode:
   - Manually edit a note in database
   - Run import with update mode: `bin/rake snapshot:import[linkradar-export-*.json,update]`
   - Verify note was overwritten with imported value
   - Verify `created_at` was NOT changed
-- [ ] Test API endpoint via curl or Bruno:
+- [x] Test API endpoint via curl or Bruno:
 
 ```bash
 curl -X POST http://localhost:3000/api/v1/snapshot/import \
@@ -903,7 +903,7 @@ curl -X POST http://localhost:3000/api/v1/snapshot/import \
   -F "mode=skip"
 ```
 
-- [ ] Test error handling:
+- [x] Test error handling:
   - Invalid JSON file
   - Missing required fields
   - Invalid URL format
@@ -1158,12 +1158,18 @@ Tags matched by name (case-insensitive) on import. IDs regenerated.
   - Directory structure: `snapshots/exports/` with .keep file
   - All smoke tests passed (102 links exported, temp links excluded, security verified)
 
+- ✅ **Phase 3: Import System** - COMPLETE
+  - Import service with transaction safety and dual-mode handling (skip/update)
+  - Rake task: `snapshot:import[file,mode]`
+  - API endpoint: `POST /api/v1/snapshot/import`
+  - Case-insensitive tag matching, URL normalization delegation
+  - All smoke tests passed (skip mode, update mode, error handling, transaction rollback)
+
 **In progress:**
-- 🔄 **Phase 3: Import System** - Ready to begin
+- 🔄 **Phase 4: Testing & Validation** - Ready to begin
 
 **Not started:**
-- ⬜ **Phase 4: Testing & Validation**
 - ⬜ **Phase 5: Documentation**
 
-Next step: Begin Phase 3 - Import System implementation
+Next step: Begin Phase 4 - Testing & Validation (create RSpec tests for Import Service)
 

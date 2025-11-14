@@ -58,11 +58,45 @@ module Api
       # POST /api/v1/snapshot/import
       # Import links from uploaded JSON file
       def import
-        # Implementation in Phase 3
+        if params[:file].blank?
+          render_error(
+            code: :no_file_provided,
+            message: "No file provided",
+            status: :bad_request
+          )
+          return
+        end
+
+        # Get uploaded file
+        uploaded_file = params[:file]
+        mode = params[:mode].presence&.to_sym || :skip
+
+        # Save to temporary location for processing
+        temp_path = Rails.root.join("tmp", "import-#{SecureRandom.uuid}.json")
+        File.write(temp_path, uploaded_file.read)
+
+        importer = LinkRadar::DataImport::Importer.new(file_path: temp_path.to_s, mode: mode)
+        result = importer.call
+
+        # Clean up temp file
+        File.delete(temp_path) if File.exist?(temp_path)
+
+        if result.success?
+          render json: {data: result.data}
+        else
+          render_error(
+            code: :import_failed,
+            message: result.errors.join(", "),
+            status: :unprocessable_entity
+          )
+        end
+      rescue => e
+        # Clean up temp file on error
+        File.delete(temp_path) if temp_path && File.exist?(temp_path)
         render_error(
-          code: :not_implemented,
-          message: "Import not yet implemented",
-          status: :not_implemented
+          code: :import_failed,
+          message: "Import failed: #{e.message}",
+          status: :internal_server_error
         )
       end
     end
