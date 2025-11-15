@@ -43,13 +43,13 @@
     {
       "warning_type": "File Access",
       "warning_code": 16,
-      "fingerprint": "1353e845ac44bdb73230543f0b583095970f115190f0f4a9893bc886445da4be",
+      "fingerprint": "73ce1a5282eb0f6531cf21aab0dc72a88464a90a41be023d52313dc146fec0a1",
       "check_name": "SendFile",
       "message": "Parameter value used in file name",
       "file": "app/controllers/api/v1/snapshot_controller.rb",
       "line": 40,
       "link": "https://brakemanscanner.org/docs/warning_types/file_access/",
-      "code": "send_file(LinkRadar::SecureFileDownload.call(:filename => params[:filename], :allowed_directory => (LinkRadar::DataExport::Exporter::EXPORT_DIR)).data.file_path, :type => \"application/json\", :disposition => \"attachment\", :filename => LinkRadar::SecureFileDownload.call(:filename => params[:filename], :allowed_directory => (LinkRadar::DataExport::Exporter::EXPORT_DIR)).data.safe_filename)",
+      "code": "send_file(LinkRadar::SecureFileDownload.call(:filename => params[:filename], :allowed_directory => (LinkRadar::Snapshot::Exporter::EXPORT_DIR)).data.file_path, :type => \"application/json\", :disposition => \"attachment\", :filename => LinkRadar::SecureFileDownload.call(:filename => params[:filename], :allowed_directory => (LinkRadar::Snapshot::Exporter::EXPORT_DIR)).data.safe_filename)",
       "render_path": null,
       "location": {
         "type": "method",
