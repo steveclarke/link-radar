@@ -47,7 +47,7 @@ module LinkRadar
         @file_path = file_path
         @mode = mode.to_sym
 
-        unless MODES.include?(@mode)
+        unless MODES.include?(self.mode)
           raise ArgumentError, "Invalid mode: #{mode}. Must be one of: #{MODES.join(", ")}"
         end
       end
@@ -59,7 +59,7 @@ module LinkRadar
         data = parse_file
         validate_structure(data)
 
-        stats = {
+        @stats = {
           links_imported: 0,
           links_skipped: 0,
           tags_created: 0,
@@ -69,7 +69,7 @@ module LinkRadar
         # Wrap entire import in transaction for all-or-nothing safety
         Link.transaction do
           data["links"].each do |link_data|
-            process_link(link_data, stats)
+            process_link(link_data)
           end
         end
 
@@ -82,13 +82,15 @@ module LinkRadar
 
       private
 
+      attr_reader :file_path, :mode, :stats
+
       # Parse JSON file
       #
       # @return [Hash] parsed JSON data
       # @raise [Errno::ENOENT] if file not found
       # @raise [JSON::ParserError] if invalid JSON
       def parse_file
-        JSON.parse(File.read(@file_path))
+        JSON.parse(File.read(file_path))
       end
 
       # Validate JSON structure
@@ -111,19 +113,18 @@ module LinkRadar
       # Process a single link from import data
       #
       # Handles URL normalization, duplicate detection, mode logic,
-      # and tag assignment. Updates statistics hash in-place.
+      # and tag assignment. Updates stats instance variable.
       #
       # @param link_data [Hash] link data from import
-      # @param stats [Hash] statistics hash (mutated in-place)
       # @return [void]
-      def process_link(link_data, stats)
+      def process_link(link_data)
         normalized_url = normalize_url(link_data["url"])
 
-        case @mode
+        case mode
         when :skip
-          process_skip_mode(normalized_url, link_data, stats)
+          process_skip_mode(normalized_url, link_data)
         when :update
-          process_update_mode(normalized_url, link_data, stats)
+          process_update_mode(normalized_url, link_data)
         end
       end
 
@@ -135,9 +136,8 @@ module LinkRadar
       #
       # @param normalized_url [String] normalized URL
       # @param link_data [Hash] link data from import
-      # @param stats [Hash] statistics hash (mutated in-place)
       # @return [void]
-      def process_skip_mode(normalized_url, link_data, stats)
+      def process_skip_mode(normalized_url, link_data)
         if Link.exists?(url: normalized_url)
           stats[:links_skipped] += 1
           return
@@ -151,7 +151,7 @@ module LinkRadar
         )
 
         # Assign tags (creates or finds by name)
-        assign_tags_to_link(link, link_data["tags"], stats)
+        assign_tags_to_link(link, link_data["tags"])
 
         link.save!
         stats[:links_imported] += 1
@@ -165,9 +165,8 @@ module LinkRadar
       #
       # @param normalized_url [String] normalized URL
       # @param link_data [Hash] link data from import
-      # @param stats [Hash] statistics hash (mutated in-place)
       # @return [void]
-      def process_update_mode(normalized_url, link_data, stats)
+      def process_update_mode(normalized_url, link_data)
         link = Link.find_or_initialize_by(url: normalized_url)
 
         if link.persisted?
@@ -185,7 +184,7 @@ module LinkRadar
         end
 
         # Assign tags (replaces existing tags completely)
-        assign_tags_to_link(link, link_data["tags"], stats)
+        assign_tags_to_link(link, link_data["tags"])
 
         link.save!
         stats[:links_imported] += 1
@@ -205,13 +204,12 @@ module LinkRadar
       #
       # @param link [Link] link to assign tags to
       # @param tag_data [Array<Hash>] tag data from import
-      # @param stats [Hash] statistics hash (mutated in-place)
       # @return [void]
-      def assign_tags_to_link(link, tag_data, stats)
+      def assign_tags_to_link(link, tag_data)
         return if tag_data.blank?
 
         tags = tag_data.map do |tag_hash|
-          find_or_create_tag(tag_hash, stats)
+          find_or_create_tag(tag_hash)
         end
 
         # Replace all tags (follows Link model pattern)
@@ -221,9 +219,8 @@ module LinkRadar
       # Find or create tag with case-insensitive name matching
       #
       # @param tag_data [Hash] tag data from import
-      # @param stats [Hash] statistics hash (mutated in-place)
       # @return [Tag] existing or new tag
-      def find_or_create_tag(tag_data, stats)
+      def find_or_create_tag(tag_data)
         tag_name = tag_data["name"]
         tag_description = tag_data["description"]
 
