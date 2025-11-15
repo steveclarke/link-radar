@@ -71,33 +71,35 @@ module Api
         uploaded_file = params[:file]
         mode = params[:mode].presence&.to_sym || :skip
 
-        # Save to temporary location for processing
-        temp_path = Rails.root.join("tmp", "import-#{SecureRandom.uuid}.json")
-        File.write(temp_path, uploaded_file.read)
+        # Create temporary file for processing (uses OS temp directory)
+        temp_file = Tempfile.new(["import-", ".json"])
+        temp_file.write(uploaded_file.read)
+        temp_file.rewind # Reset file pointer for reading
 
-        importer = LinkRadar::DataImport::Importer.new(file_path: temp_path.to_s, mode: mode)
-        result = importer.call
+        begin
+          importer = LinkRadar::DataImport::Importer.new(file_path: temp_file.path, mode: mode)
+          result = importer.call
 
-        # Clean up temp file
-        File.delete(temp_path) if File.exist?(temp_path)
-
-        if result.success?
-          render json: {data: result.data}
-        else
+          if result.success?
+            render json: {data: result.data}
+          else
+            render_error(
+              code: :import_failed,
+              message: result.errors.join(", "),
+              status: :unprocessable_entity
+            )
+          end
+        rescue => e
           render_error(
             code: :import_failed,
-            message: result.errors.join(", "),
-            status: :unprocessable_entity
+            message: "Import failed: #{e.message}",
+            status: :internal_server_error
           )
+        ensure
+          # Clean up temp file - runs whether success, failure, or exception
+          temp_file.close
+          temp_file.unlink
         end
-      rescue => e
-        # Clean up temp file on error
-        File.delete(temp_path) if temp_path && File.exist?(temp_path)
-        render_error(
-          code: :import_failed,
-          message: "Import failed: #{e.message}",
-          status: :internal_server_error
-        )
       end
     end
   end

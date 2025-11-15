@@ -26,7 +26,13 @@ Rails 8.1 API backend for LinkRadar - a personal knowledge radar for capturing a
     - [Database Operations](#database-operations)
     - [Code Quality](#code-quality)
     - [API Testing with Bruno](#api-testing-with-bruno)
-    - [Data Export & Import](#data-export--import)
+    - [Data Export \& Import](#data-export--import)
+      - [CLI Usage](#cli-usage)
+      - [Import Modes](#import-modes)
+      - [Reserved Tags](#reserved-tags)
+      - [API Endpoints](#api-endpoints)
+      - [Data Format](#data-format)
+      - [Docker Volume Mapping](#docker-volume-mapping)
   - [Project Status](#project-status)
   - [Documentation](#documentation)
     - [Backend Guides](#backend-guides)
@@ -314,7 +320,7 @@ LinkRadar provides export and import capabilities for backing up data during dev
 bin/rake snapshot:export
 ```
 
-Creates timestamped JSON file in `snapshots/exports/` directory. Links tagged with `~temp~` are excluded.
+Creates timestamped JSON file in `snapshot/exports/` directory. Links tagged with `~temp~` are excluded.
 
 **Import from file:**
 
@@ -326,7 +332,7 @@ bin/rake snapshot:import[filename.json]
 bin/rake snapshot:import[filename.json,update]
 ```
 
-Files in `snapshots/imports/` can be referenced by filename only. Full paths also supported.
+Files in `snapshot/imports/` can be referenced by filename only. Full paths also supported.
 
 #### Import Modes
 
@@ -414,7 +420,7 @@ Tags matched by name (case-insensitive) on import. IDs regenerated.
 
 #### Docker Volume Mapping
 
-`snapshots/` directory is mapped as Docker volume for persistence. Export/import files accessible from both container and host system.
+`snapshot/` directory is mapped as Docker volume for persistence. Export/import files accessible from both container and host system.
 
 ## Project Status
 

@@ -28,11 +28,11 @@ namespace :snapshot do
       exit 1
     end
 
-    # Determine file path (check snapshots/imports/ directory first, then treat as full path)
+    # Determine file path (check snapshot/imports/ directory first, then treat as full path)
     file_path = if File.exist?(args[:file])
       args[:file]
     else
-      Rails.root.join("snapshots", "imports", args[:file])
+      Rails.root.join("snapshot", "imports", args[:file])
     end
 
     unless File.exist?(file_path)

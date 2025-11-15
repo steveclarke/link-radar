@@ -23,20 +23,20 @@ module LinkRadar
     # - New tags created with exact capitalization from import
     #
     # @example Import with skip mode (default)
-    #   importer = Importer.new(file_path: "snapshots/imports/export.json")
+    #   importer = Importer.new(file_path: "snapshot/imports/export.json")
     #   result = importer.call
     #   result.data[:links_imported] # => 38
     #   result.data[:links_skipped]  # => 4
     #
     # @example Import with update mode
-    #   importer = Importer.new(file_path: "snapshots/imports/export.json", mode: :update)
+    #   importer = Importer.new(file_path: "snapshot/imports/export.json", mode: :update)
     #   result = importer.call
     #
     class Importer
       include LinkRadar::Resultable
 
       # Import directory path (Docker volume compatible)
-      IMPORT_DIR = Rails.root.join("snapshots/imports")
+      IMPORT_DIR = Rails.root.join("snapshot/imports")
 
       # Supported import modes
       MODES = [:skip, :update].freeze

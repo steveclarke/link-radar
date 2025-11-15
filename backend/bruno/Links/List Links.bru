@@ -11,7 +11,7 @@ get {
 }
 
 params:query {
-  ~search: ruby programming
+  ~search: herzog
   ~page_size: 25
   ~page: 2
 }
@@ -24,12 +24,12 @@ script:post-response {
 
 docs {
   Get all links ordered by created_at (newest first).
-
+  
   Query parameters:
   - search (optional): Full-text search across title, content, notes, and tag names
   - page_size (optional): Number of links per page (default: 10)
   - page (optional): Page number (default: 1)
-
+  
   Returns:
   {
     "data": {
@@ -42,10 +42,10 @@ docs {
       "limit": 10
     }
   }
-
+  
   The search uses PostgreSQL full-text search with trigrams for fuzzy matching.
   It searches across link titles, content, notes, and associated tag names.
-
+  
   This script automatically sets the linkId variable to the first link's ID
   for use in other requests (Get Link, Update Link, Delete Link).
 }

@@ -43,7 +43,7 @@
 /coverage/
 
 # Ignore snapshot files (exports/imports), but keep the directories
-/snapshots/exports/*
-!/snapshots/exports/.keep
-/snapshots/imports/*
-!/snapshots/imports/.keep
+/snapshot/exports/*
+!/snapshot/exports/.keep
+/snapshot/imports/*
+!/snapshot/imports/.keep

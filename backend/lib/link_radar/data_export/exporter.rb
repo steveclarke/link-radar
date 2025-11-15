@@ -9,7 +9,7 @@ module LinkRadar
     # 2. Filter out links tagged with ~temp~ (test/temporary data)
     # 3. Serialize to nested JSON format (human-readable, denormalized)
     # 4. Generate timestamped filename with UUID (unguessable for security)
-    # 5. Write to snapshots/exports/ directory
+    # 5. Write to snapshot/exports/ directory
     # 6. Return file path and statistics
     #
     # The export format is nested/denormalized - each link contains embedded
@@ -24,7 +24,7 @@ module LinkRadar
     #   exporter = Exporter.new
     #   result = exporter.call
     #   if result.success?
-    #     puts result.data[:file_path]  # => "snapshots/exports/linkradar-export-2025-11-12-143022-uuid.json"
+    #     puts result.data[:file_path]  # => "snapshot/exports/linkradar-export-2025-11-12-143022-uuid.json"
     #     puts result.data[:link_count] # => 42
     #   end
     #
@@ -32,7 +32,7 @@ module LinkRadar
       include LinkRadar::Resultable
 
       # Export directory path (Docker volume compatible)
-      EXPORT_DIR = Rails.root.join("snapshots/exports")
+      EXPORT_DIR = Rails.root.join("snapshot/exports")
 
       # Reserved tag name for excluding links from exports
       TEMP_TAG = "~temp~"
