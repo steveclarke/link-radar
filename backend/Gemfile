@@ -82,6 +82,9 @@ end
 group :development do
   # Annotate models with schema information
   gem "annotaterb"
+
+  # A terminal-based Rails log viewer with real-time monitoring and filtering capabilities
+  gem "log_bench"
 end
 
 group :test do
@@ -119,6 +122,3 @@ gem "saltbox-sort_by_columns", github: "myunio/saltbox-sort_by_columns"
 
 # Full-text search with PostgreSQL
 gem "pg_search"
-
-# A terminal-based Rails log viewer with real-time monitoring and filtering capabilities
-gem "log_bench"
