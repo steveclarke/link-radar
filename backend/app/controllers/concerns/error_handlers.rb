@@ -40,7 +40,7 @@ module ErrorHandlers
       render_validation_error(
         code: :validation_failed,
         message: e.message,
-        status: :unprocessable_entity,
+        status: :unprocessable_content,
         exception: e
       )
     end
@@ -51,7 +51,7 @@ module ErrorHandlers
       render_validation_error(
         code: :validation_failed,
         message: e.message,
-        status: :unprocessable_entity,
+        status: :unprocessable_content,
         exception: e
       )
     end
@@ -63,7 +63,7 @@ module ErrorHandlers
       render_error(
         code: :duplicate_record,
         message: "A record with this unique value already exists",
-        status: :unprocessable_entity
+        status: :unprocessable_content
       )
     end
 
@@ -74,7 +74,7 @@ module ErrorHandlers
       render_error(
         code: :delete_restriction,
         message: e.message,
-        status: :unprocessable_entity
+        status: :unprocessable_content
       )
     end
 
@@ -84,7 +84,7 @@ module ErrorHandlers
       render_error(
         code: :record_not_destroyed,
         message: e.message,
-        status: :unprocessable_entity
+        status: :unprocessable_content
       )
     end
   end

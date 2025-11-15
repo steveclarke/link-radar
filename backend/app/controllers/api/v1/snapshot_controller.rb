@@ -89,7 +89,7 @@ module Api
             render_error(
               code: :import_failed,
               message: result.errors.join(", "),
-              status: :unprocessable_entity
+              status: :unprocessable_content
             )
           end
         rescue => e

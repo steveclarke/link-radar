@@ -184,7 +184,7 @@ describe "API: Import Snapshot" do
 
           post "/api/v1/snapshot/import", params: {file: Rack::Test::UploadedFile.new(file.path, "application/json")}
 
-          expect(response).to have_http_status(:unprocessable_entity)
+          expect(response).to have_http_status(:unprocessable_content)
 
           file.close
           file.unlink
@@ -206,7 +206,7 @@ describe "API: Import Snapshot" do
 
           post "/api/v1/snapshot/import", params: {file: Rack::Test::UploadedFile.new(file.path, "application/json")}
 
-          expect(response).to have_http_status(:unprocessable_entity)
+          expect(response).to have_http_status(:unprocessable_content)
           expect(json_response[:error][:message]).to include("Unsupported version")
 
           file.close

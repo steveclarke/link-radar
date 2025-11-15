@@ -63,7 +63,7 @@ module ResponseHelpers
   #   render_validation_error(
   #     code: :validation_failed,
   #     message: "Validation failed",
-  #     status: :unprocessable_entity,
+  #     status: :unprocessable_content,
   #     exception: e
   #   )
   def render_validation_error(code:, message:, status:, exception:)
