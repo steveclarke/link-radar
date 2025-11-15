@@ -1,0 +1,66 @@
+meta {
+  name: Import Snapshot (Update Mode)
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/v1/snapshot/import
+  body: multipartForm
+  auth: inherit
+}
+
+body:multipart-form {
+  file: @file(/Users/steve/src/link-radar/backend/snapshots/exports/linkradar-export-2025-11-15-131628-d380cd02-f850-4ba6-abd9-78b7c6747696.json)
+  mode: update
+}
+
+docs {
+  Import links from a JSON export file (Update mode).
+  
+  Update mode behavior:
+  - Existing links (by URL) are OVERWRITTEN with imported data
+  - Note field is replaced with imported value
+  - Tags are replaced with imported tags
+  - created_at timestamp is PRESERVED (not updated)
+  - New links are created with all their data including created_at
+  
+  Use update mode when:
+  - Restoring from a backup (replace current data)
+  - Syncing data between environments
+  - Applying bulk updates from edited export file
+  
+  To use:
+  1. Click the "@file" button next to the file field
+  2. Select your export JSON file
+  3. Set mode field to "update"
+  
+  Returns:
+  {
+    "data": {
+      "links_imported": 42,
+      "links_skipped": 0,
+      "tags_created": 5,
+      "tags_reused": 15
+    }
+  }
+  
+  Important differences from Skip mode:
+  - links_imported includes BOTH new and updated links
+  - links_skipped will be 0 (nothing is skipped)
+  - Existing link data is replaced
+  - Original created_at timestamps are preserved
+  
+  The import runs in a database transaction:
+  - All changes are committed on success
+  - All changes are rolled back on any error (no partial imports)
+  
+  ⚠️  WARNING: Use with caution!
+  Update mode overwrites existing data. Make sure you have a backup
+  before running update mode imports.
+  
+  Errors:
+  - 400 Bad Request: No file provided
+  - 422 Unprocessable Entity: Invalid JSON, unsupported version, or validation errors
+  - 500 Internal Server Error: Unexpected import failure
+}

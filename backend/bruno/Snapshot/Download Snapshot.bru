@@ -1,0 +1,39 @@
+meta {
+  name: Download Snapshot
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/snapshot/exports/linkradar-export-2025-11-15-133109-9c6aa924-028a-4418-8956-0d5e7caadc27.json
+  body: none
+  auth: inherit
+}
+
+docs {
+  Download an exported snapshot file.
+
+  Authentication required - only authenticated users can download snapshots.
+
+  Security features:
+  - Filename must not contain directory traversal characters
+  - Only files from the exports directory can be downloaded
+  - UUID in filename makes URLs unguessable
+
+  To use:
+  1. First run "Export Snapshot" to create a file
+  2. Copy the filename from the download_url in the response
+  3. Replace the filename in this request's URL
+
+  Example filename format:
+  linkradar-export-YYYY-MM-DD-HHMMSS-<uuid>.json
+
+  Returns:
+  - Content-Type: application/json
+  - Content-Disposition: attachment
+  - The complete JSON export file
+
+  Errors:
+  - 404 Not Found: File doesn't exist
+  - 403 Forbidden: Directory traversal attempt or invalid path
+}

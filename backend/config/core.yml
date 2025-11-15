@@ -12,12 +12,20 @@ default: &default
     - "/moz-extension://.*/"
   log_level: "debug"
   frontend_url: "http://linkradar.localhost:9000"
+  snapshot_dir: "snapshot" # Relative to Rails.root
+  snapshot_exports_retention_days: 30
+  snapshot_imports_retention_days: 30
+  snapshot_tmp_retention_days: 7
 
 development:
   <<: *default
 
 test:
   <<: *default
+  snapshot_dir: "tmp/test_snapshots" # Isolated for tests
+  snapshot_exports_retention_days: 1
+  snapshot_imports_retention_days: 1
+  snapshot_tmp_retention_days: 1
 
 production:
   <<: *default
@@ -29,3 +37,7 @@ production:
   #   - "/moz-extension://.*/"
   log_level: info
   frontend_url: "https://linkradar.app"
+  # Can override with ENV var: SNAPSHOT_DIR=/mnt/storage/snapshots
+  # SNAPSHOT_EXPORTS_RETENTION_DAYS=90
+  # SNAPSHOT_IMPORTS_RETENTION_DAYS=60
+  # SNAPSHOT_TMP_RETENTION_DAYS=3

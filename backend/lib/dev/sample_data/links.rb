@@ -33,7 +33,6 @@ module Dev
 
         {
           url: url,
-          submitted_url: maybe_add_utm_params(url),
           note: Faker::Lorem.paragraph(sentence_count: 2),
           tag_names: random_tags,
           created_at: timestamps[:created_at],

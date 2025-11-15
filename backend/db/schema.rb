@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_11_09_175856) do
+ActiveRecord::Schema[8.1].define(version: 2025_11_13_222511) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -184,14 +184,11 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_09_175856) do
 
   create_table "links", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
     t.datetime "created_at", null: false
-    t.jsonb "metadata", default: {}
     t.text "note"
     t.text "search_projection"
-    t.string "submitted_url", limit: 2048, null: false
     t.datetime "updated_at", null: false
     t.string "url", limit: 2048, null: false
     t.index ["created_at"], name: "index_links_on_created_at"
-    t.index ["metadata"], name: "index_links_on_metadata", using: :gin
     t.index ["url"], name: "index_links_on_url", unique: true
   end
 

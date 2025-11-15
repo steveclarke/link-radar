@@ -1,0 +1,41 @@
+meta {
+  name: Export Snapshot
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/snapshot/export
+  body: none
+  auth: inherit
+}
+
+docs {
+  Export all links to a timestamped JSON file.
+  
+  Links tagged with ~temp~ are automatically excluded from exports.
+  
+  Returns:
+  {
+    "data": {
+      "file_path": "linkradar-export-2025-11-15-143022-uuid.json",
+      "link_count": 100,
+      "tag_count": 20,
+      "download_url": "/api/v1/snapshot/exports/linkradar-export-2025-11-15-143022-uuid.json"
+    }
+  }
+  
+  Use the download_url from the response in the "Download Snapshot" request.
+  
+  The export file contains:
+  - version: Export format version (currently "1.0")
+  - exported_at: ISO8601 timestamp
+  - metadata: Summary counts
+  - links: Array of links with embedded tags
+  
+  Each link includes:
+  - url: Normalized URL
+  - note: Link note (nullable)
+  - created_at: ISO8601 timestamp
+  - tags: Array of {name, description}
+}

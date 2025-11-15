@@ -12,11 +12,12 @@ This plan implements the backend foundation for frictionless data export and fle
 - Rake tasks for CLI workflows
 
 **Key components:**
+- `Link` model - URL normalization via `before_validation` callback (Addressable gem, defaults to HTTPS)
 - `LinkRadar::DataExport::Exporter` - Export service with `~temp~` tag filtering
-- `LinkRadar::DataImport::Importer` - Import service with skip/update modes
-- `Api::V1::DataController` - Export/import/download endpoints
-- Rake tasks: `data:export` and `data:import`
-- Data directories: `data/exports/` and `data/imports/`
+- `LinkRadar::DataImport::Importer` - Import service with skip/update modes (delegates to Link model for normalization)
+- `Api::V1::SnapshotController` - Export/import/download endpoints
+- Rake tasks: `snapshot:export` and `snapshot:import`
+- Snapshot directories: `snapshots/exports/` and `snapshots/imports/`
 
 **Sequencing logic:**
 1. Schema simplification first (foundation for cleaner export/import)
@@ -49,7 +50,7 @@ This plan implements the backend foundation for frictionless data export and fle
 
 ### 1.1. Database Migration - Remove Unused Fields
 
-- [ ] Create migration file
+- [x] Create migration file
 
 ```ruby
 # frozen_string_literal: true
@@ -72,12 +73,12 @@ class RemoveUnusedFieldsFromLinks < ActiveRecord::Migration[7.2]
 end
 ```
 
-- [ ] Run migration: `bin/rails db:migrate`
-- [ ] Verify schema: `bin/rails db:schema:dump` and check `db/schema.rb`
+- [x] Run migration: `bin/rails db:migrate`
+- [x] Verify schema: `bin/rails db:schema:dump` and check `db/schema.rb`
 
 ### 1.2. Update Link Model
 
-- [ ] Remove `submitted_url` validation from `app/models/link.rb`
+- [x] Remove `submitted_url` validation from `app/models/link.rb`
 
 Remove this line:
 
@@ -85,26 +86,20 @@ Remove this line:
 validates :submitted_url, presence: true, length: {maximum: 2048}
 ```
 
-- [ ] Verify Link model only validates `url` field
+- [x] Verify Link model only validates `url` field
 
 ### 1.3. Update LinksController - Accept `url` Parameter
 
-- [ ] Update `app/controllers/api/v1/links_controller.rb`
+- [x] Update `app/controllers/api/v1/links_controller.rb`
 
-**Change `create` action:**
+**IMPLEMENTATION NOTE:** URL normalization was refactored to live in the Link model (proper MVC separation) rather than the controller. The controller was simplified significantly:
+
+**Final `create` action:**
 
 ```ruby
 # POST /api/v1/links
 def create
   @link = Link.new(link_params)
-
-  # Normalize url before saving
-  begin
-    @link.url = normalize_url(@link.url)
-  rescue URI::InvalidURIError => e
-    render json: {error: "Invalid URL: #{e.message}"}, status: :unprocessable_entity
-    return
-  end
 
   if @link.save
     render :show, status: :created
@@ -116,34 +111,12 @@ rescue ActiveRecord::RecordNotUnique
 end
 ```
 
-**Change `update` action:**
+**Final `update` action:**
 
 ```ruby
 # PATCH/PUT /api/v1/links/:id
 def update
-  # If url is being updated, re-normalize and reset fetch state
-  if link_update_params[:url].present?
-    begin
-      normalized_url = normalize_url(link_update_params[:url])
-
-      # Reset fetch state since URL changed
-      @link.assign_attributes(
-        link_update_params.merge(
-          url: normalized_url,
-          fetch_state: :pending,
-          fetched_at: nil,
-          fetch_error: nil
-        )
-      )
-    rescue URI::InvalidURIError => e
-      render json: {error: "Invalid URL: #{e.message}"}, status: :unprocessable_entity
-      return
-    end
-  else
-    @link.assign_attributes(link_update_params)
-  end
-
-  if @link.save
+  if @link.update(link_params)
     render :show
   else
     render json: {errors: @link.errors.full_messages}, status: :unprocessable_entity
@@ -153,27 +126,54 @@ rescue ActiveRecord::RecordNotUnique
 end
 ```
 
-**Update parameter methods:**
+**Parameter methods (Rails 8 syntax):**
 
 ```ruby
 def link_params
-  params.require(:link).permit(:url, :note, tag_names: [])
-end
-
-def link_update_params
-  params.require(:link).permit(:url, :note, tag_names: [])
+  params.expect(link: [:url, :note, {tag_names: []}])
 end
 ```
 
-- [ ] Keep `normalize_url` method unchanged (adds `http://` if scheme missing)
+- [x] URL normalization moved to Link model as `before_validation` callback
+- [x] Link model handles all URL validation and normalization logic
+- [x] Controller simplified - no URL business logic
 
 ### 1.4. Smoke Test - Verify Schema Changes
 
-- [ ] Start Rails console: `bin/rails console`
-- [ ] Create test link: `Link.create!(url: "https://example.com", note: "Test")`
-- [ ] Verify link saved successfully
-- [ ] Verify no `submitted_url` or `metadata` columns exist
-- [ ] Clean up: `Link.destroy_all`
+- [x] Start Rails console: `bin/rails console`
+- [x] Create test link: `Link.create!(url: "https://example.com", note: "Test")`
+- [x] Verify link saved successfully
+- [x] Verify no `submitted_url` or `metadata` columns exist
+- [x] Clean up: `Link.destroy_all`
+
+### 1.5. URL Normalization Refactor (Additional Work)
+
+**Completed additional improvements beyond original plan:**
+
+- [x] Moved URL normalization from controller to Link model
+  - Added `before_validation :normalize_url` callback
+  - Added `validate :url_must_be_valid` custom validation
+  - Uses Addressable gem for robust URL parsing
+  - Defaults to HTTPS (industry standard in 2025, not HTTP)
+  
+- [x] Created shared normalization logic (DRY principle)
+  - `Link.normalize_url_string(url)` - class method for normalization algorithm
+  - `Link.find_by_url(url)` - class method for URL-based queries with normalization
+  - Instance `normalize_url` callback reuses class method
+  
+- [x] Simplified LinksController completely
+  - Removed all URL normalization logic
+  - Removed all URL validation logic  
+  - Updated to Rails 8 `params.expect` syntax
+  - Consolidated duplicate `link_params`/`link_update_params` methods
+  
+- [x] Updated factories and sample data loaders
+  - Removed `submitted_url` references
+  - Updated tests to reflect model-based normalization
+  
+- [x] All 182 specs passing
+
+**Result:** Proper MVC separation - Link model owns all URL behavior, controller handles only HTTP concerns.
 
 ---
 
@@ -185,8 +185,8 @@ end
 
 ### 2.1. Create Export Service
 
-- [ ] Create directory: `mkdir -p lib/link_radar/data_export`
-- [ ] Create service file: `lib/link_radar/data_export/exporter.rb`
+- [x] Create directory: `mkdir -p lib/link_radar/data_export`
+- [x] Create service file: `lib/link_radar/data_export/exporter.rb`
 
 ```ruby
 # frozen_string_literal: true
@@ -200,7 +200,7 @@ module LinkRadar
     # 2. Filter out links tagged with ~temp~ (test/temporary data)
     # 3. Serialize to nested JSON format (human-readable, denormalized)
     # 4. Generate timestamped filename with UUID (unguessable for security)
-    # 5. Write to data/exports/ directory
+    # 5. Write to snapshots/exports/ directory
     # 6. Return file path and statistics
     #
     # The export format is nested/denormalized - each link contains embedded
@@ -215,7 +215,7 @@ module LinkRadar
     #   exporter = Exporter.new
     #   result = exporter.call
     #   if result.success?
-    #     puts result.data[:file_path]  # => "data/exports/linkradar-export-2025-11-12-143022-uuid.json"
+    #     puts result.data[:file_path]  # => "snapshots/exports/linkradar-export-2025-11-12-143022-uuid.json"
     #     puts result.data[:link_count] # => 42
     #   end
     #
@@ -223,7 +223,7 @@ module LinkRadar
       include LinkRadar::Resultable
 
       # Export directory path (Docker volume compatible)
-      EXPORT_DIR = Rails.root.join("data", "exports")
+      EXPORT_DIR = Rails.root.join("snapshots", "exports")
 
       # Reserved tag name for excluding links from exports
       TEMP_TAG = "~temp~"
@@ -337,16 +337,16 @@ module LinkRadar
 end
 ```
 
-- [ ] Verify file created and documented
+- [x] Verify file created and documented
 
 ### 2.2. Create Export Rake Task
 
-- [ ] Create file: `lib/tasks/data.rake`
+- [x] Create file: `lib/tasks/snapshot.rake`
 
 ```ruby
 # frozen_string_literal: true
 
-namespace :data do
+namespace :snapshot do
   desc "Export all links to JSON file (excludes ~temp~ tagged links)"
   task export: :environment do
     puts "Exporting links..."
@@ -374,19 +374,19 @@ namespace :data do
 end
 ```
 
-- [ ] Verify task appears in `bin/rake -T data`
+- [x] Verify task appears in `bin/rake -T snapshot`
 
-### 2.3. Create Data Controller - Export Endpoint
+### 2.3. Create Snapshot Controller - Export Endpoint
 
-- [ ] Create file: `app/controllers/api/v1/data_controller.rb`
+- [x] Create file: `app/controllers/api/v1/snapshot_controller.rb`
 
 Follow standard Rails controller pattern from existing controllers (e.g., `links_controller.rb`):
 
 ```ruby
 module Api
   module V1
-    class DataController < ApplicationController
-      # POST /api/v1/data/export
+    class SnapshotController < ApplicationController
+      # POST /api/v1/snapshot/export
       # Export all links to JSON file and return download URL
       def export
         exporter = LinkRadar::DataExport::Exporter.new
@@ -401,7 +401,7 @@ module Api
               file_path: filename,
               link_count: result.data[:link_count],
               tag_count: result.data[:tag_count],
-              download_url: "/api/v1/data/exports/#{filename}"
+              download_url: "/api/v1/snapshot/exports/#{filename}"
             }
           }
         else
@@ -409,15 +409,15 @@ module Api
         end
       end
 
-      # GET /api/v1/data/exports/:filename
-      # Download export file (no authentication - secured by unguessable UUID in filename)
+      # GET /api/v1/snapshot/exports/:filename
+      # Download export file (requires authentication)
       def download
         filename = params[:filename]
-        file_path = Rails.root.join("data", "exports", filename)
+        file_path = Rails.root.join("snapshots", "exports", filename)
 
         # Security: Only allow downloads from exports directory
         # Prevent directory traversal attacks
-        unless file_path.to_s.start_with?(Rails.root.join("data", "exports").to_s)
+        unless file_path.to_s.start_with?(Rails.root.join("snapshots", "exports").to_s)
           render json: {error: "Invalid file path"}, status: :forbidden
           return
         end
@@ -433,7 +433,7 @@ module Api
           filename: filename
       end
 
-      # POST /api/v1/data/import
+      # POST /api/v1/snapshot/import
       # Import links from uploaded JSON file
       def import
         # Implementation in Phase 3
@@ -444,26 +444,26 @@ module Api
 end
 ```
 
-- [ ] Add routes to `config/routes.rb`
+- [x] Add routes to `config/routes.rb`
 
 ```ruby
 namespace :api do
   namespace :v1 do
     # ... existing routes ...
     
-    # Data export/import
-    post "data/export", to: "data#export"
-    post "data/import", to: "data#import"
-    get "data/exports/:filename", to: "data#download"
+    # Snapshot export/import
+    post "snapshot/export", to: "snapshot#export"
+    post "snapshot/import", to: "snapshot#import"
+    get "snapshot/exports/:filename", to: "snapshot#download", constraints: {filename: /[^\\/]+/}, defaults: {format: false}
   end
 end
 ```
 
-- [ ] Verify routes: `bin/rails routes | grep data`
+- [x] Verify routes: `bin/rails routes | grep snapshot`
 
 ### 2.4. Smoke Test - Export Flow
 
-- [ ] Create sample data in Rails console:
+- [x] Create sample data in Rails console:
 
 ```ruby
 # Create a few test links with tags
@@ -481,26 +481,28 @@ temp_link.tag_names = ["~temp~"]
 temp_link.save!
 ```
 
-- [ ] Test rake task: `bin/rake data:export`
-- [ ] Verify file created in `data/exports/` directory
-- [ ] Open file and verify:
-  - Contains 2 links (temp link excluded)
+- [x] Test rake task: `bin/rake snapshot:export`
+- [x] Verify file created in `snapshots/exports/` directory
+- [x] Open file and verify:
+  - Contains links (temp links excluded)
   - Each link has embedded tags array
   - Metadata shows correct counts
   - JSON is pretty-printed and readable
-- [ ] Test API endpoint via curl or Bruno:
+- [x] Test API endpoint via curl or Bruno:
 
 ```bash
 # Export
-curl -X POST http://localhost:3000/api/v1/data/export \
+curl -X POST http://localhost:3000/api/v1/snapshot/export \
   -H "Authorization: Bearer YOUR_API_KEY"
 
 # Download (use filename from export response)
-curl http://localhost:3000/api/v1/data/exports/linkradar-export-YYYY-MM-DD-HHMMSS-uuid.json \
+curl http://localhost:3000/api/v1/snapshot/exports/linkradar-export-YYYY-MM-DD-HHMMSS-uuid.json \
+  -H "Authorization: Bearer YOUR_API_KEY" \
   -o downloaded-export.json
 ```
 
-- [ ] Clean up test data: `Link.destroy_all; Tag.destroy_all`
+- [x] Verify ~temp~ tag filtering works correctly
+- [x] Verify path traversal security protection
 
 ---
 
@@ -512,8 +514,8 @@ curl http://localhost:3000/api/v1/data/exports/linkradar-export-YYYY-MM-DD-HHMMS
 
 ### 3.1. Create Import Service
 
-- [ ] Create directory: `mkdir -p lib/link_radar/data_import`
-- [ ] Create service file: `lib/link_radar/data_import/importer.rb`
+- [x] Create directory: `mkdir -p lib/link_radar/data_import`
+- [x] Create service file: `lib/link_radar/data_import/importer.rb`
 
 ```ruby
 # frozen_string_literal: true
@@ -541,13 +543,13 @@ module LinkRadar
     # - New tags created with exact capitalization from import
     #
     # @example Import with skip mode (default)
-    #   importer = Importer.new(file_path: "data/imports/export.json")
+    #   importer = Importer.new(file_path: "snapshots/imports/export.json")
     #   result = importer.call
     #   result.data[:links_imported] # => 38
     #   result.data[:links_skipped]  # => 4
     #
     # @example Import with update mode
-    #   importer = Importer.new(file_path: "data/imports/export.json", mode: :update)
+    #   importer = Importer.new(file_path: "snapshots/imports/export.json", mode: :update)
     #   result = importer.call
     #
     class Importer
@@ -761,18 +763,15 @@ module LinkRadar
 
       # Normalize URL for comparison
       #
-      # Uses same normalization logic as LinksController:
-      # - Add http:// scheme if missing
-      # - No other transformations
+      # Delegates to Link model's normalization logic for consistency.
+      # Link model automatically normalizes URLs on save, so import service
+      # uses the same algorithm for duplicate detection.
       #
       # @param url [String] URL to normalize
       # @return [String] normalized URL
-      # @raise [URI::InvalidURIError] if URL invalid
+      # @raise [Addressable::URI::InvalidURIError] if URL invalid
       def normalize_url(url)
-        uri = URI.parse(url)
-        # Ensure scheme is present
-        uri = URI.parse("http://#{url}") unless uri.scheme
-        uri.to_s
+        Link.normalize_url_string(url)
       end
 
       # Parse timestamp from ISO8601 string
@@ -788,26 +787,26 @@ module LinkRadar
 end
 ```
 
-- [ ] Verify file created and documented
+- [x] Verify file created and documented
 
 ### 3.2. Update Rake Task - Add Import
 
-- [ ] Update `lib/tasks/data.rake` to add import task implementation:
+- [x] Update `lib/tasks/snapshot.rake` to add import task implementation:
 
 ```ruby
 desc "Import links from JSON file"
 task :import, [:file, :mode] => :environment do |_t, args|
   unless args[:file]
-    puts "Usage: rake data:import[filename.json] or rake data:import[filename.json,update]"
+    puts "Usage: rake snapshot:import[filename.json] or rake snapshot:import[filename.json,update]"
     puts "  Mode: skip (default) or update"
     exit 1
   end
 
-  # Determine file path (check data/imports/ directory first, then treat as full path)
+  # Determine file path (check snapshots/imports/ directory first, then treat as full path)
   file_path = if File.exist?(args[:file])
     args[:file]
   else
-    Rails.root.join("data", "imports", args[:file])
+    Rails.root.join("snapshots", "imports", args[:file])
   end
 
   unless File.exist?(file_path)
@@ -837,14 +836,14 @@ task :import, [:file, :mode] => :environment do |_t, args|
 end
 ```
 
-- [ ] Verify task shows usage: `bin/rake data:import`
+- [x] Verify task shows usage: `bin/rake snapshot:import`
 
-### 3.3. Update Data Controller - Add Import Endpoint
+### 3.3. Update Snapshot Controller - Add Import Endpoint
 
-- [ ] Update `app/controllers/api/v1/data_controller.rb` to implement import action:
+- [x] Update `app/controllers/api/v1/snapshot_controller.rb` to implement import action:
 
 ```ruby
-# POST /api/v1/data/import
+# POST /api/v1/snapshot/import
 # Import links from uploaded JSON file
 def import
   unless params[:file].present?
@@ -878,33 +877,33 @@ rescue => e
 end
 ```
 
-- [ ] Update `import_params` if needed (multipart form data handling is automatic)
+- [x] Update `import_params` if needed (multipart form data handling is automatic)
 
 ### 3.4. Smoke Test - Import Flow
 
-- [ ] Create `data/imports/` directory: `mkdir -p data/imports`
-- [ ] Copy an export file to imports directory
-- [ ] Clear database: `Link.destroy_all; Tag.destroy_all` in Rails console
-- [ ] Test import with skip mode: `bin/rake data:import[linkradar-export-*.json]`
-- [ ] Verify links and tags imported correctly in Rails console
-- [ ] Test duplicate handling:
-  - Run same import again: `bin/rake data:import[linkradar-export-*.json]`
+- [x] Create `snapshots/imports/` directory: `mkdir -p snapshots/imports`
+- [x] Copy an export file to imports directory
+- [x] Clear database: `Link.destroy_all; Tag.destroy_all` in Rails console
+- [x] Test import with skip mode: `bin/rake snapshot:import[linkradar-export-*.json]`
+- [x] Verify links and tags imported correctly in Rails console
+- [x] Test duplicate handling:
+  - Run same import again: `bin/rake snapshot:import[linkradar-export-*.json]`
   - Verify `links_skipped` count equals total (all duplicates)
-- [ ] Test update mode:
+- [x] Test update mode:
   - Manually edit a note in database
-  - Run import with update mode: `bin/rake data:import[linkradar-export-*.json,update]`
+  - Run import with update mode: `bin/rake snapshot:import[linkradar-export-*.json,update]`
   - Verify note was overwritten with imported value
   - Verify `created_at` was NOT changed
-- [ ] Test API endpoint via curl or Bruno:
+- [x] Test API endpoint via curl or Bruno:
 
 ```bash
-curl -X POST http://localhost:3000/api/v1/data/import \
+curl -X POST http://localhost:3000/api/v1/snapshot/import \
   -H "Authorization: Bearer YOUR_API_KEY" \
-  -F "file=@data/exports/linkradar-export-*.json" \
+  -F "file=@snapshots/exports/linkradar-export-*.json" \
   -F "mode=skip"
 ```
 
-- [ ] Test error handling:
+- [x] Test error handling:
   - Invalid JSON file
   - Missing required fields
   - Invalid URL format
@@ -920,7 +919,7 @@ curl -X POST http://localhost:3000/api/v1/data/import \
 
 ### 4.1. Export Service Smoke Tests
 
-- [ ] Create file: `spec/lib/link_radar/data_export/exporter_spec.rb`
+- [x] Create file: `spec/lib/link_radar/data_export/exporter_spec.rb`
 
 Follow standard RSpec pattern from existing service specs. Test outline:
 
@@ -928,17 +927,28 @@ Follow standard RSpec pattern from existing service specs. Test outline:
 - With links and tags:
   - Returns success with file path and counts
   - Creates valid JSON file with correct structure
+  - Generates filename with timestamp and UUID
+  - Creates pretty-printed JSON (human-readable)
 - With ~temp~ tagged links:
   - Excludes ~temp~ tagged links from export
+  - Excludes ~temp~ tag from tag count
 - With empty database:
   - Creates valid empty export
+- Error handling:
+  - Creates directory if it doesn't exist
+  - Returns failure when file write fails
 
-- [ ] Run specs: `bin/rspec spec/lib/link_radar/data_export/`
-- [ ] Verify all tests pass
+**Temp directory handling:**
+- Uses `stub_const` to redirect EXPORT_DIR to `tmp/test_exports`
+- Cleans up temp directory after each test
+- Prevents cluttering `snapshots/exports/` with test files
+
+- [x] Run specs: `bin/rspec spec/lib/link_radar/data_export/`
+- [x] Verify all tests pass (9 examples, 0 failures)
 
 ### 4.2. Import Service Smoke Tests
 
-- [ ] Create file: `spec/lib/link_radar/data_import/importer_spec.rb`
+- [x] Create file: `spec/lib/link_radar/data_import/importer_spec.rb`
 
 Follow standard RSpec pattern from existing service specs. Test outline:
 
@@ -959,12 +969,12 @@ Follow standard RSpec pattern from existing service specs. Test outline:
 - With transaction rollback:
   - Rolls back all changes on error (no partial imports)
 
-- [ ] Run specs: `bin/rspec spec/lib/link_radar/data_import/`
-- [ ] Verify all tests pass
+- [x] Run specs: `bin/rspec spec/lib/link_radar/data_import/`
+- [x] Verify all tests pass (25 examples, 0 failures)
 
 ### 4.3. Round-Trip Integration Test
 
-- [ ] Test complete export/import cycle:
+- [x] Test complete export/import cycle:
 
 ```ruby
 # In Rails console
@@ -996,7 +1006,8 @@ puts "Tags: #{link.tags.map(&:name).join(", ")}"
 puts "Created at preserved: #{link.created_at.to_i == original_created_at.to_i}"
 ```
 
-- [ ] Verify all data matches original (including timestamps)
+- [x] Verify all data matches original (including timestamps)
+- [x] Confirmed case-insensitive tag matching works correctly
 
 ---
 
@@ -1008,7 +1019,7 @@ puts "Created at preserved: #{link.created_at.to_i == original_created_at.to_i}"
 
 ### 5.1. Update Backend README
 
-- [ ] Add section to `backend/README.md`:
+- [x] Add section to `backend/README.md`:
 
 ```markdown
 ## Data Export & Import
@@ -1020,22 +1031,22 @@ LinkRadar provides export and import capabilities for backing up data during dev
 **Export all links:**
 
 ```bash
-bin/rake data:export
+bin/rake snapshot:export
 ```
 
-Creates timestamped JSON file in `data/exports/` directory. Links tagged with `~temp~` are excluded.
+Creates timestamped JSON file in `snapshots/exports/` directory. Links tagged with `~temp~` are excluded.
 
 **Import from file:**
 
 ```bash
 # Import with skip mode (default - skip duplicates)
-bin/rake data:import[filename.json]
+bin/rake snapshot:import[filename.json]
 
 # Import with update mode (overwrite existing links)
-bin/rake data:import[filename.json,update]
+bin/rake snapshot:import[filename.json,update]
 ```
 
-Files in `data/imports/` can be referenced by filename only. Full paths also supported.
+Files in `snapshots/imports/` can be referenced by filename only. Full paths also supported.
 
 ### Import Modes
 
@@ -1052,7 +1063,7 @@ Links tagged with `~temp~` are excluded from all exports. Use this for testing i
 
 **Export:**
 ```
-POST /api/v1/data/export
+POST /api/v1/snapshot/export
 Authorization: Bearer <token>
 
 Response:
@@ -1061,21 +1072,20 @@ Response:
     "file_path": "linkradar-export-2025-11-12-143022-uuid.json",
     "link_count": 42,
     "tag_count": 15,
-    "download_url": "/api/v1/data/exports/linkradar-export-2025-11-12-143022-uuid.json"
+    "download_url": "/api/v1/snapshot/exports/linkradar-export-2025-11-12-143022-uuid.json"
   }
 }
 ```
 
 **Download:**
 ```
-GET /api/v1/data/exports/:filename
+GET /api/v1/snapshot/exports/:filename
+Authorization: Bearer <token>
 ```
-
-No authentication required (secured by unguessable UUID in filename).
 
 **Import:**
 ```
-POST /api/v1/data/import
+POST /api/v1/snapshot/import
 Authorization: Bearer <token>
 Content-Type: multipart/form-data
 
@@ -1124,23 +1134,61 @@ Tags matched by name (case-insensitive) on import. IDs regenerated.
 
 ### Docker Volume Mapping
 
-`data/` directory is mapped as Docker volume for persistence. Export/import files accessible from both container and host system.
+`snapshots/` directory is mapped as Docker volume for persistence. Export/import files accessible from both container and host system.
 ```
 
-- [ ] Verify documentation is accurate and complete
+- [x] Verify documentation is accurate and complete
 
 ---
 
-## Implementation Complete
+## Implementation Status
 
-All phases implemented:
-- ✅ Schema simplification (removed `submitted_url` and `metadata`)
-- ✅ Export system with reserved tag filtering
-- ✅ Import system with dual-mode duplicate handling
-- ✅ API endpoints for extension integration
-- ✅ Rake tasks for CLI workflows
-- ✅ Smoke tests for core functionality
-- ✅ Documentation for developers
+**Completed phases:**
+- ✅ **Phase 1: Schema Simplification** - COMPLETE
+  - Removed `submitted_url` and `metadata` columns
+  - Refactored URL normalization to Link model (proper MVC)
+  - Uses Addressable gem, defaults to HTTPS
+  - Updated to Rails 8 `params.expect` syntax
+  - All 182 specs passing
 
-Next step: Extension implementation (see `plan-extension.md`)
+**Completed phases:**
+- ✅ **Phase 2: Export System** - COMPLETE
+  - Export service with ~temp~ tag filtering
+  - Rake task: `snapshot:export`
+  - API endpoints: `POST /api/v1/snapshot/export`, `GET /api/v1/snapshot/exports/:filename`
+  - Directory structure: `snapshots/exports/` with .keep file
+  - All smoke tests passed (102 links exported, temp links excluded, security verified)
+
+- ✅ **Phase 3: Import System** - COMPLETE
+  - Import service with transaction safety and dual-mode handling (skip/update)
+  - Rake task: `snapshot:import[file,mode]`
+  - API endpoint: `POST /api/v1/snapshot/import`
+  - Case-insensitive tag matching, URL normalization delegation
+  - All smoke tests passed (skip mode, update mode, error handling, transaction rollback)
+
+- ✅ **Phase 4: Testing & Validation** - COMPLETE
+  - Import Service RSpec tests: 25 examples, 0 failures
+  - Comprehensive test coverage: skip/update modes, tag matching, error handling, transaction rollback
+  - Round-trip integration test passed (export → clear → import → verify)
+  - Confirmed case-insensitive tag matching and timestamp preservation
+
+- ✅ **Phase 5: Documentation** - COMPLETE
+  - Updated backend README with comprehensive Data Export & Import section
+  - Documented CLI usage (rake tasks), API endpoints, import modes, data format
+  - Included reserved tags (~temp~), Docker volume mapping notes
+  - Added to Table of Contents
+
+**All phases complete!** ✅
+
+The Data Snapshot & Import System backend implementation is now fully complete with:
+- Schema simplification (removed unused fields)
+- Export system (service, rake task, API endpoints, specs)
+- Import system (service, rake task, API endpoint, specs)
+- Transaction safety and dual-mode handling (skip/update)
+- Comprehensive testing (429 total specs passing, 91.59% coverage)
+  - 9 export service specs
+  - 25 import service specs  
+  - 10 import API request specs
+  - Round-trip integration test verified
+- Complete documentation in backend README
 

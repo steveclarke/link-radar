@@ -31,30 +31,19 @@ module Api
       # POST /api/v1/tags
       def create
         @tag = Tag.new(tag_params)
-
-        if @tag.save
-          render :show, status: :created
-        else
-          render json: {
-            errors: @tag.errors.full_messages
-          }, status: :unprocessable_entity
-        end
+        @tag.save!
+        render :show, status: :created
       end
 
       # PATCH/PUT /api/v1/tags/:id
       def update
-        if @tag.update(tag_params)
-          render :show
-        else
-          render json: {
-            errors: @tag.errors.full_messages
-          }, status: :unprocessable_entity
-        end
+        @tag.update!(tag_params)
+        render :show
       end
 
       # DELETE /api/v1/tags/:id
       def destroy
-        @tag.destroy
+        @tag.destroy!
         head :no_content
       end
 
@@ -62,12 +51,10 @@ module Api
 
       def set_tag
         @tag = Tag.find(params[:id])
-      rescue ActiveRecord::RecordNotFound
-        render json: {error: "Tag not found"}, status: :not_found
       end
 
       def tag_params
-        params.require(:tag).permit(:name, :description)
+        params.expect(tag: [:name, :description])
       end
     end
   end
