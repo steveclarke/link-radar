@@ -33,6 +33,7 @@ Rails 8.1 API backend for LinkRadar - a personal knowledge radar for capturing a
       - [API Endpoints](#api-endpoints)
       - [Data Format](#data-format)
       - [Docker Volume Mapping](#docker-volume-mapping)
+      - [Automated Cleanup](#automated-cleanup)
   - [Project Status](#project-status)
   - [Documentation](#documentation)
     - [Backend Guides](#backend-guides)
@@ -311,6 +312,8 @@ Bruno automatically reads variables from the `.env` file and makes them availabl
 ### Data Export & Import
 
 LinkRadar provides export and import capabilities for backing up data during development and migrating bookmarks from external systems.
+
+**Operations are synchronous** - Export and import run in the request/response cycle with immediate feedback. This is appropriate for current scale (single user, operations complete in <30 seconds). If operations exceed 30-60 seconds or multi-user concurrent usage becomes common, these can be migrated to background jobs with polling endpoints.
 
 #### CLI Usage
 
