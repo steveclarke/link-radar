@@ -422,6 +422,20 @@ Tags matched by name (case-insensitive) on import. IDs regenerated.
 
 `snapshot/` directory is mapped as Docker volume for persistence. Export/import files accessible from both container and host system.
 
+#### Automated Cleanup
+
+Snapshot files are automatically cleaned up daily at 2:00 AM:
+
+- Exports: Deleted after 30 days (`SNAPSHOT_EXPORTS_RETENTION_DAYS`)
+- Imports: Deleted after 30 days (`SNAPSHOT_IMPORTS_RETENTION_DAYS`)
+- Temp: Deleted after 7 days (`SNAPSHOT_TMP_RETENTION_DAYS`)
+
+Manual cleanup:
+
+```bash
+bin/rails runner 'CleanupSnapshotsJob.perform_now'
+```
+
 ## Project Status
 
 🚧 **Currently in development** - Core infrastructure setup (LR001)

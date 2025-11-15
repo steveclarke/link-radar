@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module LinkRadar
-  module DataImport
+  module Snapshot
     # Imports links from JSON file with transaction safety and duplicate handling
     #
     # This service handles the complete import workflow:

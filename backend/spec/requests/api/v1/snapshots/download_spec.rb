@@ -7,7 +7,7 @@ describe "API: Download Snapshot" do
   let(:temp_export_dir) { Rails.root.join("tmp/test_exports") }
 
   before do
-    stub_const("LinkRadar::DataExport::Exporter::EXPORT_DIR", temp_export_dir)
+    stub_const("LinkRadar::Snapshot::Exporter::EXPORT_DIR", temp_export_dir)
     FileUtils.rm_rf(temp_export_dir)
     FileUtils.mkdir_p(temp_export_dir)
   end

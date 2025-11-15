@@ -2,13 +2,13 @@
 
 require "rails_helper"
 
-RSpec.describe LinkRadar::DataExport::Exporter do
+RSpec.describe LinkRadar::Snapshot::Exporter do
   # Use a temporary directory for tests to avoid cluttering snapshot/exports
   let(:temp_export_dir) { Rails.root.join("tmp/test_exports") }
 
   before do
     # Stub the EXPORT_DIR constant to use our temp directory
-    stub_const("LinkRadar::DataExport::Exporter::EXPORT_DIR", temp_export_dir)
+    stub_const("LinkRadar::Snapshot::Exporter::EXPORT_DIR", temp_export_dir)
 
     # Ensure temp directory exists and is clean
     FileUtils.rm_rf(temp_export_dir)

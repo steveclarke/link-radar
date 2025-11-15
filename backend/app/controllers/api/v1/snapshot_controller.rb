@@ -4,7 +4,7 @@ module Api
       # POST /api/v1/snapshot/export
       # Export all links to JSON file and return download URL
       def export
-        exporter = LinkRadar::DataExport::Exporter.new
+        exporter = LinkRadar::Snapshot::Exporter.new
         result = exporter.call
 
         if result.success?
@@ -33,7 +33,7 @@ module Api
       def download
         result = LinkRadar::SecureFileDownload.call(
           filename: params[:filename],
-          allowed_directory: LinkRadar::DataExport::Exporter::EXPORT_DIR
+          allowed_directory: LinkRadar::Snapshot::Exporter::EXPORT_DIR
         )
 
         if result.success?
@@ -80,7 +80,7 @@ module Api
         File.write(temp_path, uploaded_file.read)
 
         begin
-          importer = LinkRadar::DataImport::Importer.new(file_path: temp_path.to_s, mode: mode)
+          importer = LinkRadar::Snapshot::Importer.new(file_path: temp_path.to_s, mode: mode)
           result = importer.call
 
           if result.success?

@@ -18,6 +18,11 @@ Rails.application.configure do
       cron: "0 * * * *", # Every hour at minute 0
       class: "RebuildSearchProjectionsJob",
       args: []
+    },
+    cleanup_snapshots_job: {
+      cron: "0 2 * * *", # Daily at 2:00 AM
+      class: "CleanupSnapshotsJob",
+      args: []
     }
   }
 end

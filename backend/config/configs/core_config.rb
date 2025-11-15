@@ -6,6 +6,9 @@ class CoreConfig < ApplicationConfig
     :cors_origins,
     :log_level,
     :snapshot_dir,
+    :snapshot_exports_retention_days,
+    :snapshot_imports_retention_days,
+    :snapshot_tmp_retention_days,
     app_env: Rails.env,
     frontend_url: "http://localhost:9000"
   )

@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe LinkRadar::DataImport::Importer do
+RSpec.describe LinkRadar::Snapshot::Importer do
   # Use a temporary directory for test import files
   let(:temp_import_dir) { Rails.root.join("tmp/test_imports") }
   let(:test_file_path) { temp_import_dir.join("test-import.json") }

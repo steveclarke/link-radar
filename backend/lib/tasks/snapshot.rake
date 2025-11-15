@@ -5,7 +5,7 @@ namespace :snapshot do
   task export: :environment do
     puts "Exporting links..."
 
-    exporter = LinkRadar::DataExport::Exporter.new
+    exporter = LinkRadar::Snapshot::Exporter.new
     result = exporter.call
 
     if result.success?
@@ -45,7 +45,7 @@ namespace :snapshot do
     puts "Importing links from #{file_path}..."
     puts "Mode: #{mode}"
 
-    importer = LinkRadar::DataImport::Importer.new(file_path: file_path, mode: mode)
+    importer = LinkRadar::Snapshot::Importer.new(file_path: file_path, mode: mode)
     result = importer.call
 
     if result.success?

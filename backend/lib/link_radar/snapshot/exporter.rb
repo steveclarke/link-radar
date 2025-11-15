@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module LinkRadar
-  module DataExport
+  module Snapshot
     # Exports all links to JSON file with reserved tag filtering
     #
     # This service handles the complete export workflow:
