@@ -82,6 +82,9 @@ end
 group :development do
   # Annotate models with schema information
   gem "annotaterb"
+
+  # A terminal-based Rails log viewer with real-time monitoring and filtering capabilities
+  gem "log_bench"
 end
 
 group :test do
