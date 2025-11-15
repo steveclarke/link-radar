@@ -104,7 +104,6 @@ Phase 2 and beyond will explore auto-analyze mode, learning from user patterns, 
 ### What's Not in v1
 
 **Explicitly Deferred:**
-- Content archival/storage (separate feature, separate timeline)
 - Auto-analyze mode (manual trigger only in v1)
 - Learning from user patterns (no adaptation yet)
 - Rate limiting per user (single-user MVP)
@@ -119,4 +118,3 @@ Phase 2 and beyond will explore auto-analyze mode, learning from user patterns, 
 **Known Limitations (Acceptable for v1):**
 - Extension-extracted content sent to OpenAI (privacy implication noted in UI)
 - Not optimized for non-English content (but GPT-4 is multilingual)
-- Re-analysis of existing links depends on archived content availability
