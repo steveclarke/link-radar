@@ -32,7 +32,7 @@ module LinkRadar
       include LinkRadar::Resultable
 
       # Export directory path (Docker volume compatible)
-      EXPORT_DIR = Rails.root.join("snapshot/exports")
+      EXPORT_DIR = Rails.root.join(CoreConfig.snapshot_exports_dir)
 
       # Reserved tag name for excluding links from exports
       TEMP_TAG = "~temp~"

@@ -12,12 +12,14 @@ default: &default
     - "/moz-extension://.*/"
   log_level: "debug"
   frontend_url: "http://linkradar.localhost:9000"
+  snapshot_dir: "snapshot"  # Relative to Rails.root
 
 development:
   <<: *default
 
 test:
   <<: *default
+  snapshot_dir: "tmp/test_snapshots"  # Isolated for tests
 
 production:
   <<: *default
@@ -29,3 +31,4 @@ production:
   #   - "/moz-extension://.*/"
   log_level: info
   frontend_url: "https://linkradar.app"
+  # Can override with ENV var: SNAPSHOT_DIR=/mnt/storage/snapshots

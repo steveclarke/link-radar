@@ -32,7 +32,7 @@ namespace :snapshot do
     file_path = if File.exist?(args[:file])
       args[:file]
     else
-      Rails.root.join("snapshot", "imports", args[:file])
+      Rails.root.join(CoreConfig.snapshot_imports_dir, args[:file])
     end
 
     unless File.exist?(file_path)

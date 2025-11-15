@@ -71,13 +71,16 @@ module Api
         uploaded_file = params[:file]
         mode = params[:mode].presence&.to_sym || :skip
 
-        # Create temporary file for processing (uses OS temp directory)
-        temp_file = Tempfile.new(["import-", ".json"])
-        temp_file.write(uploaded_file.read)
-        temp_file.rewind # Reset file pointer for reading
+        # Use persistent temp directory instead of system /tmp
+        temp_dir = Rails.root.join(CoreConfig.snapshot_tmp_dir)
+        FileUtils.mkdir_p(temp_dir)
+
+        temp_filename = "import-#{SecureRandom.uuid}.json"
+        temp_path = temp_dir.join(temp_filename)
+        File.write(temp_path, uploaded_file.read)
 
         begin
-          importer = LinkRadar::DataImport::Importer.new(file_path: temp_file.path, mode: mode)
+          importer = LinkRadar::DataImport::Importer.new(file_path: temp_path.to_s, mode: mode)
           result = importer.call
 
           if result.success?
@@ -97,8 +100,7 @@ module Api
           )
         ensure
           # Clean up temp file - runs whether success, failure, or exception
-          temp_file.close
-          temp_file.unlink
+          File.delete(temp_path) if temp_path && File.exist?(temp_path)
         end
       end
     end

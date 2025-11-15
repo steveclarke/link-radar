@@ -36,7 +36,7 @@ module LinkRadar
       include LinkRadar::Resultable
 
       # Import directory path (Docker volume compatible)
-      IMPORT_DIR = Rails.root.join("snapshot/imports")
+      IMPORT_DIR = Rails.root.join(CoreConfig.snapshot_imports_dir)
 
       # Supported import modes
       MODES = [:skip, :update].freeze

@@ -5,9 +5,23 @@ class CoreConfig < ApplicationConfig
     :api_key,
     :cors_origins,
     :log_level,
+    :snapshot_dir,
     app_env: Rails.env,
     frontend_url: "http://localhost:9000"
   )
+
+  # Convenience methods for snapshot subdirectories
+  def snapshot_exports_dir
+    File.join(snapshot_dir, "exports")
+  end
+
+  def snapshot_imports_dir
+    File.join(snapshot_dir, "imports")
+  end
+
+  def snapshot_tmp_dir
+    File.join(snapshot_dir, "tmp")
+  end
 
   # Override cors_origins to automatically convert string patterns to regex objects
   #
