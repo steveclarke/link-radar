@@ -158,6 +158,74 @@ The extension is designed to work with the Link Radar Rails backend API at `http
 
 Make sure the backend is running and you have configured your API key in the extension settings before testing link saving functionality.
 
+## Data Management (Developer Mode)
+
+The extension provides data export and import capabilities accessible from the options page when Developer Mode is enabled.
+
+### Accessing Data Management
+
+1. Open extension options page (click extension icon → click settings gear ⚙️)
+2. Toggle "Developer Mode" switch in top-right corner of options page
+3. Scroll down to "Data Management" section
+
+### Exporting Links
+
+Click "Export All Links" to download a timestamped JSON file containing all your bookmarks.
+
+**Export behavior:**
+- Links tagged with `~temp~` are excluded (use for testing without polluting exports)
+- Downloads to your browser's default download location
+- Filename format: `linkradar-export-YYYY-MM-DD-HHMMSS-<uuid>.json`
+- Requires valid API key configuration
+
+### Importing Links
+
+**Select Import Mode:**
+- **Skip duplicates** (default): Safe mode - existing links remain unchanged, only new links are imported
+- **Update existing**: Overwrites existing links with imported data (original timestamps preserved)
+
+**Import Process:**
+1. Select desired import mode from dropdown
+2. Click "Choose File" button
+3. Select a LinkRadar export JSON file from your computer
+4. Click "Import" button to confirm
+5. Wait for import to complete
+6. Review success message with statistics
+
+**Import modes explained:**
+
+*Skip duplicates mode:*
+- Detects existing links by comparing normalized URLs
+- Skips any link that already exists in your collection
+- Preserves all existing data (notes, tags, timestamps)
+- Safe for adding new bookmarks without risking data loss
+
+*Update existing mode:*
+- Overwrites existing links with imported data
+- Updates notes and replaces all tags
+- Preserves original `created_at` timestamp
+- Useful for data migrations or fixing bulk errors
+
+### Data Format
+
+Export files use LinkRadar native JSON format (nested/denormalized structure). On import, tags are matched by name (case-insensitive) and reused when possible.
+
+### Troubleshooting
+
+**Export fails with "Unauthorized" error:**
+- Verify backend API is running and accessible
+- Check API key is configured correctly in settings
+- Try saving a new link first to verify authentication is working
+
+**Import fails:**
+- Verify file is LinkRadar export format (not an export from another system)
+- Check file is valid JSON (can try opening in text editor)
+- Review error message in toast notification for details
+
+**Developer Mode toggle missing:**
+- Developer Mode toggle is in the top-right corner of the options page header
+- If still missing, check that you're on the options page (not the popup)
+
 ## Learn More
 
 - [WXT Documentation](https://wxt.dev/)
