@@ -60,7 +60,7 @@ async function authenticatedFetch(path: string, options: RequestInit = {}): Prom
 export async function createLink(params: LinkParams): Promise<any> {
   const payload = {
     link: {
-      submitted_url: params.url,
+      url: params.url,
       title: params.title,
       note: params.note,
       tag_names: params.tag_names || [],
