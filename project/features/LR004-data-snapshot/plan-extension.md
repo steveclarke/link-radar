@@ -50,9 +50,9 @@ This plan implements the browser extension UI for data export and import functio
 ### 1.1. Verify Backend Prerequisites
 
 - [ ] Verify backend API endpoints are deployed and accessible:
-  - `POST /api/v1/data/export`
-  - `GET /api/v1/data/exports/:filename`
-  - `POST /api/v1/data/import`
+  - `POST /api/v1/snapshot/export`
+  - `GET /api/v1/snapshot/exports/:filename`
+  - `POST /api/v1/snapshot/import`
 - [ ] Test endpoints via curl or Bruno to confirm they work
 - [ ] Verify `submitted_url` field removed from Link model (schema simplification)
 
@@ -175,7 +175,7 @@ Add this method after existing API methods (follow the established `authenticate
 /**
  * Export all links to JSON file
  *
- * Calls POST /api/v1/data/export to generate export file on backend.
+ * Calls POST /api/v1/snapshot/export to generate export file on backend.
  * Returns metadata and download URL for retrieving the file.
  *
  * Links tagged with ~temp~ are excluded from exports.
@@ -184,7 +184,7 @@ Add this method after existing API methods (follow the established `authenticate
  * @throws Error if API request fails
  */
 export async function exportLinks(): Promise<ExportResult> {
-  const response = await authenticatedFetch("/data/export", {
+  const response = await authenticatedFetch("/snapshot/export", {
     method: "POST",
   }) as ExportApiResponse
 
@@ -200,7 +200,7 @@ export async function exportLinks(): Promise<ExportResult> {
 /**
  * Import links from uploaded file
  *
- * Calls POST /api/v1/data/import with multipart form data.
+ * Calls POST /api/v1/snapshot/import with multipart form data.
  * Accepts LinkRadar native JSON format only.
  *
  * Import modes:
@@ -219,7 +219,7 @@ export async function importLinks(
   mode: ImportMode = "skip",
 ): Promise<ImportResult> {
   const config = await getActiveEnvironmentConfig()
-  const fullUrl = `${config.url}/data/import`
+  const fullUrl = `${config.url}/snapshot/import`
 
   // Build FormData for multipart upload
   // Note: Content-Type header must NOT be set manually - browser sets it with boundary
