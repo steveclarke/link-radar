@@ -155,17 +155,20 @@ The system must provide:
 ### 4.2 Tag Management Rules
 
 **Tag Suggestion Presentation:**
-- All suggested tags are toggled ON by default (user opts-out rather than opts-in)
-- Existing tags display differently from new tags (green vs blue)
-- Selected tags display differently from unselected tags (solid vs outline)
+- All suggested tags start unselected (outline style) - explicit opt-in approach
+- Existing tags display in green, new tags display in blue
+- Selected tags display with solid background, unselected with outline style
 - Tags display in AI-suggested order (trust relevance ranking)
 
 **Tag Acceptance and Merging:**
-- User can toggle individual tags on/off before saving
-- Selected AI tags merge with manually-entered tags
+- User toggles individual tag chips ON to select them
+- Selected tags automatically populate into main Tags input field in real-time
+- User can also manually type tags directly into main field
+- Main Tags field shows combined result (AI-selected + manually-entered)
+- No visual distinction needed in main field between AI vs manual tags (all just "your tags")
 - If AI suggests a tag user already typed (case-insensitive match), don't show duplicate in suggestions
-- When link is saved, both AI-suggested and manual tags are submitted together
-- Tag creation happens automatically at save time via existing link save flow
+- When link is saved, all tags from main field are submitted via existing link save flow
+- Tag creation happens automatically at save time for any new tags
 
 ### 4.3 Content Extraction Rules
 
@@ -222,11 +225,13 @@ The system must provide:
 3. Extension extracts content and sends to backend
 4. Button changes to "Analyzing..." with spinner (3-5 second typical wait, 15s timeout)
 5. User can click button again to cancel if desired
-6. On success, suggestions appear in dedicated section
-7. User reviews tag chips (all toggled ON by default) and suggested note
-8. User toggles off unwanted tags, clicks "[+ Add to Notes]" to insert note
-9. User can modify inserted note or add their own tags
-10. User clicks "Save This Link" - both AI-suggested and manual input are submitted
+6. On success, suggestions appear in dedicated "🤖 AI Suggestions" section
+7. User reviews tag chips (all start unselected/outline style) and suggested note
+8. User toggles ON desired tags - they populate main Tags field in real-time
+9. User can manually type additional tags directly in main field
+10. User clicks "[+ Add to Notes]" to insert AI note (optional)
+11. User can modify inserted note or leave as-is
+12. User clicks "Save This Link" - all tags in main field are submitted
 
 **Note Insertion:**
 - Clicking "[+ Add to Notes]" button replaces current notes field content with AI suggestion
@@ -234,13 +239,16 @@ The system must provide:
 - This is an all-or-nothing insertion (no cursor-position insertion in v1)
 
 **Tag Interaction:**
-- Click tag chip once to deselect (changes from solid to outline style)
-- Click again to reselect (changes back to solid style)
+- All chips start in unselected state (outline style)
+- Click chip once to select (changes to solid background, tag appears in main Tags field)
+- Click again to deselect (changes back to outline, tag removed from main field)
 - Four visual states communicate two attributes:
-  - Green + Solid = Existing tag, selected (will be added)
-  - Green + Outline = Existing tag, unselected (won't be added)
-  - Blue + Solid = New tag, selected (will be created and added)
-  - Blue + Outline = New tag, unselected (won't be added)
+  - Green + Solid = Existing tag, selected (added to main field)
+  - Green + Outline = Existing tag, unselected (not in main field)
+  - Blue + Solid = New tag, selected (added to main field, will be created)
+  - Blue + Outline = New tag, unselected (not in main field)
+- Selection state syncs in real-time with main Tags field
+- Main Tags field shows all tags (AI-selected + manual) without visual distinction
 
 **Error Handling:**
 - On error, show friendly message: "Analysis failed. Please try again."
@@ -339,7 +347,12 @@ The system must provide:
 
 **New Backend Endpoint:**
 - `POST /api/v1/links/analyze` endpoint
-- Accepts `{url, content}` payload where content is pre-extracted by extension
+- Accepts payload with pre-extracted content from extension:
+  - `url` - Page URL
+  - `content` - Main article text (Readability-extracted)
+  - `title` - Page title (og:title, title tag, or h1)
+  - `description` - Meta description (og:description or meta description)
+  - `author` - Author info when available (optional)
 - Returns `{suggested_note, suggested_tags: [{name, exists}]}` structure
 - No link_id parameter needed (re-analysis deferred to future)
 
