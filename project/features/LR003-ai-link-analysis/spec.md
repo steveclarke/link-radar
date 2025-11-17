@@ -2,41 +2,44 @@
 
 ## Table of Contents
 
-1. [Overview](#1-overview)
-2. [Architecture Overview](#2-architecture-overview)
-   - 2.1 [System Architecture](#21-system-architecture)
-   - 2.2 [Core Design Decisions](#22-core-design-decisions)
-   - 2.3 [Technology Choices](#23-technology-choices)
-3. [API Architecture](#3-api-architecture)
-   - 3.1 [Endpoint Definition](#31-endpoint-definition)
-   - 3.2 [Request Contract](#32-request-contract)
-   - 3.3 [Response Contract](#33-response-contract)
-   - 3.4 [Error Responses](#34-error-responses)
-4. [Backend Architecture](#4-backend-architecture)
-   - 4.1 [Service Layer](#41-service-layer)
-   - 4.2 [AI Integration](#42-ai-integration)
-   - 4.3 [Tag Matching Logic](#43-tag-matching-logic)
-   - 4.4 [Content Validation](#44-content-validation)
-5. [Extension Architecture](#5-extension-architecture)
-   - 5.1 [Type Definitions](#51-type-definitions)
-   - 5.2 [API Client Integration](#52-api-client-integration)
-   - 5.3 [Content Extraction](#53-content-extraction)
-   - 5.4 [Component Architecture](#54-component-architecture)
-   - 5.5 [State Management](#55-state-management)
-6. [Configuration Architecture](#6-configuration-architecture)
-   - 6.1 [Backend Configuration](#61-backend-configuration)
-   - 6.2 [Extension Dependencies](#62-extension-dependencies)
-7. [Integration Architecture](#7-integration-architecture)
-   - 7.1 [Privacy Protection](#71-privacy-protection)
-   - 7.2 [Error Handling Strategy](#72-error-handling-strategy)
-8. [File Organization](#8-file-organization)
-   - 8.1 [Backend Files](#81-backend-files)
-   - 8.2 [Extension Files](#82-extension-files)
-9. [Quality Attributes](#9-quality-attributes)
-   - 9.1 [Performance](#91-performance)
-   - 9.2 [Security](#92-security)
-   - 9.3 [Reliability](#93-reliability)
-   - 9.4 [Maintainability](#94-maintainability)
+- [LR003 - AI-Powered Link Analysis: Technical Specification](#lr003---ai-powered-link-analysis-technical-specification)
+  - [Table of Contents](#table-of-contents)
+  - [1. Overview](#1-overview)
+  - [2. Architecture Overview](#2-architecture-overview)
+    - [2.1 System Architecture](#21-system-architecture)
+    - [2.2 Core Design Decisions](#22-core-design-decisions)
+    - [2.3 Technology Choices](#23-technology-choices)
+  - [3. API Architecture](#3-api-architecture)
+    - [3.1 Endpoint Definition](#31-endpoint-definition)
+    - [3.2 Request Contract](#32-request-contract)
+    - [3.3 Response Contract](#33-response-contract)
+    - [3.4 Error Responses](#34-error-responses)
+  - [4. Backend Architecture](#4-backend-architecture)
+    - [4.1 Service Layer](#41-service-layer)
+    - [4.2 AI Integration](#42-ai-integration)
+    - [4.3 Tag Matching Logic](#43-tag-matching-logic)
+    - [4.4 Content Validation](#44-content-validation)
+  - [5. Extension Architecture](#5-extension-architecture)
+    - [5.1 Type Definitions](#51-type-definitions)
+    - [5.2 API Client Integration](#52-api-client-integration)
+    - [5.3 Content Extraction](#53-content-extraction)
+    - [5.4 Component Architecture](#54-component-architecture)
+    - [5.5 State Management](#55-state-management)
+  - [6. Configuration Architecture](#6-configuration-architecture)
+    - [6.1 Backend Configuration](#61-backend-configuration)
+    - [6.2 Extension Dependencies](#62-extension-dependencies)
+  - [7. Integration Architecture](#7-integration-architecture)
+    - [7.1 Privacy Protection](#71-privacy-protection)
+    - [7.2 Error Handling Strategy](#72-error-handling-strategy)
+  - [8. File Organization](#8-file-organization)
+    - [8.1 Backend Files](#81-backend-files)
+    - [8.2 Extension Files](#82-extension-files)
+  - [9. Quality Attributes](#9-quality-attributes)
+    - [9.1 Performance](#91-performance)
+    - [9.2 Security](#92-security)
+    - [9.3 Reliability](#93-reliability)
+    - [9.4 Maintainability](#94-maintainability)
+  - [Implementation Notes](#implementation-notes)
 
 ---
 
@@ -218,7 +221,7 @@ POST /api/v1/links/analyze
 
 **Response Structure**:
 
-File: `app/views/api/v1/links/analyze.json.jbuilder`
+File: `app/views/api/v1/links/analyze.jbuilder`
 
 ```ruby
 json.data do
@@ -360,8 +363,9 @@ module LinkRadar
         # Returns parsed JSON: {note:, tags: [...]}
       end
       
-      def mark_existing_tags(ai_response, existing_tags)
-        # Case-insensitive matching of suggested tags against existing tags
+      def build_response(ai_response, existing_tags)
+        # Transforms AI response into API response format
+        # Maps tags and adds exists: boolean via case-insensitive matching
         # Returns: {suggested_note:, suggested_tags: [{name:, exists:}]}
       end
     end
@@ -427,12 +431,10 @@ ANALYSIS_SCHEMA = {
     },
     tags: {
       type: "array",
-      description: "3-7 relevant tags for the content",
+      description: "Relevant tags for the content (typically 3-7)",
       items: {
         type: "string"
-      },
-      minItems: 3,
-      maxItems: 7
+      }
     }
   },
   required: ["note", "tags"]
@@ -552,27 +554,14 @@ end
 
 ### 4.4 Content Validation
 
-**Privacy Protection** (using Addressable gem):
+**Privacy Protection** (reuses UrlValidator):
 
 ```ruby
 def validate_not_private_url(url)
-  uri = Addressable::URI.parse(url)
+  # Reuses existing SSRF protection from content archiving
+  result = LinkRadar::ContentArchiving::UrlValidator.new(url).call
   
-  # Check protocol
-  unless ["http", "https"].include?(uri.scheme)
-    raise ArgumentError, "URL must be HTTP or HTTPS"
-  end
-  
-  # Check for localhost
-  if ["localhost", "127.0.0.1", "::1"].include?(uri.host)
-    raise ArgumentError, "Cannot analyze localhost URLs"
-  end
-  
-  # Check for private IP ranges
-  require "private_address_check"
-  if PrivateAddressCheck.private_address?(uri.host)
-    raise ArgumentError, "Cannot analyze private IP addresses"
-  end
+  raise ArgumentError, result.errors.first if result.failure?
 end
 ```
 
@@ -788,7 +777,8 @@ export function extractPageContent(): ExtractionResult {
 ```
 
 **Content Validation**:
-- No maximum length enforced in extension (backend handles truncation)
+- Extension truncates content to 50,000 characters before sending (network efficiency, user feedback)
+- Backend validates maximum length as safety check (rejects anything over 50,000 chars)
 - Empty content allowed (AI uses metadata)
 - Whitespace normalization handled by Readability
 
@@ -1076,7 +1066,7 @@ backend/
 │       └── api/
 │           └── v1/
 │               └── links/
-│                   └── analyze.json.jbuilder    (new view)
+│                   └── analyze.jbuilder    (new view)
 └── spec/
     ├── requests/
     │   └── api/
