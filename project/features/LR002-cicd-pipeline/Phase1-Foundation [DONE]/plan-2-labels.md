@@ -1,7 +1,7 @@
 # Plan 2: GitHub Labels
 
 **Feature:** LR002 - CI/CD Pipeline & Deployment Automation  
-**Superthread Card:** [LR002-P2: Set Up GitHub Labels](https://clevertakes.superthread.com/card/129)  
+**Superthread Card:** Card #129 — LR002-P2: Phase 1 – GitHub Labels  
 **Status:** Ready to Execute
 
 ## Goal

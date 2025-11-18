@@ -65,9 +65,9 @@ Bypass modes:
 - **For pull requests only** - Can bypass when merging PRs in GitHub UI
 - **Exempt** - Never subject to the ruleset at all
 
-**Why we use it:** **Repository admin with "For pull requests only"** gives an emergency escape hatch without allowing command-line bypasses.
+**Why we use it:** **Repository admin with "Always"** keeps an escape hatch for senior maintainers (tiny hotfix pushes) while still logging each bypass.
 
-**How it works:** When you try an action that violates rules, you'll see a checkbox to bypass (if you have permission).
+**How it works:** When you try an action that violates rules, you'll see a warning with a bypass checkbox (CLI prompt or PR UI) if you have permission.
 
 ### Rules
 
@@ -113,16 +113,15 @@ Parameters:
 
 **How it works:** Any force push attempt is rejected.
 
-#### Require Status Checks (Phase 2)
+#### Require Status Checks
 
 **What it does:** CI workflows must pass before merging.
 
-**Why we defer it:** No CI workflows exist yet. Will add in Phase 2 with:
-- conventional-commits
-- required-labels  
-- yaml-lint
+**Why we use it:** Blocks merges until:
+- `conventional-commits` confirms every commit message is formatted correctly.
+- `required-labels` confirms each PR carries exactly one type label and at least one area label.
 
-**How it will work:** PRs can't be merged until all required checks pass.
+**How it works:** PRs can't be merged until both checks report success, and GitHub also enforces that branches are up to date with master before merging.
 
 ## Settings Summary
 
@@ -132,10 +131,10 @@ Parameters:
 | Required approvals | ✅ (1) | Quality gate |
 | Last push approval | ✅ | Re-review after changes |
 | Linear history | ✅ | Clean Git history |
-| Bypass: Admins (PR only) | ✅ | Emergency escape hatch |
+| Bypass: Admins (always) | ✅ | Emergency escape hatch + CLI overrides |
 | Block force pushes | ✅ | Prevent history rewrites |
 | Restrict deletions | ✅ | Prevent accidental deletion |
-| Status checks | ⚠️ Phase 2 | Will add when CI workflows exist |
+| Status checks | ✅ | Enforces commit and label validation |
 
 ## Manual Setup (Learning Path)
 
@@ -165,8 +164,8 @@ Parameters:
    - Click "Add bypass"
    - Select **"Repository admin"**
    - Click the three-dot menu next to it
-   - Select **"For pull requests only"** (NOT "Always")
-   - This allows emergency overrides in PR UI but blocks command-line bypasses
+   - Select **"Always"** so admins may override from either the PR UI _or_ the command line
+   - Use with care—this is meant for senior dev hotfixes, not everyday workflow
 
 ![Add bypass dropdown showing role options](02-add-bypass-dropdown.png)
 
@@ -194,8 +193,12 @@ Check these boxes in order:
 
 ![Pull request rule settings showing approval requirements](04-pull-request-rules.png)
 
-☐ **Require status checks to pass** - Leave UNCHECKED (Phase 2)
-  - Will add later when CI workflows exist
+☑ **Require status checks to pass** - Add both checks
+  - `conventional-commits`
+  - `required-labels`
+  - Enable “Require branches to be up to date before merging”
+
+![Required status checks configuration showing conventional-commits and required-labels](05-required-status-checks.png)
 
 ☑ **Block force pushes** - Prevents history rewrites
 
@@ -268,7 +271,7 @@ cd project/guides/github/branch-protection
 1. **Creates ruleset via API** - Uses `gh api repos/{repo}/rulesets` endpoint
 2. **Sets enforcement to active** - Ruleset is immediately enforced
 3. **Targets default branch** - Uses `~DEFAULT_BRANCH` special token
-4. **Configures bypass** - Actor ID 5 (Repository Admin) with `pull_request` mode
+4. **Configures bypass** - Actor ID 5 (Repository Admin) with `always` mode
 5. **Applies all rules** - Deletion, linear history, PR requirements, force push blocking
 
 ### Script Breakdown
@@ -291,11 +294,11 @@ gh api repos/"$REPO"/rulesets --method POST
 {
   "actor_id": 5,
   "actor_type": "RepositoryRole",
-  "bypass_mode": "pull_request"
+  "bypass_mode": "always"
 }
 ```
 - Actor ID 5 = Repository Admin role
-- `pull_request` mode = bypass only in PR context
+- `always` mode = admins see the bypass prompt everywhere (CLI + PR UI)
 
 **Target Configuration:**
 ```json
@@ -335,7 +338,7 @@ gh api repos/"$REPO"/rulesets --method POST
 }
 ```
 
-**Add status checks (Phase 2):**
+**Update required status checks:**
 ```json
 {
   "type": "required_status_checks",
@@ -343,8 +346,7 @@ gh api repos/"$REPO"/rulesets --method POST
     "strict_required_status_checks_policy": true,
     "required_status_checks": [
       {"context": "conventional-commits"},
-      {"context": "required-labels"},
-      {"context": "yaml-lint"}
+      {"context": "required-labels"}
     ]
   }
 }
@@ -402,21 +404,22 @@ Try to approve your own PR in GitHub UI.
 
 Expected: ❌ **Blocked** - "New changes require approval from someone other than the last pusher"
 
-**Test 6: Bypass and Merge (Should Succeed)**
+**Test 6: Bypass and Merge/Push (Should Succeed)**
 
-In GitHub UI, check the "Merge without waiting for requirements to be met" checkbox and merge.
+- In GitHub UI, check the "Merge without waiting for requirements to be met" checkbox and merge.
+- Or from CLI, follow the GH013 prompt to confirm the bypass push.
 
-Expected: ✅ **Succeeds** - admin bypass works in PR context
+Expected: ✅ **Succeeds** - admin bypass works in both contexts (logged by GitHub)
 
 ### Expected Behavior
 
 **What You'll See:**
 
-- Command-line pushes to master are **hard-blocked** (even for admins)
+- Command-line pushes to master show a bypass warning; admins can confirm to continue
 - Feature branches can be pushed normally
 - PRs can be created without restrictions
 - Merge button is **disabled** until requirements met
-- A **bypass checkbox** appears if you're an admin (only in PR UI)
+- A **bypass checkbox** appears in PR UI, and CLI pushes offer a bypass prompt for admins
 - Self-approval fails with clear error message
 
 **Protection Messages:**
@@ -492,18 +495,18 @@ With rulesets active, your workflow becomes:
 
 **How to Bypass (Admin Only):**
 
-In the GitHub PR UI, you'll see:
-```
-☐ Merge without waiting for requirements to be met (bypass rules)
-```
-
-Check this box to bypass the ruleset rules.
+- **From the PR UI:** you'll see
+  ```
+  ☐ Merge without waiting for requirements to be met (bypass rules)
+  ```
+  Check this box, then merge.
+- **From the command line:** pushes to protected refs will display a warning (GH013) followed by a prompt offering `--force-with-lease --bypass` behavior; confirm to proceed.
 
 **Important:**
 
 - Only available to users with bypass permission (admins in our case)
-- Only works in PR context (not command-line)
-- Use sparingly - defeats the purpose of protection
+- CLI bypass is now possible because bypass mode is “Always”
+- Use sparingly—every override is logged and should be for emergencies or tiny fixes
 
 ### Understanding Enforcement Modes
 
@@ -522,18 +525,14 @@ Check this box to bypass the ruleset rules.
 - No checking or enforcement
 - Useful for temporarily disabling without deleting
 
-### Status Checks (Phase 2)
+### Required Status Checks
 
-Once CI workflows are added, you'll need to:
+Our ruleset already enforces two checks:
 
-1. **Edit the ruleset** in GitHub UI
-2. **Enable "Require status checks to pass"**
-3. **Add required checks:**
-   - conventional-commits
-   - required-labels
-   - yaml-lint
+- `conventional-commits`
+- `required-labels`
 
-Or run an updated version of the automation script that includes status checks.
+If a workflow name changes, update the ruleset (UI import or `setup.sh`) so the new context appears. Always leave “Require branches to be up to date before merging” enabled alongside the checks.
 
 ## Common Issues
 
@@ -566,8 +565,6 @@ git push origin feat/my-feature
 - Check that you have the right permissions
 
 ### Status Checks Never Complete
-
-(This will be relevant in Phase 2)
 
 **Error:** PR shows "Waiting for status checks"
 
@@ -683,7 +680,7 @@ After setting up branch protection:
 
 1. **Verify with test PR** - Run the testing checklist above
 2. **Update your workflow** - Get used to PR-based development
-3. **Prepare for Phase 2** - CI checks will be added to the ruleset
+3. **Audit required checks periodically** - Update ruleset if workflow names or requirements change
 4. **Document your learnings** - Note any surprises or adjustments
 
 ## References

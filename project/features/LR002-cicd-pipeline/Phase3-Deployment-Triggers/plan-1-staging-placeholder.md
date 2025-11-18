@@ -1,7 +1,8 @@
 # Plan 1: Staging Deployment Placeholder
 
 **Feature:** LR002 - CI/CD Pipeline & Deployment Automation  
-**Superthread Card:** TBD  
+**Superthread Card:** Card #154 — LR002-P11: Phase 3 – Staging Deployment Placeholder  
+**Doc Reference:** `project/features/LR002-cicd-pipeline/Phase3-Deployment-Triggers/plan-1-staging-placeholder.md`  
 **Status:** Ready to Execute (after Phase 2 complete)
 
 ## Goal

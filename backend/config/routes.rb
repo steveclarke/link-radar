@@ -13,6 +13,17 @@ Rails.application.routes.draw do
         end
       end
       resources :tags
+
+      # Snapshot export/import
+      post "snapshot/export", to: "snapshot#export"
+      post "snapshot/import", to: "snapshot#import"
+      get "snapshot/exports/:filename", to: "snapshot#download", constraints: {filename: /[^\/]+/}, defaults: {format: false}
     end
   end
+
+  #---------------------------------------------------------------------------
+  # GoodJob Dashboard
+  # Secured by basic auth. See config/initializers/good_job.rb
+  #---------------------------------------------------------------------------
+  mount GoodJob::Engine, at: "/goodjob"
 end

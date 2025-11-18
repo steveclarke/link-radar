@@ -1,7 +1,7 @@
 # Plan 5: GitHub Actions Permissions Setup
 
 **Feature:** LR002 - CI/CD Pipeline & Deployment Automation  
-**Superthread Card:** [LR002-P5: Set Up GitHub Actions](https://clevertakes.superthread.com/card/132)  
+**Superthread Card:** Card #132 — LR002-P5: Phase 1 – GitHub Actions Permissions  
 **Status:** Ready to Execute
 
 ## Goal

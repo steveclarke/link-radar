@@ -1,0 +1,59 @@
+meta {
+  name: Import Snapshot (Skip Mode)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/v1/snapshot/import
+  body: multipartForm
+  auth: inherit
+}
+
+body:multipart-form {
+  file: @file(/Users/steve/src/link-radar/backend/snapshot/exports/linkradar-export-2025-11-15-173853-e1e37918-ba91-4b89-87fb-1603e1ed88ec.json)
+  mode: skip
+}
+
+docs {
+  Import links from a JSON export file (Skip mode - default).
+  
+  Skip mode behavior:
+  - Existing links (by URL) are skipped completely
+  - No changes made to existing links or their tags
+  - New links are created with all their data
+  - Tags are matched case-insensitively by name
+  
+  To use:
+  1. Click the "@file" button next to the file field
+  2. Select your export JSON file
+  3. The mode field is optional (defaults to "skip")
+  
+  Returns:
+  {
+    "data": {
+      "links_imported": 38,
+      "links_skipped": 4,
+      "tags_created": 12,
+      "tags_reused": 8
+    }
+  }
+  
+  The import runs in a database transaction:
+  - All changes are committed on success
+  - All changes are rolled back on any error (no partial imports)
+  
+  Duplicate detection:
+  - Links are matched by normalized URL
+  - URLs are normalized before comparison (scheme, host, path)
+  
+  Tag matching:
+  - Case-insensitive by name ("Ruby" matches "ruby")
+  - Existing tags preserve their slug, usage_count, capitalization
+  - New tags created with exact capitalization from import
+  
+  Errors:
+  - 400 Bad Request: No file provided
+  - 422 Unprocessable Entity: Invalid JSON, unsupported version, or validation errors
+  - 500 Internal Server Error: Unexpected import failure
+}

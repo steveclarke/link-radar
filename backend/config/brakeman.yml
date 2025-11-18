@@ -1,0 +1,10 @@
+# Brakeman configuration file
+# See https://brakemanscanner.org/docs/options/ for all options
+
+# Disable pager (less/more) for output
+# Note: This option is undocumented but exists in the source code
+# See: lib/brakeman/options.rb:337-338
+pager: false
+
+# Use existing ignore file
+ignore_file: config/brakeman.ignore

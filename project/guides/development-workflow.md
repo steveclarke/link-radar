@@ -30,6 +30,8 @@ Let's walk through how we do this.
     - [Examples](#examples)
     - [Writing Good Commit Messages](#writing-good-commit-messages)
     - [Commit Frequency](#commit-frequency)
+    - [Validation](#validation)
+    - [Fixing Invalid Commits](#fixing-invalid-commits)
   - [Pull Request Process](#pull-request-process)
     - [The Complete Workflow](#the-complete-workflow)
     - [Benefits of Early Draft PRs](#benefits-of-early-draft-prs)
@@ -39,6 +41,7 @@ Let's walk through how we do this.
     - [Type Labels](#type-labels)
     - [Area Labels](#area-labels)
     - [Common Combinations](#common-combinations)
+    - [Automated Validation](#automated-validation)
   - [Code Review](#code-review)
     - [Before Requesting Review](#before-requesting-review)
     - [Self-Review Checklist](#self-review-checklist)
@@ -205,6 +208,29 @@ git commit -m "docs(backend): document archival API endpoint"
 
 Each commit represents a coherent piece of work that can stand on its own.
 
+### Validation
+
+Every pull request runs the **Conventional Commits** GitHub Action. It appears as a required status check named `Conventional Commits` and blocks merges until all commit messages pass. When the check fails, the workflow posts a guidance comment with the required format and quick remediation steps, plus a link back to this section.
+
+### Fixing Invalid Commits
+
+Use these commands to clean up problem commits that the check surfaces:
+
+- **Latest commit**
+  ```bash
+  git commit --amend -m "type(scope): concise subject"
+  git push --force-with-lease
+  ```
+- **Older commits**
+  ```bash
+  git rebase -i HEAD~3      # adjust the range as needed
+  # Change `pick` to `reword` for commits you need to edit
+  # Save, update the messages when prompted, then:
+  git push --force-with-lease
+  ```
+
+After rewriting messages, push the updates and the status check will rerun automatically. If it still fails, re-open the workflow comment for the specific issues it flagged.
+
 ## Pull Request Process
 
 We create draft PRs early in the development process rather than waiting until work is complete. This approach makes work visible to the team and enables feedback throughout development.
@@ -330,6 +356,20 @@ Multiple area labels are fine if your change spans modules. For example, a refac
 
 > **Reference:** See `project/guides/github/setup/labels/guide.md` for the complete label taxonomy.
 
+### Automated Validation
+
+The `Required Labels` GitHub Actions workflow enforces these rules on every pull request. The check runs whenever a PR is opened, labels are added/removed, or new commits land. It evaluates two things:
+
+1. Exactly one `type:` label must be applied  
+2. At least one `area:` label must be applied
+
+If either rule fails, the workflow blocks the PR from merging, updates a single guidance comment that lists what is missing, and removes the comment again once the PR is compliant. To unblock the check:
+
+- Add the missing labels via the sidebar in the GitHub UI, or
+- Use `gh pr edit --add-label "<label>"` from the CLI
+
+After updating labels, the workflow reruns automatically; no manual re-trigger needed.
+
 ## Code Review
 
 Even when working solo, treat code review as an essential step. Future you needs to understand what past you was thinking.
@@ -337,7 +377,6 @@ Even when working solo, treat code review as an essential step. Future you needs
 ### Before Requesting Review
 
 - [ ] All tests pass locally
-- [ ] No linter errors
 - [ ] Code is self-documented or commented where needed
 - [ ] PR description is complete and accurate
 - [ ] Labels are applied (type + area)
@@ -439,7 +478,6 @@ Before clicking that merge button:
 - [ ] PR is marked "Ready for review" (not draft)
 - [ ] Self-review is complete
 - [ ] Tests pass
-- [ ] No linter errors
 - [ ] Labels are applied
 - [ ] Superthread card is linked
 

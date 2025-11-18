@@ -1,0 +1,24 @@
+meta {
+  name: Sort by Title Ascending
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/v1/links?sort=title:asc
+  body: none
+  auth: inherit
+}
+
+params:query {
+  sort: title:asc
+}
+
+docs {
+  # Sort Links by Title (Ascending)
+  
+  Returns links sorted alphabetically by title (A-Z).
+  
+  This uses the saltbox-sort_by_columns gem to apply sorting via URL parameters.
+}
+

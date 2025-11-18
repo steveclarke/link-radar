@@ -95,6 +95,7 @@ Environment files are in `env/` directory on the server:
 - `.env` - Docker Compose variables (image name, ports)
 - `env/backend.env` - Rails runtime config
 - `env/postgres.env` - Database credentials
+- `env/backup.env` - Postgres backup settings (S3 credentials, schedule)
 
 **Note**: `bin/deploy` generates these automatically. For manual setup, copy from `*.template` files.
 
@@ -163,6 +164,46 @@ docker compose restart backend
 # Stop all (preserves data)
 bin/down
 ```
+
+## Database Backups
+
+**Automated backups** to S3-compatible storage using custom Postgres 18 backup container.
+
+**Current Setup**: Vultr Object Storage  
+**Source**: `postgres-backup/` directory  
+**Image**: Builds automatically on server from postgres:18-alpine
+
+**Configuration**:
+- Schedule: Every 3 hours (configurable in `env/backup.env`)
+- Retention: 7 days (configurable)
+- Storage: S3-compatible (Vultr, Backblaze B2, AWS S3, etc.)
+
+**Setup**:
+```bash
+# Configure S3 credentials
+cp env/backup.env.template env/backup.env
+# Edit env/backup.env with your S3 credentials and bucket name
+```
+
+**Manual operations**:
+```bash
+# Force immediate backup
+docker compose exec postgres-backup /backup.sh
+
+# View backup logs
+bin/logs postgres-backup
+```
+
+**Restore from backup**:
+```bash
+# Download backup from S3, then restore
+gunzip < backup.sql.gz | docker compose exec -T postgres psql -U linkradar linkradar_production
+```
+
+**Changing Storage Provider**:
+To switch between Vultr, Backblaze B2, AWS S3, or other S3-compatible storage, just update `HOST_BASE` and `HOST_BUCKET` in `env/backup.env`.
+
+See `postgres-backup/README.md` for more details.
 
 ## Troubleshooting
 

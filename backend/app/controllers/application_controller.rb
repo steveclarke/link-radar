@@ -1,5 +1,9 @@
 class ApplicationController < ActionController::API
   include ActionController::HttpAuthentication::Token::ControllerMethods
+  include Pagy::Method
+  include VersionHeader
+  include ResponseHelpers
+  include ErrorHandlers
 
   before_action :authenticate_api_request!
 

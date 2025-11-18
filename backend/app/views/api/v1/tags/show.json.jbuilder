@@ -6,7 +6,7 @@ json.data do
   if @links.present?
     json.recent_links do
       json.array! @links do |link|
-        json.extract! link, :id, :url, :title, :created_at
+        json.extract! link, :id, :url, :created_at
       end
     end
   end

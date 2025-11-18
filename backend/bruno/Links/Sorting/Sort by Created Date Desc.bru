@@ -1,0 +1,24 @@
+meta {
+  name: Sort by Created Date Desc
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/v1/links?sort=created_at:desc
+  body: none
+  auth: inherit
+}
+
+params:query {
+  sort: created_at:desc
+}
+
+docs {
+  # Sort Links by Created Date (Descending)
+
+  Returns most recently created links first.
+
+  This is useful for showing the latest saved links at the top.
+}
+

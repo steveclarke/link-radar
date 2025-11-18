@@ -12,6 +12,8 @@ services:
     networks:
       - default      # For postgres/redis
       - caddy_net    # For Caddy reverse proxy
+    volumes:
+      - snapshot_data:/rails/snapshot
     depends_on:
       postgres:
         condition: service_healthy
@@ -25,11 +27,36 @@ services:
       retries: 3
       start_period: 40s
 
+  good_job:
+    image: ${BACKEND_IMAGE}
+    container_name: linkradar-good-job
+    env_file:
+      - env/backend.env
+    networks:
+      - default
+    volumes:
+      - snapshot_data:/rails/snapshot
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    command: ["bundle", "exec", "good_job", "start"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f good_job || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
   runner:
     image: ${BACKEND_IMAGE}
     container_name: linkradar-runner
     env_file:
       - env/backend.env
+    volumes:
+      - snapshot_data:/app/snapshot
     depends_on:
       postgres:
         condition: service_healthy
@@ -54,6 +81,21 @@ services:
       timeout: 5s
       retries: 5
 
+  postgres-backup:
+    build:
+      context: ./postgres-backup
+      dockerfile: Dockerfile
+    container_name: linkradar-postgres-backup
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - env/postgres.env
+      - env/backup.env
+    networks:
+      - default
+
   redis:
     image: redis:7-alpine
     container_name: linkradar-redis
@@ -72,6 +114,8 @@ volumes:
     name: linkradar_postgres_data
   redis_data:
     name: linkradar_redis_data
+  snapshot_data:
+    name: linkradar_snapshot_data
 
 networks:
   default:
@@ -79,4 +123,3 @@ networks:
   caddy_net:
     external: true
     name: caddy_net
-

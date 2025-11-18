@@ -1,0 +1,20 @@
+default: &default
+
+development:
+  <<: *default
+  # No credentials needed - dashboard is open in development
+  # (auth middleware is skipped via `unless Rails.env.local?`)
+  # Uncomment below to test authentication in development:
+  # dashboard_username: dev@linkradar.app
+  # dashboard_password: DevPassword123
+
+test:
+  <<: *default
+
+production:
+  <<: *default
+  # Credentials loaded from Rails credentials or environment variables:
+  # - From credentials: Rails.application.credentials.good_job.dashboard_username
+  # - From ENV: GOOD_JOB_DASHBOARD_USERNAME
+  # - From ENV: GOOD_JOB_DASHBOARD_PASSWORD
+

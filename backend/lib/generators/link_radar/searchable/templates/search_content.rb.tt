@@ -1,0 +1,86 @@
+# frozen_string_literal: true
+
+module SearchContent
+  # Search configuration for <%= class_name %> model
+  #
+  # @example Usage in <%= class_name %> model
+  #   class <%= class_name %> < ApplicationRecord
+  #     include Searchable
+  #     searchable_with SearchContent::<%= class_name %><%= ", project: true" if options[:project] %>
+  #   end
+  class <%= class_name %> < SearchContent::Base
+    SEARCH_FIELDS = {
+<% if search_fields.any? -%>
+<% search_fields.each_with_index do |field, index| -%>
+<% weight = %w[A B C D][index] || "D" -%>
+<% is_last_field = (index == search_fields.length - 1) && !options[:project] -%>
+      <%= field %>: "<%= weight %>"<%= "," unless is_last_field %>
+<% end -%>
+<% else -%>
+      # Add your searchable fields with weights, e.g.:
+      # name: "A",              # Highest priority
+      # code: "B",              # Medium priority
+      # description: "C",       # Lower priority
+      # field_without_weight: nil,  # Included but not weighted
+<% end -%>
+<% if options[:project] -%>
+      search_projection: nil
+<% end -%>
+    }
+
+    def self.search_fields = SEARCH_FIELDS
+
+    def self.using
+      {
+<% if options[:project] -%>
+        trigram: {word_similarity: true, threshold: 0.25},
+        tsearch: {prefix: true, any_word: true, dictionary: "english"}
+<% else -%>
+        tsearch: {prefix: true, any_word: true, dictionary: "english"}
+<% end -%>
+      }
+    end
+
+    def self.scope_options
+      {
+<% if options[:project] -%>
+        ignoring: :accents,
+        ranked_by: ":tsearch * 0.6 + :trigram * 0.4"
+<% else -%>
+        ignoring: :accents
+<% end -%>
+      }
+    end
+
+<% if options[:project] -%>
+    projection do
+      # Example projection inputs. Customize per model.
+
+      # Computed methods (not DB columns)
+      # compute :full_name
+      # compute :display_code
+
+      # Custom association handling
+      # assoc :tags do |tag|
+      #   [tag.name, tag.slug]
+      # end
+
+      # assoc :categories do |cat|
+      #   [cat.name, cat.code, cat.description]
+      # end
+
+      # Built-in helpers for common associations
+      # project_emails       # Email addresses
+      # project_phones       # Tokenized phone numbers
+
+      # Custom derived tokens
+      # custom do
+      #   code = record.code.to_s.upcase
+      #   next if code.blank?
+      #   [code, code.gsub(/[^A-Z0-9]/, "")]
+      # end
+    end
+<% end -%>
+  end
+end
+

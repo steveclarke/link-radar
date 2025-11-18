@@ -1,0 +1,27 @@
+class Create<%= @transition_model_name.pluralize %> < ActiveRecord::Migration[<%= ActiveRecord::Migration.current_version %>]
+  def change
+    create_table :<%= @transition_snake_name.pluralize %>, id: :uuid do |t|
+      # Official Statesman fields
+      t.string :to_state, null: false
+      t.jsonb :metadata, default: {}
+      t.integer :sort_key, null: false
+      t.references :<%= @snake_name %>, null: false, foreign_key: true, type: :uuid
+      t.boolean :most_recent, null: false
+
+      t.timestamps
+    end
+
+    # Official Statesman indexes
+    add_index :<%= @transition_snake_name.pluralize %>,
+              [:<%= @snake_name %>_id, :sort_key],
+              unique: true,
+              name: "index_<%= @transition_snake_name.pluralize %>_parent_sort"
+
+    add_index :<%= @transition_snake_name.pluralize %>,
+              [:<%= @snake_name %>_id, :most_recent],
+              unique: true,
+              where: "most_recent",
+              name: "index_<%= @transition_snake_name.pluralize %>_parent_most_recent"
+  end
+end
+

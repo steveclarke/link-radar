@@ -5,7 +5,7 @@
 # Table name: tags
 #
 #  id           :uuid             not null, primary key
-#  description  :text
+#  description  :string(500)
 #  last_used_at :datetime
 #  name         :string(100)      not null
 #  slug         :string(100)      not null
@@ -19,14 +19,24 @@
 #  index_tags_on_slug  (slug) UNIQUE
 #
 class Tag < ApplicationRecord
+  include Saltbox::SortByColumns::Model
+  include Searchable
+
+  # Search configuration
+  searchable_with SearchContent::Tag
+
   # Associations
   has_many :link_tags, dependent: :destroy
   has_many :links, through: :link_tags
 
+  # Configure sortable columns
+  sort_by_columns :name, :usage_count, :last_used_at, :created_at
+
   # Validations
   validates :name, presence: true, length: {maximum: 100}
-  validates :slug, presence: true, uniqueness: true
-  validates :description, length: {maximum: 500}
+  validates :slug, presence: true, uniqueness: true, length: {maximum: 100}
+  validates :description, length: {maximum: 500}, allow_blank: true
+  validates :usage_count, presence: true
 
   # Callbacks
   before_validation :generate_slug, if: -> { name_changed? }
@@ -35,9 +45,7 @@ class Tag < ApplicationRecord
   scope :alphabetical, -> { order(:name) }
   scope :by_usage, -> { order(usage_count: :desc, name: :asc) }
   scope :recently_used, -> { order(last_used_at: :desc, name: :asc) }
-  scope :search, ->(query) {
-    where("name ILIKE ?", "%#{sanitize_sql_like(query)}%")
-  }
+  # Note: .search scope is provided by Searchable concern via pg_search
 
   # @param query [String] search term for tag name
   # @return [ActiveRecord::Relation<Tag>] matching tags

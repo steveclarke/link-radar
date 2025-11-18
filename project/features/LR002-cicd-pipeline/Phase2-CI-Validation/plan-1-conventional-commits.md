@@ -1,7 +1,8 @@
 # Plan 1: Conventional Commits Checker
 
 **Feature:** LR002 - CI/CD Pipeline & Deployment Automation  
-**Superthread Card:** TBD  
+**Superthread Card:** Card #150 — LR002-P7: Phase 2 – Conventional Commits Checker  
+**Doc Reference:** `project/features/LR002-cicd-pipeline/Phase2-CI-Validation/plan-1-conventional-commits.md`  
 **Status:** Ready to Execute
 
 ## Goal

@@ -2,7 +2,7 @@
 
 # rubocop:disable Rails/Output, Rails/Exit
 
-module LinkRadar
+module Dev
   module Tooling
     # Shared utilities for bin runner scripts
     #

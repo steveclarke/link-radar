@@ -1,7 +1,8 @@
 # Plan 2: Production Deployment Placeholder
 
 **Feature:** LR002 - CI/CD Pipeline & Deployment Automation  
-**Superthread Card:** TBD  
+**Superthread Card:** Card #155 — LR002-P12: Phase 3 – Production Deployment Placeholder  
+**Doc Reference:** `project/features/LR002-cicd-pipeline/Phase3-Deployment-Triggers/plan-2-production-placeholder.md`  
 **Status:** Ready to Execute (after Plan 1)
 
 ## Goal

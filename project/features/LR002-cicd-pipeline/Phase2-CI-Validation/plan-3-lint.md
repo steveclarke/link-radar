@@ -1,7 +1,8 @@
 # Plan 3: Lint Checker
 
 **Feature:** LR002 - CI/CD Pipeline & Deployment Automation  
-**Superthread Card:** TBD  
+**Superthread Card:** Card #152 — LR002-P9: Phase 2 – Lint Checker  
+**Doc Reference:** `project/features/LR002-cicd-pipeline/Phase2-CI-Validation/plan-3-lint.md`  
 **Status:** Ready to Execute
 
 ## Goal

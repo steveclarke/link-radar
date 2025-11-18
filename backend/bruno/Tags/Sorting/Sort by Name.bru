@@ -1,0 +1,24 @@
+meta {
+  name: Sort by Name
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/v1/tags?sort=name:asc
+  body: none
+  auth: inherit
+}
+
+params:query {
+  sort: name:asc
+}
+
+docs {
+  # Sort Tags Alphabetically
+  
+  Returns tags sorted alphabetically by name (A-Z).
+  
+  This overrides the default sorting (by_usage) when the sort parameter is provided.
+}
+

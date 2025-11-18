@@ -4,7 +4,7 @@
 
 require_relative "runner_support"
 
-module LinkRadar
+module Dev
   module Tooling
     # Port management for development services
     #

@@ -10,13 +10,11 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_11_02_012808) do
+ActiveRecord::Schema[8.1].define(version: 2025_11_13_225046) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
-
-  # Custom types defined in this database.
-  # Note that some types may not work with other database engines. Be careful if changing database.
-  create_enum "link_fetch_state", ["pending", "success", "failed"]
+  enable_extension "pg_trgm"
+  enable_extension "unaccent"
 
   create_table "active_storage_attachments", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
     t.uuid "blob_id", null: false
@@ -53,6 +51,127 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_02_012808) do
     t.index ["model_id"], name: "index_chats_on_model_id"
   end
 
+  create_table "content_archive_transitions", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
+    t.uuid "content_archive_id", null: false
+    t.datetime "created_at", null: false
+    t.jsonb "metadata", default: {}
+    t.boolean "most_recent", null: false
+    t.integer "sort_key", null: false
+    t.string "to_state", null: false
+    t.datetime "updated_at", null: false
+    t.index ["content_archive_id", "most_recent"], name: "index_content_archive_transitions_parent_most_recent", unique: true, where: "most_recent"
+    t.index ["content_archive_id", "sort_key"], name: "index_content_archive_transitions_parent_sort", unique: true
+    t.index ["content_archive_id"], name: "index_content_archive_transitions_on_content_archive_id"
+  end
+
+  create_table "content_archives", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
+    t.text "content_html"
+    t.text "content_text"
+    t.datetime "created_at", null: false
+    t.text "description"
+    t.text "error_message"
+    t.datetime "fetched_at"
+    t.string "image_url", limit: 2048
+    t.uuid "link_id", null: false
+    t.jsonb "metadata", default: {}
+    t.string "title", limit: 500
+    t.datetime "updated_at", null: false
+    t.index ["content_text"], name: "index_content_archives_on_content_text", opclass: :gin_trgm_ops, using: :gin
+    t.index ["link_id"], name: "index_content_archives_on_link_id", unique: true
+    t.index ["metadata"], name: "index_content_archives_on_metadata", using: :gin
+  end
+
+  create_table "good_job_batches", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
+    t.integer "callback_priority"
+    t.text "callback_queue_name"
+    t.datetime "created_at", null: false
+    t.text "description"
+    t.datetime "discarded_at"
+    t.datetime "enqueued_at"
+    t.datetime "finished_at"
+    t.datetime "jobs_finished_at"
+    t.text "on_discard"
+    t.text "on_finish"
+    t.text "on_success"
+    t.jsonb "serialized_properties"
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "good_job_executions", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
+    t.uuid "active_job_id", null: false
+    t.datetime "created_at", null: false
+    t.interval "duration"
+    t.text "error"
+    t.text "error_backtrace", array: true
+    t.integer "error_event", limit: 2
+    t.datetime "finished_at"
+    t.text "job_class"
+    t.uuid "process_id"
+    t.text "queue_name"
+    t.datetime "scheduled_at"
+    t.jsonb "serialized_params"
+    t.datetime "updated_at", null: false
+    t.index ["active_job_id", "created_at"], name: "index_good_job_executions_on_active_job_id_and_created_at"
+    t.index ["process_id", "created_at"], name: "index_good_job_executions_on_process_id_and_created_at"
+  end
+
+  create_table "good_job_processes", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.integer "lock_type", limit: 2
+    t.jsonb "state"
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "good_job_settings", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.text "key"
+    t.datetime "updated_at", null: false
+    t.jsonb "value"
+    t.index ["key"], name: "index_good_job_settings_on_key", unique: true
+  end
+
+  create_table "good_jobs", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
+    t.uuid "active_job_id"
+    t.uuid "batch_callback_id"
+    t.uuid "batch_id"
+    t.text "concurrency_key"
+    t.datetime "created_at", null: false
+    t.datetime "cron_at"
+    t.text "cron_key"
+    t.text "error"
+    t.integer "error_event", limit: 2
+    t.integer "executions_count"
+    t.datetime "finished_at"
+    t.boolean "is_discrete"
+    t.text "job_class"
+    t.text "labels", array: true
+    t.datetime "locked_at"
+    t.uuid "locked_by_id"
+    t.datetime "performed_at"
+    t.integer "priority"
+    t.text "queue_name"
+    t.uuid "retried_good_job_id"
+    t.datetime "scheduled_at"
+    t.jsonb "serialized_params"
+    t.datetime "updated_at", null: false
+    t.index ["active_job_id", "created_at"], name: "index_good_jobs_on_active_job_id_and_created_at"
+    t.index ["batch_callback_id"], name: "index_good_jobs_on_batch_callback_id", where: "(batch_callback_id IS NOT NULL)"
+    t.index ["batch_id"], name: "index_good_jobs_on_batch_id", where: "(batch_id IS NOT NULL)"
+    t.index ["concurrency_key", "created_at"], name: "index_good_jobs_on_concurrency_key_and_created_at"
+    t.index ["concurrency_key"], name: "index_good_jobs_on_concurrency_key_when_unfinished", where: "(finished_at IS NULL)"
+    t.index ["cron_key", "created_at"], name: "index_good_jobs_on_cron_key_and_created_at_cond", where: "(cron_key IS NOT NULL)"
+    t.index ["cron_key", "cron_at"], name: "index_good_jobs_on_cron_key_and_cron_at_cond", unique: true, where: "(cron_key IS NOT NULL)"
+    t.index ["finished_at"], name: "index_good_jobs_jobs_on_finished_at", where: "((retried_good_job_id IS NULL) AND (finished_at IS NOT NULL))"
+    t.index ["job_class"], name: "index_good_jobs_on_job_class"
+    t.index ["labels"], name: "index_good_jobs_on_labels", where: "(labels IS NOT NULL)", using: :gin
+    t.index ["locked_by_id"], name: "index_good_jobs_on_locked_by_id", where: "(locked_by_id IS NOT NULL)"
+    t.index ["priority", "created_at"], name: "index_good_job_jobs_for_candidate_lookup", where: "(finished_at IS NULL)"
+    t.index ["priority", "created_at"], name: "index_good_jobs_jobs_on_priority_created_at_when_unfinished", order: { priority: "DESC NULLS LAST" }, where: "(finished_at IS NULL)"
+    t.index ["priority", "scheduled_at"], name: "index_good_jobs_on_priority_scheduled_at_unfinished_unlocked", where: "((finished_at IS NULL) AND (locked_by_id IS NULL))"
+    t.index ["queue_name", "scheduled_at"], name: "index_good_jobs_on_queue_name_and_scheduled_at", where: "(finished_at IS NULL)"
+    t.index ["scheduled_at"], name: "index_good_jobs_on_scheduled_at", where: "(finished_at IS NULL)"
+  end
+
   create_table "link_tags", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
     t.datetime "created_at", null: false
     t.uuid "link_id", null: false
@@ -64,28 +183,21 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_02_012808) do
   end
 
   create_table "links", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
-    t.text "content_text"
     t.datetime "created_at", null: false
-    t.text "fetch_error"
-    t.enum "fetch_state", default: "pending", null: false, enum_type: "link_fetch_state"
-    t.datetime "fetched_at"
-    t.string "image_url", limit: 2048
-    t.jsonb "metadata", default: {}
     t.text "note"
-    t.text "raw_html"
-    t.string "submitted_url", limit: 2048, null: false
-    t.string "title", limit: 500
+    t.text "search_projection"
     t.datetime "updated_at", null: false
     t.string "url", limit: 2048, null: false
     t.index ["created_at"], name: "index_links_on_created_at"
-    t.index ["fetch_state"], name: "index_links_on_fetch_state"
-    t.index ["metadata"], name: "index_links_on_metadata", using: :gin
     t.index ["url"], name: "index_links_on_url", unique: true
   end
 
   create_table "messages", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
+    t.integer "cache_creation_tokens"
+    t.integer "cached_tokens"
     t.uuid "chat_id", null: false
     t.text "content"
+    t.json "content_raw"
     t.datetime "created_at", null: false
     t.integer "input_tokens"
     t.uuid "model_id"
@@ -123,7 +235,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_02_012808) do
 
   create_table "tags", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
     t.datetime "created_at", null: false
-    t.text "description"
+    t.string "description", limit: 500
     t.datetime "last_used_at"
     t.string "name", limit: 100, null: false
     t.string "slug", limit: 100, null: false
@@ -148,6 +260,8 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_02_012808) do
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "chats", "models"
+  add_foreign_key "content_archive_transitions", "content_archives", on_delete: :cascade
+  add_foreign_key "content_archives", "links", on_delete: :cascade
   add_foreign_key "link_tags", "links"
   add_foreign_key "link_tags", "tags"
   add_foreign_key "messages", "chats"

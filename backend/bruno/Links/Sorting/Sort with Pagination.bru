@@ -1,0 +1,31 @@
+meta {
+  name: Sort with Pagination
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseUrl}}/api/v1/links?sort=created_at:desc&page=1&items=10
+  body: none
+  auth: inherit
+}
+
+params:query {
+  sort: created_at:desc
+  page: 1
+  items: 10
+}
+
+docs {
+  # Sort with Pagination
+  
+  Demonstrates combining sorting with pagination.
+  
+  Query parameters:
+  - `sort`: Column sorting (created_at:desc)
+  - `page`: Page number (1-based)
+  - `items`: Items per page (defaults to 25 if not specified)
+  
+  The sorting is applied before pagination, ensuring consistent results.
+}
+

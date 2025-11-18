@@ -1,0 +1,21 @@
+# frozen_string_literal: true
+
+class AddSearchProjectionTo<%= @table_name.classify.pluralize %> < ActiveRecord::Migration[8.1]
+  def change
+    add_column :<%= @table_name %>, :search_projection, :text
+
+    # OPTIONAL SEARCH INDEXES:
+    # Search performance can be improved with appropriate indexes, but this is not required
+    # for basic functionality. Add indexes here if needed based on performance monitoring.
+    #
+    # Common approaches include:
+    # - GIN indexes for trigram similarity search
+    # - GIN indexes for full-text search (tsvector)
+    #
+    # Always test index performance with your specific data and query patterns.
+    #
+    # Example placeholder:
+    # execute "CREATE INDEX index_name ON <%= @table_name %> USING gin (search_projection gin_trgm_ops)"
+  end
+end
+

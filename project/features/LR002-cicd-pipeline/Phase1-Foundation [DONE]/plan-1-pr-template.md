@@ -1,7 +1,7 @@
 # Plan 1: PR Template
 
 **Feature:** LR002 - CI/CD Pipeline & Deployment Automation  
-**Superthread Card:** [LR002-P1: Create PR Template](https://clevertakes.superthread.com/card/128)  
+**Superthread Card:** Card #128 — LR002-P1: Phase 1 – PR Template  
 **Status:** Ready to Execute
 
 ## Goal

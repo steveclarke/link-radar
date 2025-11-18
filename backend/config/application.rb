@@ -30,7 +30,7 @@ module LinkRadar
     # Please, add to the `ignore` list any other `lib` subdirectories that do
     # not contain `.rb` files, or that should not be reloaded or eager loaded.
     # Common ones are `templates`, `generators`, or `middleware`, for example.
-    config.autoload_lib(ignore: %w[assets tasks dev])
+    config.autoload_lib(ignore: %w[assets tasks dev generators])
 
     # Configuration for the application, engines, and railties goes here.
     #
@@ -49,5 +49,13 @@ module LinkRadar
     # Middleware like session, flash, cookies can be added back manually.
     # Skip views, helpers and assets when generating a new resource.
     config.api_only = true
+
+    # Add back middleware needed for GoodJob dashboard
+    config.middleware.use ActionDispatch::Cookies
+    config.middleware.use ActionDispatch::Session::CookieStore
+    config.middleware.use ActionDispatch::Flash
+
+    # Use GoodJob for background job processing
+    config.active_job.queue_adapter = :good_job
   end
 end

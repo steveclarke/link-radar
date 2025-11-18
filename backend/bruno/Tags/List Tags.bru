@@ -5,9 +5,13 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/api/v1/tags
+  url: {{baseUrl}}/api/v1/tags?search=postgres
   body: none
   auth: inherit
+}
+
+params:query {
+  search: postgres
 }
 
 script:post-response {
@@ -17,7 +21,10 @@ script:post-response {
 }
 
 docs {
-  Get all tags ordered by usage count (most used first).
+  Get all tags ordered alphabetically (or by search relevance if searching).
+
+  Query parameters:
+  - search (optional): Full-text search term. Returns up to 20 results sorted by usage count.
 
   Returns:
   {
@@ -26,8 +33,9 @@ docs {
     }
   }
 
+  When searching, results are limited to 20 and sorted by usage count (for autocomplete).
+  Without search, returns all tags sorted alphabetically (supports sorting with ?sort=).
+
   This script automatically sets the tagId variable to the first tag's ID
   for use in other requests (Get Tag, Update Tag, Delete Tag).
 }
-
-

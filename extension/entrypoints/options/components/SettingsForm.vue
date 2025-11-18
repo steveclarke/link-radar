@@ -12,6 +12,7 @@ import { useEnvironment } from "../../../lib/composables/useEnvironment"
 import { useNotification } from "../../../lib/composables/useNotification"
 import { useSettings } from "../../../lib/composables/useSettings"
 import ApiConfigSection from "./ApiConfigSection.vue"
+import DataManagementSection from "./DataManagementSection.vue"
 import EnvironmentConfig from "./EnvironmentConfig.vue"
 import PopupBehaviorSection from "./PopupBehaviorSection.vue"
 
@@ -146,6 +147,11 @@ async function saveAllSettings() {
         v-model:environment-configs="draftEnvironmentConfigs"
         v-model:show-api-keys="showApiKeys"
       />
+    </div>
+
+    <!-- Data Management (only visible in developer mode) -->
+    <div v-if="isDeveloperMode" class="mt-8 pt-8 border-t border-slate-200">
+      <DataManagementSection />
     </div>
 
     <!-- Save Button -->

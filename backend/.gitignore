@@ -35,3 +35,13 @@
 
 /config/*.local.yml
 /config/credentials/local.*
+
+# Ignore key files for decrypting credentials and more.
+/config/credentials/*.key
+
+# Ignore code coverage reports
+/coverage/
+
+# Ignore all snapshot contents, but keep the directory
+/snapshot/*
+!/snapshot/.keep

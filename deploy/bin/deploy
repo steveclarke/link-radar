@@ -529,6 +529,9 @@ generate_env_files() {
   # Get API key (1Password → existing → generate)
   get_api_key
 
+  # Get S3 credentials for backups (optional)
+  get_s3_credentials
+
   # URL-encode the password for use in DATABASE_URL
   db_password_encoded=$(printf '%s' "${db_password}" | jq -sRr @uri)
 
@@ -556,6 +559,20 @@ generate_env_files() {
     sed 's|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD='"${db_password}"'|' | \
     ssh "${deploy_user}@${deploy_host}" "cat > ~/docker/link-radar/deploy/env/postgres.env"
 
+  # Generate env/backup.env from template (if S3 credentials available)
+  if [ -n "${s3_access_key:-}" ]; then
+    info "Generating env/backup.env..."
+    cat "$(dirname "$0")/../env/backup.env.template" | \
+      sed 's|^ACCESS_KEY_ID=.*|ACCESS_KEY_ID='"${s3_access_key}"'|' | \
+      sed 's|^SECRET_ACCESS_KEY=.*|SECRET_ACCESS_KEY='"${s3_secret_key}"'|' | \
+      sed 's|^BUCKET=.*|BUCKET='"${s3_bucket}"'|' | \
+      sed 's|^HOST_BASE=.*|HOST_BASE='"${s3_endpoint}"'|' | \
+      sed 's|^HOST_BUCKET=.*|HOST_BUCKET=%(bucket)s.'"${s3_endpoint}"'|' | \
+      ssh "${deploy_user}@${deploy_host}" "cat > ~/docker/link-radar/deploy/env/backup.env"
+  else
+    info "Skipping env/backup.env (S3 credentials not available)"
+  fi
+
   log "Environment files generated from templates"
 }
 
@@ -580,6 +597,25 @@ get_api_key() {
   api_key=$(openssl rand -base64 32)
   warn "Generated new API key - save to 1Password!"
   echo "  API Key: $api_key"
+}
+
+get_s3_credentials() {
+  if can_use_onepassword; then
+    s3_access_key=$(get_onepassword_field "Backup S3 Access Key" --reveal)
+    s3_secret_key=$(get_onepassword_field "Backup S3 Secret Key" --reveal)
+    s3_bucket=$(get_onepassword_field "Backup S3 Bucket Name")
+    s3_endpoint=$(get_onepassword_field "Backup S3 Endpoint")
+
+    if [ -n "$s3_access_key" ] && [ -n "$s3_secret_key" ] && [ -n "$s3_bucket" ]; then
+      info "Backup S3 credentials loaded from 1Password"
+      return 0
+    fi
+  fi
+
+  # If any required field is missing, warn but continue (backup is optional)
+  warn "Backup S3 credentials not found in 1Password - postgres-backup will not start"
+  warn "Add Backup S3 credentials to 1Password to enable automated backups"
+  return 1
 }
 
 pull_images() {

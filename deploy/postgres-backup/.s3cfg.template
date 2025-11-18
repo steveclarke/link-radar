@@ -1,0 +1,7 @@
+[default]
+access_key = __ACCESS_KEY_ID__
+secret_key = __SECRET_ACCESS_KEY__
+host_base = __HOST_BASE__
+host_bucket = __HOST_BUCKET__
+use_https = True
+

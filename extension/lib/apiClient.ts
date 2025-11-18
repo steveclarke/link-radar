@@ -9,6 +9,11 @@
  * across all extension contexts.
  */
 import type {
+  ExportApiResponse,
+  ExportResult,
+  ImportApiResponse,
+  ImportMode,
+  ImportResult,
   Link,
   LinkApiResponse,
   LinkParams,
@@ -60,7 +65,7 @@ async function authenticatedFetch(path: string, options: RequestInit = {}): Prom
 export async function createLink(params: LinkParams): Promise<any> {
   const payload = {
     link: {
-      submitted_url: params.url,
+      url: params.url,
       title: params.title,
       note: params.note,
       tag_names: params.tag_names || [],
@@ -145,4 +150,71 @@ export async function searchTags(query: string = ""): Promise<Tag[]> {
   const params = query ? `?search=${encodeURIComponent(query)}` : ""
   const response = await authenticatedFetch(`/tags${params}`) as TagsApiResponse
   return response.data.tags
+}
+
+/**
+ * Export all links to JSON file
+ *
+ * Calls POST /api/v1/snapshot/export to generate export file on backend.
+ * Returns metadata and download URL for retrieving the file.
+ *
+ * Links tagged with ~temp~ are excluded from exports.
+ *
+ * @returns Export result with download URL and counts
+ * @throws Error if API request fails
+ */
+export async function exportLinks(): Promise<ExportResult> {
+  const response = await authenticatedFetch("/snapshot/export", {
+    method: "POST",
+  }) as ExportApiResponse
+
+  return response.data
+}
+
+/**
+ * Import links from uploaded file
+ *
+ * Calls POST /api/v1/snapshot/import with multipart form data.
+ * Accepts LinkRadar native JSON format only.
+ *
+ * Import modes:
+ * - skip (default): Ignore duplicate URLs, keep existing data
+ * - update: Overwrite existing links with imported data (except created_at)
+ *
+ * Entire import is wrapped in transaction - any error rolls back all changes.
+ *
+ * @param file - JSON file to import (LinkRadar format)
+ * @param mode - Import mode: "skip" or "update" (defaults to "skip")
+ * @returns Import statistics (links imported/skipped, tags created/reused)
+ * @throws Error if API request fails or file is invalid
+ */
+export async function importLinks(
+  file: File,
+  mode: ImportMode = "skip",
+): Promise<ImportResult> {
+  const config = await getActiveEnvironmentConfig()
+  const fullUrl = `${config.url}/snapshot/import`
+
+  // Build FormData for multipart upload
+  // Note: Content-Type header must NOT be set manually - browser sets it with boundary
+  const formData = new FormData()
+  formData.append("file", file)
+  formData.append("mode", mode)
+
+  const response = await fetch(fullUrl, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${config.apiKey}`,
+      // Note: Do NOT set Content-Type - browser handles it for FormData
+    },
+    body: formData,
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`Import failed: ${response.status} ${response.statusText} - ${errorText}`)
+  }
+
+  const result = await response.json() as ImportApiResponse
+  return result.data
 }

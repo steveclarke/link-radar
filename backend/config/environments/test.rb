@@ -55,4 +55,8 @@ Rails.application.configure do
   #                     MAKE ALL CUSTOMIZATIONS BELOW
   #  This makes it easier when doing upgrades to see what has been changed.
   #---------------------------------------------------------------------------
+
+  # Use the :test adapter for ActiveJob in tests
+  # This queues jobs in memory without executing them, avoiding thread pool shutdown delays
+  config.active_job.queue_adapter = :test
 end

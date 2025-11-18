@@ -11,7 +11,7 @@ require_relative "../lib/dev/tooling"
 # - Configures server port (manual, from .env, or auto-discovery)
 # - Starts the Rails server with optional debugging support
 class DevServerRunner
-  include LinkRadar::Tooling
+  include Dev::Tooling
 
   attr_reader :app_root
 

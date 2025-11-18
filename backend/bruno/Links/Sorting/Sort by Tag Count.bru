@@ -1,0 +1,28 @@
+meta {
+  name: Sort by Tag Count
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/api/v1/links?sort=c_tag_count:desc
+  body: none
+  auth: inherit
+}
+
+params:query {
+  sort: c_tag_count:desc
+}
+
+docs {
+  # Sort Links by Tag Count (Custom Scope)
+  
+  Returns links sorted by the number of tags they have (most tags first).
+  
+  This demonstrates a custom scope (`c_tag_count`) that uses a custom
+  ActiveRecord scope `sorted_by_tag_count` to perform the sorting.
+  
+  Custom scopes are prefixed with `c_` and must be used alone (cannot be
+  combined with other sort columns).
+}
+
