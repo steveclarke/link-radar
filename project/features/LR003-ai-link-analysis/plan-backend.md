@@ -2,13 +2,13 @@
 
 ## Overview
 
-This plan implements the backend API endpoint for AI-powered link analysis using OpenAI via RubyLLM. The feature provides intelligent tag and note suggestions based on page content extracted by the browser extension.
+This plan implements the backend API endpoint for AI-powered link analysis using OpenAI via RubyLLM. The feature provides intelligent tag and note suggestions based on page content.
 
 **Key Components:**
 - Stateless analysis endpoint (no database persistence)
 - AI integration via RubyLLM with structured JSON output
 - Two-stage tag matching (AI guidance + backend verification)
-- Privacy protection via existing UrlValidator (reuses SSRF protection)
+- Privacy protection via existing UrlValidator (SSRF protection)
 
 **Sequencing Logic:**
 1. Prerequisites first (confirm dependencies)
@@ -40,9 +40,10 @@ This plan implements the backend API endpoint for AI-powered link analysis using
 ### Tasks
 
 - [ ] Verify RubyLLM gem is installed (~> 1.8 in Gemfile.lock)
+- [ ] Add `gem "ruby_llm-schema"` to Gemfile and run `bundle install` (Bundler auto-requires it)
 - [ ] Confirm `config/initializers/ruby_llm.rb` exists and loads OpenAI key from `LlmConfig.openai_api_key`
 - [ ] Verify `OPENAI_API_KEY` is set in development `.env` file
-- [ ] Confirm `LinkRadar::ContentArchiving::UrlValidator` exists and is available for reuse (reuses existing SSRF protection)
+- [ ] Confirm `LinkRadar::ContentArchiving::UrlValidator` exists and is available (provides SSRF protection)
 - [ ] Verify `Tag` model exists with `pluck(:name)` capability for fetching existing tag names
 
 **Validation:** Run Rails console and confirm:
@@ -50,6 +51,7 @@ This plan implements the backend API endpoint for AI-powered link analysis using
 LlmConfig.openai_api_key.present?
 LinkRadar::ContentArchiving::UrlValidator.new("https://example.com").call.success?
 Tag.pluck(:name)
+RubyLLM::Schema # Should be available (auto-required by Bundler)
 ```
 
 ---
@@ -60,7 +62,37 @@ Tag.pluck(:name)
 
 **Justification:** This is the heart of the feature - handles OpenAI communication, prompt engineering, structured output parsing, and tag matching logic. (spec.md#4.1, spec.md#4.2, spec.md#4.3)
 
-### File: `lib/link_radar/ai/analyze_link_content.rb`
+### File: `lib/link_radar/ai/link_analysis_schema.rb`
+
+Define the structured output schema using RubyLLM::Schema:
+
+```ruby
+# frozen_string_literal: true
+
+module LinkRadar
+  module AI
+    # Schema definition for AI link analysis structured output
+    #
+    # This defines the expected JSON structure from OpenAI's response.
+    # Using RubyLLM::Schema provides:
+    # - Clean Ruby DSL for schema definition
+    # - Automatic handling of OpenAI's additionalProperties requirement
+    # - Type safety and validation
+    # - Automatic JSON parsing
+    #
+    # @example
+    #   response = chat.with_schema(LinkAnalysisSchema).ask(prompt)
+    #   response.content # => {"note" => "...", "tags" => ["tag1", "tag2"]}
+    #
+    class LinkAnalysisSchema < RubyLLM::Schema
+      string :note, description: "1-2 sentence note explaining why content is worth saving"
+      array :tags, of: :string, description: "Relevant tags for the content (typically 3-7)"
+    end
+  end
+end
+```
+
+### File: `lib/link_radar/ai/link_analyzer.rb`
 
 This service is **novel** - first use of OpenAI structured outputs in the codebase. Full implementation detail provided:
 
@@ -78,74 +110,38 @@ module LinkRadar
     # 4. Performs two-stage tag matching (AI suggests, backend verifies existence)
     # 5. Returns structured response with suggested note and tags
     #
-    # The service is stateless - no database persistence, pure request/response.
+    # The service is stateless - RubyLLM.chat conversations are not persisted,
+    # and we don't save anything to the database. Pure request/response.
     #
-    # Privacy: Reuses existing UrlValidator for SSRF protection (blocks localhost/private IPs)
-    # AI Context: Sends existing tag names to AI to encourage consistent taxonomy
-    # Tag Matching: Case-insensitive verification ensures accurate "exists" flags
+    # Uses existing UrlValidator for SSRF protection (blocks localhost/private IPs).
+    # Sends existing tag names to AI to encourage consistent taxonomy.
+    # Case-insensitive tag verification ensures accurate "exists" flags.
     #
-    # @example Basic usage
-    #   service = AnalyzeLinkContent.new(
+    # @example
+    #   result = LinkAnalyzer.new(
     #     url: "https://example.com/article",
     #     content: "Article text...",
-    #     title: "Article Title",
-    #     description: "Article description",
-    #     author: "Author Name"
-    #   )
-    #   result = service.call
+    #     title: "Article Title"
+    #   ).call
     #   
     #   if result.success?
-    #     result.data[:suggested_note]  # => "Brief explanation of content value"
+    #     result.data[:suggested_note]  # => "Brief explanation..."
     #     result.data[:suggested_tags]  # => [{name: "Ruby", exists: true}, ...]
     #   else
     #     result.errors  # => ["URL resolves to private IP..."]
     #   end
     #
-    # @example Error handling
-    #   result = service.call
-    #   if result.failure?
-    #     case result.errors.first
-    #     when /private IP/
-    #       # Privacy violation
-    #     when /Content exceeds/
-    #       # Content too long
-    #     when /AI analysis failed/
-    #       # OpenAI API error
-    #     end
-    #   end
-    #
-    class AnalyzeLinkContent
+    class LinkAnalyzer
       include LinkRadar::Resultable
 
       # Maximum allowed content length (50,000 characters)
-      # Extension should truncate before sending, this is a safety check
       MAX_CONTENT_LENGTH = 50_000
 
-      # JSON schema for OpenAI structured output
-      # Ensures reliable parsing and type safety from AI responses
-      ANALYSIS_SCHEMA = {
-        type: "object",
-        properties: {
-          note: {
-            type: "string",
-            description: "1-2 sentence note explaining why content is worth saving"
-          },
-          tags: {
-            type: "array",
-            description: "Relevant tags for the content (typically 3-7)",
-            items: {
-              type: "string"
-            }
-          }
-        },
-        required: ["note", "tags"]
-      }.freeze
-
-      # @param url [String] page URL (must be HTTP/HTTPS)
-      # @param content [String] main article text from Readability
-      # @param title [String] page title (required)
-      # @param description [String, nil] meta description (optional)
-      # @param author [String, nil] author info (optional)
+      # @param url [String] page URL
+      # @param content [String] main text content to analyze
+      # @param title [String] page title
+      # @param description [String, nil] page description
+      # @param author [String, nil] author name
       def initialize(url:, content:, title:, description: nil, author: nil)
         @url = url
         @content = content
@@ -190,7 +186,7 @@ module LinkRadar
         raise ArgumentError, "URL is required" if url.blank?
         raise ArgumentError, "Title is required" if title.blank?
 
-        # Validate URL format and privacy (reuses existing UrlValidator)
+        # Validate URL format and privacy (uses existing UrlValidator)
         validate_url_safe!
 
         # Validate content length (backend safety check)
@@ -201,7 +197,7 @@ module LinkRadar
 
       # Validates URL using existing UrlValidator (SSRF protection)
       #
-      # This reuses the same validation logic as content archiving feature.
+      # Uses the same validation logic as the content archiving feature.
       # Blocks localhost, private IPs, and invalid URL formats.
       #
       # @raise [ArgumentError] if URL validation fails
@@ -225,42 +221,24 @@ module LinkRadar
 
       # Calls OpenAI API via RubyLLM with structured output
       #
-      # Constructs prompt with content and existing tags context.
-      # Uses GPT-4o-mini for cost-effectiveness.
-      # Enforces JSON schema for reliable response parsing.
+      # Uses RubyLLM's chat interface with schema for structured output.
+      # The schema ensures reliable JSON parsing and type safety.
       #
       # @param existing_tags [Array<String>] user's existing tag names
-      # @return [Hash] parsed AI response with :note and :tags keys
+      # @return [Hash] parsed AI response with "note" and "tags" keys
       # @raise [StandardError] if API call fails or response is invalid
       def call_openai(existing_tags)
         prompt = build_prompt(existing_tags)
         
-        response = RubyLLM::Messages.create(
-          model: "gpt-4o-mini",
-          messages: [
-            { 
-              role: "system", 
-              content: "You are a helpful assistant that analyzes web content and suggests tags and notes for organizing saved links."
-            },
-            { role: "user", content: prompt }
-          ],
-          response_format: {
-            type: "json_schema",
-            json_schema: {
-              name: "link_analysis",
-              schema: ANALYSIS_SCHEMA,
-              strict: true
-            }
-          }
+        chat = RubyLLM.chat(model: "gpt-4o-mini")
+        chat.with_instructions(
+          "You are a helpful assistant that analyzes web content and suggests tags and notes for organizing saved links."
         )
         
-        # Parse the structured JSON response
-        content = response.choices.first.message.content
-        JSON.parse(content)
-      rescue JSON::ParserError => e
-        Rails.logger.error("Failed to parse OpenAI response: #{e.message}")
-        Rails.logger.error("Response content: #{content}")
-        raise StandardError, "AI returned invalid response format"
+        response = chat.with_schema(LinkAnalysisSchema).ask(prompt)
+        
+        # Response content is automatically parsed from JSON by RubyLLM::Schema
+        response.content
       rescue => e
         Rails.logger.error("OpenAI API call failed: #{e.class} - #{e.message}")
         raise StandardError, "AI analysis service unavailable"
@@ -337,7 +315,7 @@ module LinkRadar
       #
       # This ensures the "exists" flag is 100% accurate regardless of AI behavior.
       #
-      # @param ai_response [Hash] parsed AI response with :note and :tags
+      # @param ai_response [Hash] parsed AI response with "note" and "tags" keys
       # @param existing_tags [Array<String>] user's existing tag names
       # @return [LinkRadar::Result] success with structured suggestion data
       def build_response(ai_response, existing_tags)
@@ -365,15 +343,18 @@ end
 ### Tasks
 
 - [ ] Create directory `lib/link_radar/ai/` if it doesn't exist
-- [ ] Create `lib/link_radar/ai/analyze_link_content.rb` with full service implementation above
+- [ ] Create `lib/link_radar/ai/link_analysis_schema.rb` with RubyLLM::Schema definition
+- [ ] Create `lib/link_radar/ai/link_analyzer.rb` with full service implementation above
 - [ ] Verify service follows `LinkRadar::Resultable` pattern (returns `success(data)` or `failure(errors)`)
 - [ ] Ensure YARD documentation is complete for all public methods
 - [ ] Verify MAX_CONTENT_LENGTH constant matches spec (50,000 characters per spec.md#3.2)
-- [ ] Confirm ANALYSIS_SCHEMA matches OpenAI structured output requirements
+- [ ] Confirm LinkAnalysisSchema uses RubyLLM::Schema DSL correctly
 
 **Key Implementation Notes:**
-- **Privacy:** Reuses `LinkRadar::ContentArchiving::UrlValidator` for SSRF protection (no new code needed)
-- **Stateless:** No database writes, pure transformation service
+- **Schema Approach:** Using RubyLLM::Schema for cleaner DSL, automatic JSON parsing, and OpenAI compatibility
+- **Bundler/Zeitwerk:** Gem auto-required by Bundler, classes auto-loaded by Zeitwerk - no manual requires needed!
+- **Privacy:** Uses `LinkRadar::ContentArchiving::UrlValidator` for SSRF protection (no new code needed)
+- **Stateless:** No database writes, RubyLLM conversations not persisted, pure transformation service
 - **Two-Stage Matching:** AI receives tags as guidance, backend verifies existence accurately
 - **Error Handling:** ArgumentError for validation, StandardError for AI failures, all logged with context
 
@@ -393,7 +374,7 @@ Add analyze action to existing controller (follows pattern from `by_url` action)
 # POST /api/v1/links/analyze
 # Analyzes page content and returns AI-generated tag and note suggestions
 def analyze
-  result = LinkRadar::AI::AnalyzeLinkContent.new(
+  result = LinkRadar::AI::LinkAnalyzer.new(
     url: params[:url],
     content: params[:content],
     title: params[:title],
@@ -504,17 +485,18 @@ end
 
 **Manual Quality Assessment:** AI suggestion quality is subjective - verify manually during development, not in automated tests.
 
-### File: `spec/lib/link_radar/ai/analyze_link_content_spec.rb`
+### File: `spec/lib/link_radar/ai/link_analyzer_spec.rb`
 
 **Spec Outline:**
 
 ```ruby
 require "rails_helper"
 
-RSpec.describe LinkRadar::AI::AnalyzeLinkContent do
+RSpec.describe LinkRadar::AI::LinkAnalyzer do
   # Setup: Mock OpenAI API calls with WebMock
-  # - Stub RubyLLM::Messages.create to return canned responses
-  # - Create factory for valid AI response JSON
+  # - Stub OpenAI API endpoint to return structured JSON responses
+  # - RubyLLM.chat creates chat instances that make HTTP calls to OpenAI
+  # - Create factory for valid AI response JSON (matching LinkAnalysisSchema)
   # - Mock Tag.pluck(:name) to return existing tags
 
   describe "#call" do
@@ -550,7 +532,7 @@ RSpec.describe LinkRadar::AI::AnalyzeLinkContent do
     context "OpenAI API errors" do
       # - Network timeout returns failure with friendly error
       # - API rate limit returns failure
-      # - Invalid JSON response returns failure
+      # - Invalid response handling
       # - Schema validation failure returns failure
       # - All errors logged with full context
     end
@@ -575,7 +557,7 @@ require "rails_helper"
 
 describe "API: Analyze Link Content" do
   # Setup: Mock service layer to avoid OpenAI calls in request specs
-  # - Stub LinkRadar::AI::AnalyzeLinkContent to return success/failure
+  # - Stub LinkRadar::AI::LinkAnalyzer to return success/failure
   # - Use shared_context "with authenticated request"
 
   context "when unauthenticated" do
@@ -613,10 +595,10 @@ end
 ### Tasks
 
 - [ ] Create `spec/lib/link_radar/ai/` directory
-- [ ] Create `analyze_link_content_spec.rb` with spec outline above
+- [ ] Create `link_analyzer_spec.rb` with spec outline above
 - [ ] Create `spec/requests/api/v1/links/analyze_spec.rb` with spec outline above
-- [ ] Implement WebMock stubs for RubyLLM::Messages.create (follow pattern from `http_fetcher_spec.rb` lines 28-29)
-- [ ] Create shared factory for valid AI response JSON (note + tags array)
+- [ ] Implement WebMock stubs for OpenAI API endpoint (RubyLLM.chat makes HTTP calls to OpenAI)
+- [ ] Create shared factory for valid AI response JSON matching LinkAnalysisSchema format (note + tags array)
 - [ ] Test all validation scenarios (URL, content length, required fields)
 - [ ] Test privacy protection (localhost, private IPs)
 - [ ] Test tag matching edge cases (case-insensitive, exists flag accuracy)
@@ -626,7 +608,7 @@ end
 - [ ] Run specs and confirm all pass: `rspec spec/lib/link_radar/ai/ spec/requests/api/v1/links/analyze_spec.rb`
 
 **Testing Pattern References:**
-- WebMock stubs: Follow `http_fetcher_spec.rb` pattern (lines 28-29: `stub_request(:get, url).to_return(...)`)
+- WebMock stubs: Stub OpenAI API endpoint (follow `http_fetcher_spec.rb` pattern: `stub_request(:post, /api.openai.com/).to_return(...)`)
 - Request specs: Follow `create_link_spec.rb` pattern (authenticated context, json_response helper, shared examples)
 - Service specs: Follow Result pattern testing (`expect(result).to be_success`, `expect(result.data).to be_a(...)`)
 
@@ -646,10 +628,9 @@ After completing all phases:
    - Verify errors are logged with full context
    - Check OpenAI dashboard for API usage/costs
 
-3. **Extension Integration:**
-   - Backend is ready for extension to call
-   - Extension will handle content extraction and send to this endpoint
-   - See `plan-extension.md` for frontend implementation
+3. **Client Integration:**
+   - Endpoint is ready to accept requests from any client
+   - See `plan-extension.md` for the browser extension implementation
 
 **Success Criteria:**
 - [ ] Endpoint accepts content and returns structured suggestions
