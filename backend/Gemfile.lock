@@ -503,6 +503,7 @@ DEPENDENCIES
   rspec-rails
   ruby-readability
   ruby_llm (~> 1.8)
+  ruby_llm-schema
   saltbox-sort_by_columns!
   shoulda-matchers
   simplecov
