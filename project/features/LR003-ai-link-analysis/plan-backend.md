@@ -2,7 +2,7 @@
 
 ## Overview
 
-This plan implements the backend API endpoint for AI-powered link analysis using OpenAI via RubyLLM. The feature provides intelligent tag and note suggestions based on page content.
+This plan implements the backend API endpoint for AI-powered link analysis using RubyLLM. The feature provides intelligent tag and note suggestions based on page content.
 
 **Key Components:**
 - Stateless analysis endpoint (no database persistence)
@@ -14,7 +14,7 @@ This plan implements the backend API endpoint for AI-powered link analysis using
 1. Prerequisites first (confirm dependencies)
 2. Core service layer (AI integration is the heart of this feature)
 3. Controller and view (standard Rails API endpoint pattern)
-4. Testing (verify behavior with mocked OpenAI calls)
+4. Testing (verify behavior with mocked AI API calls)
 
 **References:**
 - Technical Spec: [spec.md](spec.md) sections 3 (API), 4 (Backend), 9.4 (Testing)
@@ -35,22 +35,38 @@ This plan implements the backend API endpoint for AI-powered link analysis using
 
 **Purpose:** Confirm all dependencies and configuration are in place before implementation.
 
-**Justification:** Validates that RubyLLM, OpenAI configuration, and existing privacy protection utilities are ready. (spec.md#6.1, spec.md#7.1)
+**Justification:** Validates that RubyLLM configuration and existing privacy protection utilities are ready. (spec.md#6.1, spec.md#7.1)
 
 ### Tasks
 
 - [ ] Verify RubyLLM gem is installed (~> 1.8 in Gemfile.lock)
 - [ ] Add `gem "ruby_llm-schema"` to Gemfile and run `bundle install` (Bundler auto-requires it)
-- [ ] Confirm `config/initializers/ruby_llm.rb` exists and loads OpenAI key from `LlmConfig.openai_api_key`
-- [ ] Verify `OPENAI_API_KEY` is set in development `.env` file
+- [ ] Confirm `config/initializers/ruby_llm.rb` exists with RubyLLM configuration
+- [ ] Add `analysis_model` and `max_tags_for_analysis` to `LlmConfig` (model defaults to "gpt-4o-mini")
+- [ ] Verify appropriate LLM API key is set in development `.env` file (e.g., `OPENAI_API_KEY`)
 - [ ] Confirm `LinkRadar::ContentArchiving::UrlValidator` exists and is available (provides SSRF protection)
-- [ ] Verify `Tag` model exists with `pluck(:name)` capability for fetching existing tag names
+- [ ] Verify `Tag` model exists with tag data
+
+**Configuration File Addition:**
+
+Add to `config/configs/llm_config.rb`:
+```ruby
+class LlmConfig < ApplicationConfig
+  attr_config(
+    :openai_api_key,  # Or other provider API keys
+    analysis_model: "gpt-4o-mini",  # Default model, configurable via LLM_ANALYSIS_MODEL
+    max_tags_for_analysis: 5000     # Default: 5000, configurable via LLM_MAX_TAGS_FOR_ANALYSIS
+  )
+end
+```
 
 **Validation:** Run Rails console and confirm:
 ```ruby
-LlmConfig.openai_api_key.present?
+LlmConfig.openai_api_key.present? # Or anthropic_api_key, etc.
+LlmConfig.analysis_model # => "gpt-4o-mini" (or your custom model)
+LlmConfig.max_tags_for_analysis # => 5000 (or your custom value)
 LinkRadar::ContentArchiving::UrlValidator.new("https://example.com").call.success?
-Tag.pluck(:name)
+Tag.count # Should return your tag count
 RubyLLM::Schema # Should be available (auto-required by Bundler)
 ```
 
@@ -60,7 +76,7 @@ RubyLLM::Schema # Should be available (auto-required by Bundler)
 
 **Purpose:** Implement the core AI integration service that analyzes page content and returns tag/note suggestions.
 
-**Justification:** This is the heart of the feature - handles OpenAI communication, prompt engineering, structured output parsing, and tag matching logic. (spec.md#4.1, spec.md#4.2, spec.md#4.3)
+**Justification:** This is the heart of the feature - handles AI communication, prompt engineering, structured output parsing, and tag matching logic. (spec.md#4.1, spec.md#4.2, spec.md#4.3)
 
 ### File: `lib/link_radar/ai/link_analysis_schema.rb`
 
@@ -73,10 +89,10 @@ module LinkRadar
   module AI
     # Schema definition for AI link analysis structured output
     #
-    # This defines the expected JSON structure from OpenAI's response.
+    # This defines the expected JSON structure from the LLM's response.
     # Using RubyLLM::Schema provides:
     # - Clean Ruby DSL for schema definition
-    # - Automatic handling of OpenAI's additionalProperties requirement
+    # - Automatic handling of provider-specific requirements
     # - Type safety and validation
     # - Automatic JSON parsing
     #
@@ -94,19 +110,19 @@ end
 
 ### File: `lib/link_radar/ai/link_analyzer.rb`
 
-This service is **novel** - first use of OpenAI structured outputs in the codebase. Full implementation detail provided:
+This service is **novel** - first use of LLM structured outputs in the codebase. Full implementation detail provided:
 
 ```ruby
 # frozen_string_literal: true
 
 module LinkRadar
   module AI
-    # Analyzes page content using OpenAI and suggests relevant tags and notes
+    # Analyzes page content using AI and suggests relevant tags and notes
     #
     # This service orchestrates AI-powered content analysis:
     # 1. Validates input (URL not private/localhost, content length, required fields)
     # 2. Fetches user's existing tags for context
-    # 3. Calls OpenAI GPT-4o-mini via RubyLLM with structured JSON output
+    # 3. Calls configured LLM via RubyLLM with structured JSON output
     # 4. Performs two-stage tag matching (AI suggests, backend verifies existence)
     # 5. Returns structured response with suggested note and tags
     #
@@ -114,7 +130,7 @@ module LinkRadar
     # and we don't save anything to the database. Pure request/response.
     #
     # Uses existing UrlValidator for SSRF protection (blocks localhost/private IPs).
-    # Sends existing tag names to AI to encourage consistent taxonomy.
+    # Sends tag names to AI (alphabetically, limit 5000) for taxonomy consistency.
     # Case-insensitive tag verification ensures accurate "exists" flags.
     #
     # @example
@@ -156,14 +172,13 @@ module LinkRadar
       def call
         validate_inputs!
         
-        existing_tags = fetch_existing_tags
-        ai_response = call_openai(existing_tags)
-        build_response(ai_response, existing_tags)
+        ai_response = call_llm
+        build_response(ai_response)
       rescue ArgumentError => e
         # Validation errors (private IP, content too long, missing fields)
         failure(e.message)
       rescue => e
-        # OpenAI API errors, network errors, JSON parse errors
+        # LLM API errors, network errors, JSON parse errors
         Rails.logger.error("AI analysis failed: #{e.class} - #{e.message}")
         Rails.logger.error(e.backtrace.join("\n"))
         failure("AI analysis failed. Please try again.")
@@ -209,28 +224,34 @@ module LinkRadar
         end
       end
 
-      # Fetches all existing tag names for the current user
+      # Memoized existing tag names for AI context
       #
-      # Returns array of tag names (strings) sorted alphabetically.
-      # Used as context for AI to encourage consistent tag suggestions.
+      # Fetches tags on first call and caches the result for the instance lifecycle.
+      # Returns tags alphabetically ordered.
+      # Limited by config as safety valve (default 5000, effectively unlimited).
       #
       # @return [Array<String>] existing tag names
-      def fetch_existing_tags
-        Tag.order(:name).pluck(:name)
+      def existing_tags
+        @existing_tags ||= begin
+          Tag.order(:name)
+             .limit(LlmConfig.max_tags_for_analysis)
+             .pluck(:name)
+        end
       end
 
-      # Calls OpenAI API via RubyLLM with structured output
+      # Calls configured LLM via RubyLLM with structured output
       #
       # Uses RubyLLM's chat interface with schema for structured output.
       # The schema ensures reliable JSON parsing and type safety.
+      # Model is configured via LlmConfig.analysis_model.
+      # Uses memoized existing_tags for prompt context.
       #
-      # @param existing_tags [Array<String>] user's existing tag names
       # @return [Hash] parsed AI response with "note" and "tags" keys
       # @raise [StandardError] if API call fails or response is invalid
-      def call_openai(existing_tags)
-        prompt = build_prompt(existing_tags)
+      def call_llm
+        prompt = build_prompt
         
-        chat = RubyLLM.chat(model: "gpt-4o-mini")
+        chat = RubyLLM.chat(model: LlmConfig.analysis_model)
         chat.with_instructions(
           "You are a helpful assistant that analyzes web content and suggests tags and notes for organizing saved links."
         )
@@ -240,7 +261,7 @@ module LinkRadar
         # Response content is automatically parsed from JSON by RubyLLM::Schema
         response.content
       rescue => e
-        Rails.logger.error("OpenAI API call failed: #{e.class} - #{e.message}")
+        Rails.logger.error("LLM API call failed: #{e.class} - #{e.message}")
         raise StandardError, "AI analysis service unavailable"
       end
 
@@ -252,12 +273,11 @@ module LinkRadar
       # - Lists existing tags to encourage reuse
       # - Instructs AI on format, tone, and tag preferences
       #
-      # @param existing_tags [Array<String>] user's existing tag names
-      # @return [String] formatted prompt for OpenAI
-      def build_prompt(existing_tags)
+      # @return [String] formatted prompt
+      def build_prompt
         # Build context sections
         metadata_section = build_metadata_section
-        existing_tags_section = build_existing_tags_section(existing_tags)
+        existing_tags_section = build_existing_tags_section
         
         <<~PROMPT
           You are helping a user organize web content they want to save for later.
@@ -297,9 +317,10 @@ module LinkRadar
 
       # Builds existing tags section of prompt
       #
-      # @param existing_tags [Array<String>] user's existing tag names
+      # Uses memoized existing_tags from the instance.
+      #
       # @return [String] formatted existing tags context for prompt
-      def build_existing_tags_section(existing_tags)
+      def build_existing_tags_section
         if existing_tags.any?
           "EXISTING TAGS:\nThe user already has these tags: #{existing_tags.join(", ")}"
         else
@@ -314,11 +335,11 @@ module LinkRadar
       # 2. Backend verifies each suggestion against database (case-insensitive)
       #
       # This ensures the "exists" flag is 100% accurate regardless of AI behavior.
+      # Uses memoized existing_tags from the instance.
       #
       # @param ai_response [Hash] parsed AI response with "note" and "tags" keys
-      # @param existing_tags [Array<String>] user's existing tag names
       # @return [LinkRadar::Result] success with structured suggestion data
-      def build_response(ai_response, existing_tags)
+      def build_response(ai_response)
         # Build case-insensitive lookup for O(1) matching
         existing_tags_downcase = existing_tags.map(&:downcase).to_set
         
@@ -351,8 +372,10 @@ end
 - [ ] Confirm LinkAnalysisSchema uses RubyLLM::Schema DSL correctly
 
 **Key Implementation Notes:**
-- **Schema Approach:** Using RubyLLM::Schema for cleaner DSL, automatic JSON parsing, and OpenAI compatibility
+- **Schema Approach:** Using RubyLLM::Schema for cleaner DSL, automatic JSON parsing, and provider compatibility
+- **Model Configuration:** Model is configurable via `LlmConfig.analysis_model` (default "gpt-4o-mini", can use any RubyLLM-supported model)
 - **Bundler/Zeitwerk:** Gem auto-required by Bundler, classes auto-loaded by Zeitwerk - no manual requires needed!
+- **Tag Context:** Sends all tag names alphabetically to AI (limit 5000 as safety valve, configurable via `LlmConfig.max_tags_for_analysis`)
 - **Privacy:** Uses `LinkRadar::ContentArchiving::UrlValidator` for SSRF protection (no new code needed)
 - **Stateless:** No database writes, RubyLLM conversations not persisted, pure transformation service
 - **Two-Stage Matching:** AI receives tags as guidance, backend verifies existence accurately
@@ -465,13 +488,13 @@ end
 
 ## Phase 5: Testing
 
-**Purpose:** Verify AI analysis service and API endpoint behavior with mocked OpenAI calls.
+**Purpose:** Verify AI analysis service and API endpoint behavior with mocked LLM API calls.
 
-**Justification:** Ensures reliability without hitting OpenAI API constantly. Tests validation, tag matching, error handling, and response format. (spec.md#8, requirements.md#8)
+**Justification:** Ensures reliability without hitting external AI APIs constantly. Tests validation, tag matching, error handling, and response format. (spec.md#8, requirements.md#8)
 
 ### Test Strategy
 
-**WebMock for OpenAI:** Mock all OpenAI API calls using WebMock to avoid:
+**WebMock for LLM APIs:** Mock all LLM API calls using WebMock to avoid:
 - Hitting API during test runs (cost, speed, reliability)
 - Dependency on external service availability
 - Non-deterministic AI responses
@@ -493,11 +516,12 @@ end
 require "rails_helper"
 
 RSpec.describe LinkRadar::AI::LinkAnalyzer do
-  # Setup: Mock OpenAI API calls with WebMock
-  # - Stub OpenAI API endpoint to return structured JSON responses
-  # - RubyLLM.chat creates chat instances that make HTTP calls to OpenAI
+  # Setup: Mock LLM API calls with WebMock
+  # - Stub LLM API endpoint to return structured JSON responses
+  # - RubyLLM.chat creates chat instances that make HTTP calls to configured provider
   # - Create factory for valid AI response JSON (matching LinkAnalysisSchema)
-  # - Mock Tag.pluck(:name) to return existing tags
+  # - Mock Tag.order(:name).limit(...).pluck(:name) to return existing tag names
+  # - Mock LlmConfig.analysis_model to return test model name
 
   describe "#call" do
     context "successful analysis" do
@@ -529,7 +553,7 @@ RSpec.describe LinkRadar::AI::LinkAnalyzer do
       # - Mixed existing and new tags handled correctly
     end
 
-    context "OpenAI API errors" do
+    context "LLM API errors" do
       # - Network timeout returns failure with friendly error
       # - API rate limit returns failure
       # - Invalid response handling
@@ -541,7 +565,8 @@ RSpec.describe LinkRadar::AI::LinkAnalyzer do
       # - Includes content, title, URL in prompt
       # - Includes description when present
       # - Includes author when present
-      # - Lists existing tags in prompt
+      # - Lists existing tag names in prompt (alphabetically)
+      # - Respects LlmConfig.max_tags_for_analysis limit (default 5000)
       # - Handles empty existing tags list
     end
   end
@@ -556,7 +581,7 @@ end
 require "rails_helper"
 
 describe "API: Analyze Link Content" do
-  # Setup: Mock service layer to avoid OpenAI calls in request specs
+  # Setup: Mock service layer to avoid LLM API calls in request specs
   # - Stub LinkRadar::AI::LinkAnalyzer to return success/failure
   # - Use shared_context "with authenticated request"
 
@@ -597,7 +622,7 @@ end
 - [ ] Create `spec/lib/link_radar/ai/` directory
 - [ ] Create `link_analyzer_spec.rb` with spec outline above
 - [ ] Create `spec/requests/api/v1/links/analyze_spec.rb` with spec outline above
-- [ ] Implement WebMock stubs for OpenAI API endpoint (RubyLLM.chat makes HTTP calls to OpenAI)
+- [ ] Implement WebMock stubs for LLM API endpoint (RubyLLM.chat makes HTTP calls to configured provider)
 - [ ] Create shared factory for valid AI response JSON matching LinkAnalysisSchema format (note + tags array)
 - [ ] Test all validation scenarios (URL, content length, required fields)
 - [ ] Test privacy protection (localhost, private IPs)
@@ -608,7 +633,7 @@ end
 - [ ] Run specs and confirm all pass: `rspec spec/lib/link_radar/ai/ spec/requests/api/v1/links/analyze_spec.rb`
 
 **Testing Pattern References:**
-- WebMock stubs: Stub OpenAI API endpoint (follow `http_fetcher_spec.rb` pattern: `stub_request(:post, /api.openai.com/).to_return(...)`)
+- WebMock stubs: Stub LLM provider API endpoint (e.g., `stub_request(:post, /api.openai.com/).to_return(...)` or appropriate provider URL)
 - Request specs: Follow `create_link_spec.rb` pattern (authenticated context, json_response helper, shared examples)
 - Service specs: Follow Result pattern testing (`expect(result).to be_success`, `expect(result.data).to be_a(...)`)
 
@@ -626,7 +651,7 @@ After completing all phases:
 2. **Check Logs:**
    - Monitor `log/development.log` for AI API calls
    - Verify errors are logged with full context
-   - Check OpenAI dashboard for API usage/costs
+   - Check provider dashboard (OpenAI, Anthropic, etc.) for API usage/costs
 
 3. **Client Integration:**
    - Endpoint is ready to accept requests from any client
