@@ -26,6 +26,28 @@ module Api
         render :show
       end
 
+      # POST /api/v1/links/analyze
+      # Analyzes page content and returns AI-generated tag and note suggestions
+      def analyze
+        result = LinkRadar::Ai::LinkAnalyzer.new(
+          url: params[:url],
+          content: params[:content],
+          title: params[:title],
+          description: params[:description],
+          author: params[:author]
+        ).call
+
+        if result.success?
+          @suggested_note = result.data[:suggested_note]
+          @suggested_tags = result.data[:suggested_tags]
+          render :analyze
+        else
+          # Error handling via ErrorHandlers concern (existing pattern)
+          # ArgumentError triggers 400/422, StandardError triggers 500
+          raise ArgumentError, result.errors.first
+        end
+      end
+
       # POST /api/v1/links
       def create
         @link = Link.new(link_params)

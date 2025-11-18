@@ -10,6 +10,7 @@ Rails.application.routes.draw do
       resources :links do
         collection do
           get :by_url
+          post :analyze
         end
       end
       resources :tags
