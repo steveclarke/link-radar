@@ -33,6 +33,17 @@ This plan implements the browser extension UI for AI-powered link analysis. User
 6. [Phase 6: Integration](#phase-6-integration)
 7. [Phase 7: Manual Testing](#phase-7-manual-testing)
 
+## Key Updates from Backend Implementation
+
+Based on the completed backend implementation (plan-backend.md), the following clarifications were integrated:
+
+- **API Endpoint**: Backend route is `/api/v1/links/analyze` (Phase 2)
+- **Authentication**: `authenticatedFetch` must include `Authorization: Bearer {token}` header
+- **Content Limit**: MAX_CONTENT_LENGTH matches backend validation (50,000 chars)
+- **Timeout**: Backend AI calls take 3-5 seconds → extension uses 15-second timeout with `Promise.race()`
+- **Error Handling**: Backend validates all input (content size, URL format, privacy) → extension shows generic errors
+- **Defense-in-Depth**: Both client-side and server-side privacy checks in place
+
 ---
 
 ## Phase 1: Prerequisites & Dependencies
@@ -236,7 +247,7 @@ export async function analyzeLink(request: AnalyzeRequest): Promise<AnalyzeRespo
     author: request.author,
   }
 
-  return authenticatedFetch("/links/analyze", {
+  return authenticatedFetch("/api/v1/links/analyze", {
     method: "POST",
     body: JSON.stringify(payload),
   })
@@ -250,6 +261,8 @@ export async function analyzeLink(request: AnalyzeRequest): Promise<AnalyzeRespo
 - [ ] Add `export * from "./ai-analysis"` to `extension/lib/types/index.ts`
 - [ ] Import AnalyzeRequest and AnalyzeResponse types in `apiClient.ts`
 - [ ] Add `analyzeLink()` function to `apiClient.ts` after existing functions
+- [ ] **Verify** endpoint path is `/api/v1/links/analyze` (matches backend route exactly)
+- [ ] **Verify** that `authenticatedFetch` includes `Authorization: Bearer {token}` header (backend requires this)
 - [ ] Verify TypeScript compilation: `cd extension && pnpm run build`
 - [ ] Verify types are exported and accessible from `lib/types/index.ts`
 
@@ -257,6 +270,7 @@ export async function analyzeLink(request: AnalyzeRequest): Promise<AnalyzeRespo
 - All types include JSDoc comments for IDE autocomplete
 - AnalysisState uses Set<string> for O(1) tag selection lookups
 - Type contracts match backend API exactly (spec.md#3.2, spec.md#3.3)
+- Backend endpoint: `POST /api/v1/links/analyze` (not `/links/analyze`)
 
 ---
 
@@ -500,7 +514,7 @@ function extractMetadata() {
 - [ ] Create `extension/lib/contentExtractor.ts` with `extractPageContent()` function
 - [ ] Import Address4 and Address6 from 'ip-address' package
 - [ ] Import Readability from '@mozilla/readability' package
-- [ ] Verify MAX_CONTENT_LENGTH constant matches spec (50,000 per spec.md#3.2, line 780)
+- [ ] **Verify** MAX_CONTENT_LENGTH constant is `50_000` (matches backend validation - backend/lib/link_radar/ai/link_analyzer.rb line ~85)
 - [ ] Add JSDoc comments for all functions (included above)
 - [ ] Test privacy checks manually with test URLs (localhost, 192.168.1.1, public domains)
 - [ ] Test content extraction on various pages (articles, blogs, documentation)
@@ -509,9 +523,10 @@ function extractMetadata() {
 
 **Implementation Notes:**
 - **Privacy**: Client-side check provides immediate feedback, backend still validates (defense-in-depth)
-- **Content Truncation**: Extension truncates at 50K (per spec.md line 780), backend validates as safety check (per spec.md line 781)
+- **Content Truncation**: Extension truncates at 50K before sending, backend validates as safety check
 - **DOM Cloning**: Required because Readability modifies the document
 - **Fallback Chains**: Ensure we always have title even if metadata is poor
+- **Timeout consideration**: Backend AI calls take 3-5 seconds to complete (extension's timeout should be generous)
 
 ---
 
@@ -592,19 +607,28 @@ export function useAiAnalysis() {
   })
   
   /**
+   * Timeout for AI analysis (backend takes 3-5 seconds, allow 15s total for network delays)
+   */
+  const ANALYSIS_TIMEOUT_MS = 15_000
+
+  /**
    * Trigger analysis for current page
    * 
    * Process:
    * 1. Validate URL is safe (not localhost/private IP)
    * 2. Extract content using Readability
-   * 3. Call backend API with extracted content
+   * 3. Call backend API with extracted content (with 15-second timeout)
    * 4. Update state with suggestions or error
    * 5. Clear previous selections (new analysis = fresh start)
    * 
+   * Note: Backend AI calls take 3-5 seconds (OpenAI API latency).
+   * Timeout of 15 seconds accounts for network delays and API processing.
+   * 
    * Error handling:
    * - Privacy violations: Friendly message about localhost/private URLs
-   * - API errors: Generic "failed" message (user can retry)
-   * - Network errors: Generic error message
+   * - Timeout errors: "Analysis timed out" (user can retry)
+   * - API validation errors (400): Backend validates content size, URL format, etc.
+   * - API/Network errors: Generic "failed" message (user can retry)
    * - All errors stored in state.error for display
    * 
    * @param url - Page URL to analyze
@@ -640,14 +664,21 @@ export function useAiAnalysis() {
     state.value.error = null
     
     try {
-      // Call backend API
-      const response = await analyzeLink({
+      // Create timeout promise (15 seconds for backend AI call + network)
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Analysis timed out')), ANALYSIS_TIMEOUT_MS)
+      )
+      
+      // Race API call against timeout
+      const analysisPromise = analyzeLink({
         url,
         content: extracted.content,
         title: extracted.title,
         description: extracted.description,
         author: extracted.author,
       })
+      
+      const response = await Promise.race([analysisPromise, timeoutPromise])
       
       // Update state with suggestions
       state.value.suggestedNote = response.data.suggested_note
@@ -659,7 +690,7 @@ export function useAiAnalysis() {
       // Handle API/network errors
       if (error instanceof Error) {
         // Extract user-friendly message from error
-        if (error.message.includes('timeout') || error.message.includes('timed out')) {
+        if (error.message.includes('timed out')) {
           state.value.error = 'Analysis timed out. Try again?'
         } else if (error.message.includes('localhost') || error.message.includes('private')) {
           state.value.error = 'Cannot analyze localhost or private URLs'
@@ -764,15 +795,20 @@ export function useAiAnalysis() {
 - [ ] Import isSafeToAnalyze from '../privacy'
 - [ ] Use Vue's ref for reactive state (import from 'vue')
 - [ ] Ensure Set mutations trigger Vue reactivity (create new Set on mutation)
+- [ ] **Add** `ANALYSIS_TIMEOUT_MS = 15_000` constant (15 seconds for backend AI call + network)
+- [ ] **Add** timeout handling with `Promise.race([analysisPromise, timeoutPromise])` in analyze function
 - [ ] Add JSDoc comments for all functions (included above)
 - [ ] Verify TypeScript compilation passes
 - [ ] Test composable logic manually (mock API calls to test state transitions)
+- [ ] Test timeout scenario (should show "Analysis timed out" error)
 
 **Implementation Notes:**
 - **Set for selections**: O(1) toggle checks, better than array for this use case
 - **Vue reactivity**: Set mutations need explicit new Set() to trigger updates
 - **Error handling**: Friendly messages for common errors, generic message for unexpected errors
 - **State reset**: Important for tab changes - don't show stale suggestions
+- **Timeout**: 15 seconds allows for 3-5 second backend processing + network delays
+- **Backend errors**: Backend validates all input (content size, URL format, etc.) - extension's error handler already shows generic messages
 
 ---
 
