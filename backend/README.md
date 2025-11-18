@@ -158,6 +158,13 @@ Key configuration:
 - `MAILDEV_WEB_PORT` - MailDev web UI port (default: 1080)
 - `MAILDEV_SMTP_PORT` - MailDev SMTP port (default: 1025)
 
+**LLM Configuration:**
+- `OPENAI_API_KEY` - OpenAI API key for AI-powered features (required for link analysis)
+- `LLM_ANALYSIS_MODEL` - Model to use for link analysis (default: `gpt-4o-mini`)
+- `LLM_MAX_TAGS_FOR_ANALYSIS` - Maximum tags to send for AI context (default: 5000)
+
+> **Note:** LLM models are automatically loaded during `bin/setup`. If models are missing from the database, run `bin/rails ruby_llm:load_models` manually.
+
 **Rails Credentials:**
 - `RAILS_MASTER_KEY` - Can be set in shell environment as fallback if not using 1Password CLI
 

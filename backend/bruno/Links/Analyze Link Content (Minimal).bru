@@ -1,0 +1,30 @@
+meta {
+  name: Analyze Link Content (Minimal)
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/api/v1/links/analyze
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "url": "https://example.com",
+    "title": "Example Article",
+    "content": "This is example content about a fascinating topic. It contains multiple paragraphs of interesting information that might be worth saving and categorizing with tags for future reference and organization."
+  }
+}
+
+docs {
+  Minimal test of the analyze endpoint with only required fields.
+  
+  This tests the basic functionality with just:
+  - url
+  - title
+  - content
+  
+  Perfect for quick testing without optional metadata.
+}

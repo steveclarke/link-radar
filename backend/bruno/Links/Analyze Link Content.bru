@@ -1,0 +1,59 @@
+meta {
+  name: Analyze Link Content
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/api/v1/links/analyze
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "url": "https://www.ruby-lang.org/en/news/2024/01/15/ruby-330-released/",
+    "title": "Ruby 3.3.0 Released",
+    "content": "Ruby 3.3.0 has been released. This release includes performance improvements, new syntax features, and standard library enhancements. Key features include improved pattern matching, new error handling syntax, and significant performance optimizations for common operations. The release also includes updated standard libraries with better security and performance characteristics.",
+    "description": "The official announcement of Ruby 3.3.0 release with details on new features and improvements",
+    "author": "Ruby Core Team"
+  }
+}
+
+docs {
+  Analyze page content and get AI-generated tag and note suggestions.
+  
+  Required fields:
+  - url: The page URL (must be publicly accessible, no localhost/private IPs)
+  - title: Page title
+  - content: Main text content (max 50,000 characters)
+  
+  Optional fields:
+  - description: Page description (used for AI context)
+  - author: Author name (used for AI context)
+  
+  Returns 200 OK on success:
+  {
+    "data": {
+      "suggested_note": "Brief explanation of why content is worth saving",
+      "suggested_tags": [
+        {"name": "Ruby", "exists": true},
+        {"name": "Release", "exists": false},
+        ...
+      ]
+    }
+  }
+  
+  The "exists" flag indicates whether each suggested tag already exists in your tag collection:
+  - true: Tag already exists (use the exact name)
+  - false: New tag (will be created if you save the link)
+  
+  Returns 400 Bad Request if:
+  - Required fields are missing
+  - URL is invalid or resolves to private IP (SSRF protection)
+  - Content exceeds 50,000 characters
+  
+  Returns 500 Internal Server Error if:
+  - AI service is unavailable
+  - LLM API call fails
+}
