@@ -99,7 +99,7 @@ This file is **novel** - defines new types for AI analysis feature. Full impleme
  * 
  * Matches backend POST /api/v1/links/analyze request contract (spec.md#3.2)
  */
-export interface AnalyzeRequest {
+export interface AnalysisRequest {
   /** Page URL (HTTP/HTTPS only) */
   url: string
   
@@ -137,7 +137,7 @@ export interface SuggestedTag {
  * Matches backend response contract (spec.md#3.3)
  * Wrapped in `data` object per existing API conventions
  */
-export interface AnalyzeResponse {
+export interface AnalysisResponse {
   data: {
     /** AI-generated note (1-2 sentences explaining value) */
     suggested_note: string
@@ -145,29 +145,6 @@ export interface AnalyzeResponse {
     /** AI-generated tag suggestions (typically 3-7 tags) */
     suggested_tags: SuggestedTag[]
   }
-}
-
-/**
- * Extracted page content from Readability
- * 
- * Intermediate structure used between content extraction and API call
- * Contains all metadata needed for analysis
- */
-export interface ExtractedContent {
-  /** Main article text from Readability.parse() */
-  content: string
-  
-  /** Page title (og:title > <title> > h1) */
-  title: string
-  
-  /** Meta description (og:description > meta description) */
-  description: string
-  
-  /** Author info from meta tags (optional) */
-  author?: string
-  
-  /** Full page URL for context */
-  url: string
 }
 
 /**
@@ -238,18 +215,10 @@ Add analyzeLink function (follows existing authenticatedFetch pattern):
  *   console.log(response.data.suggested_note)
  *   console.log(response.data.suggested_tags)
  */
-export async function analyzeLink(request: AnalyzeRequest): Promise<AnalyzeResponse> {
-  const payload = {
-    url: request.url,
-    content: request.content,
-    title: request.title,
-    description: request.description,
-    author: request.author,
-  }
-
-  return authenticatedFetch("/api/v1/links/analyze", {
+export async function analyzeLink(request: AnalysisRequest): Promise<AnalysisResponse> {
+  return authenticatedFetch("/links/analyze", {
     method: "POST",
-    body: JSON.stringify(payload),
+    body: JSON.stringify(request),
   })
 }
 ```
@@ -259,7 +228,7 @@ export async function analyzeLink(request: AnalyzeRequest): Promise<AnalyzeRespo
 - [ ] Create `extension/lib/types/ai-analysis.ts` with all type definitions above
 - [ ] Add JSDoc comments for all interfaces and properties (included above)
 - [ ] Add `export * from "./ai-analysis"` to `extension/lib/types/index.ts`
-- [ ] Import AnalyzeRequest and AnalyzeResponse types in `apiClient.ts`
+- [ ] Import AnalysisRequest and AnalysisResponse types in `apiClient.ts`
 - [ ] Add `analyzeLink()` function to `apiClient.ts` after existing functions
 - [ ] **Verify** endpoint path is `/api/v1/links/analyze` (matches backend route exactly)
 - [ ] **Verify** that `authenticatedFetch` includes `Authorization: Bearer {token}` header (backend requires this)
@@ -280,9 +249,9 @@ export async function analyzeLink(request: AnalyzeRequest): Promise<AnalyzeRespo
 
 **Justification:** Defense-in-depth privacy (extension + backend validation) and leverages browser DOM access for content extraction. (spec.md#5.3, spec.md#7.1)
 
-### File: `extension/lib/privacy.ts`
+### File: `extension/lib/urlValidation.ts`
 
-This file is **novel** - first use of ip-address library for privacy protection. Full implementation detail provided:
+This file is **novel** - first use of ip-address library for URL validation (SSRF protection). Full implementation detail provided:
 
 ```typescript
 /**
@@ -302,42 +271,28 @@ This file is **novel** - first use of ip-address library for privacy protection.
 import { Address4, Address6 } from 'ip-address'
 
 /**
- * Check if URL is safe to analyze (not localhost or private IP)
+ * Check if URL is safe to analyze (allows public IPs and domains only)
  * 
- * Validation checks:
- * 1. Hostname is not localhost (string match)
- * 2. Hostname is not 127.0.0.1 or ::1 (loopback addresses)
- * 3. IPv4 address is not in private ranges (uses Address4.isValid() and isPublic())
- * 4. IPv6 address is not in private ranges (uses Address6.isValid() and isPublic())
+ * Blocks localhost and private IP addresses (127.0.0.1, 192.168.x.x, 10.x.x.x, etc.)
+ * to prevent SSRF attacks. Domain names are allowed - backend validates via DNS.
  * 
  * @param url - Full URL to validate
  * @returns true if safe to analyze, false if blocked (localhost/private)
  * 
- * @example Safe URLs
+ * @example
  *   isSafeToAnalyze("https://example.com") // => true
- *   isSafeToAnalyze("https://8.8.8.8/page") // => true (public IP)
- * 
- * @example Blocked URLs
- *   isSafeToAnalyze("http://localhost/admin") // => false
- *   isSafeToAnalyze("http://127.0.0.1/") // => false
- *   isSafeToAnalyze("http://192.168.1.1/") // => false (private IP)
- *   isSafeToAnalyze("http://10.0.0.1/") // => false (private IP)
+ *   isSafeToAnalyze("http://192.168.1.1/") // => false
  */
 export function isSafeToAnalyze(url: string): boolean {
   try {
     const urlObj = new URL(url)
     const hostname = urlObj.hostname
     
-    // Check for localhost string match
-    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') {
-      return false
-    }
-    
     // Try parsing as IPv4
     try {
       const ipv4 = new Address4(hostname)
       if (ipv4.isValid()) {
-        // isPublic() returns true for public IPs, false for private ranges
+        // isPublic() returns true for public IPs, false for private ranges and loopback
         return ipv4.isPublic()
       }
     } catch {
@@ -348,7 +303,7 @@ export function isSafeToAnalyze(url: string): boolean {
     try {
       const ipv6 = new Address6(hostname)
       if (ipv6.isValid()) {
-        // isPublic() returns true for public IPs, false for private ranges
+        // isPublic() returns true for public IPs, false for private ranges and loopback
         return ipv6.isPublic()
       }
     } catch {
@@ -401,8 +356,8 @@ import { Readability } from '@mozilla/readability'
  * - Meta description (optional)
  * - Author info (optional)
  */
-export interface ExtractionResult {
-  /** Main article text from Readability (truncated to 50K chars) */
+export interface ExtractedContent {
+  /** Main article text from Readability.parse() (truncated to 50K chars) */
   content: string
   
   /** Page title (og:title > <title> > h1 > "Untitled") */
@@ -413,6 +368,9 @@ export interface ExtractionResult {
   
   /** Author from meta tags (optional) */
   author?: string
+  
+  /** Full page URL for context */
+  url: string
 }
 
 /**
@@ -425,39 +383,37 @@ const MAX_CONTENT_LENGTH = 50_000
 /**
  * Extract page content using Readability
  * 
+ * Extracts both article content and metadata for AI analysis. Content is kept
+ * as structured HTML (not plain text) to preserve semantic information for analysis.
+ * Works on any page type - articles, apps, docs, etc.
+ * 
  * Process:
  * 1. Clone document (Readability modifies DOM)
- * 2. Parse with Readability to extract article text
- * 3. Extract metadata from DOM (title, description, author)
+ * 2. Parse with Readability to extract content and metadata
+ * 3. Use Readability's metadata, fall back to DOM queries if needed
  * 4. Truncate content to MAX_CONTENT_LENGTH
  * 5. Return structured result
  * 
  * @returns Extraction result with content and metadata
  * 
- * @example Basic usage
+ * @example
  *   const extracted = extractPageContent()
  *   console.log(extracted.title)
  *   console.log(extracted.content.length)
- * 
- * @example Handling extraction failures
- *   const extracted = extractPageContent()
- *   if (extracted.content === '') {
- *     console.log('No readable content found')
- *   }
  */
-export function extractPageContent(): ExtractionResult {
+export function extractPageContent(): ExtractedContent {
   // Clone document for Readability (it modifies the DOM)
   const documentClone = document.cloneNode(true) as Document
   
-  // Extract main article content
+  // Extract content and metadata using Readability
   const reader = new Readability(documentClone)
   const article = reader.parse()
   
-  // Extract metadata from original document
-  const metadata = extractMetadata()
-  
-  // Get article text (or empty string if extraction failed)
-  let content = article?.textContent || ''
+  // Use Readability's extracted data as primary source, fall back to DOM queries
+  let content = article?.content || ''
+  const title = article?.title || extractTitle()
+  const description = article?.excerpt || extractDescription()
+  const author = article?.byline || extractAuthor()
   
   // Truncate content to backend limit (spec.md#3.2)
   if (content.length > MAX_CONTENT_LENGTH) {
@@ -466,9 +422,9 @@ export function extractPageContent(): ExtractionResult {
   
   return {
     content,
-    title: metadata.title,
-    description: metadata.description,
-    author: metadata.author,
+    title,
+    description,
+    author,
   }
 }
 
@@ -510,7 +466,7 @@ function extractMetadata() {
 
 ### Tasks
 
-- [ ] Create `extension/lib/privacy.ts` with `isSafeToAnalyze()` function
+- [ ] Create `extension/lib/urlValidation.ts` with `isSafeToAnalyze()` function
 - [ ] Create `extension/lib/contentExtractor.ts` with `extractPageContent()` function
 - [ ] Import Address4 and Address6 from 'ip-address' package
 - [ ] Import Readability from '@mozilla/readability' package
@@ -536,7 +492,7 @@ function extractMetadata() {
 
 **Justification:** Centralizes analysis lifecycle, error handling, and tag selection state. Follows existing composable pattern from useLink, useNotification. (spec.md#5.5)
 
-### File: `extension/lib/composables/useAiAnalysis.ts`
+### File: `extension/entrypoints/popup/composables/useAiAnalysis.ts`
 
 This file is **novel** - manages complex async state with cancellation and real-time tag syncing. Full implementation detail provided:
 
@@ -557,11 +513,25 @@ This file is **novel** - manages complex async state with cancellation and real-
  * Pattern: Follows useLink and useNotification composable patterns in codebase
  */
 
-import { ref } from 'vue'
-import type { AnalysisState, SuggestedTag } from '../types/ai-analysis'
-import { analyzeLink } from '../apiClient'
-import { extractPageContent } from '../contentExtractor'
-import { isSafeToAnalyze } from '../privacy'
+import { reactive, ref, computed } from 'vue'
+import { useAsyncState } from '@vueuse/core'
+import type { AnalysisState, SuggestedTag } from '../../../lib/types/ai-analysis'
+import { analyzeLink } from '../../../lib/apiClient'
+import { extractPageContent } from '../../../lib/contentExtractor'
+import { isSafeToAnalyze } from '../../../lib/urlValidation'
+
+/**
+ * Custom error class for analysis failures with structured error codes
+ */
+class AnalysisError extends Error {
+  constructor(
+    public code: 'TIMEOUT' | 'PRIVACY' | 'EXTRACTION' | 'API_ERROR',
+    message: string
+  ) {
+    super(message)
+    this.name = 'AnalysisError'
+  }
+}
 
 /**
  * Composable for AI analysis state and operations
@@ -589,87 +559,47 @@ import { isSafeToAnalyze } from '../privacy'
  */
 export function useAiAnalysis() {
   /**
-   * Reactive analysis state
-   * 
-   * Tracks complete analysis lifecycle:
-   * - isAnalyzing: true during API call
-   * - error: Error message if analysis failed
-   * - suggestedNote: AI-generated note text
-   * - suggestedTags: Array of tag suggestions with exists flags
-   * - selectedTagNames: Set of tag names user has toggled on
-   */
-  const state = ref<AnalysisState>({
-    isAnalyzing: false,
-    error: null,
-    suggestedNote: null,
-    suggestedTags: [],
-    selectedTagNames: new Set(),
-  })
-  
-  /**
    * Timeout for AI analysis (backend takes 3-5 seconds, allow 15s total for network delays)
    */
   const ANALYSIS_TIMEOUT_MS = 15_000
-
+  
   /**
-   * Trigger analysis for current page
-   * 
-   * Process:
-   * 1. Validate URL is safe (not localhost/private IP)
-   * 2. Extract content using Readability
-   * 3. Call backend API with extracted content (with 15-second timeout)
-   * 4. Update state with suggestions or error
-   * 5. Clear previous selections (new analysis = fresh start)
-   * 
-   * Note: Backend AI calls take 3-5 seconds (OpenAI API latency).
-   * Timeout of 15 seconds accounts for network delays and API processing.
-   * 
-   * Error handling:
-   * - Privacy violations: Friendly message about localhost/private URLs
-   * - Timeout errors: "Analysis timed out" (user can retry)
-   * - API validation errors (400): Backend validates content size, URL format, etc.
-   * - API/Network errors: Generic "failed" message (user can retry)
-   * - All errors stored in state.error for display
-   * 
-   * @param url - Page URL to analyze
-   * 
-   * @example
-   *   try {
-   *     await analyze('https://example.com')
-   *     if (state.value.suggestedTags.length > 0) {
-   *       console.log('Got suggestions!')
-   *     }
-   *   } catch (error) {
-   *     console.error('Analysis failed:', state.value.error)
-   *   }
+   * User's tag selections (separate from API response)
    */
-  async function analyze(url: string): Promise<void> {
-    // Privacy check (client-side, immediate feedback)
-    if (!isSafeToAnalyze(url)) {
-      state.value.error = 'Cannot analyze localhost or private URLs'
-      return
-    }
-    
-    // Extract page content
-    let extracted
-    try {
-      extracted = extractPageContent()
-    } catch (error) {
-      state.value.error = 'Failed to extract page content'
-      return
-    }
-    
-    // Set loading state
-    state.value.isAnalyzing = true
-    state.value.error = null
-    
-    try {
-      // Create timeout promise (15 seconds for backend AI call + network)
+  const selectedTagNames = reactive(new Set<string>())
+  
+  /**
+   * Async state management using VueUse
+   * Handles loading/error states automatically for the analysis operation
+   */
+  const {
+    state: apiResponse,
+    isLoading: isAnalyzing,
+    error: analysisError,
+    execute: performAnalysis,
+  } = useAsyncState(
+    async (url: string) => {
+      // Privacy check (client-side, immediate feedback)
+      if (!isSafeToAnalyze(url)) {
+        throw new AnalysisError('PRIVACY', 'Cannot analyze localhost or private URLs')
+      }
+      
+      // Extract page content
+      let extracted
+      try {
+        extracted = extractPageContent()
+      } catch (error) {
+        throw new AnalysisError('EXTRACTION', 'Failed to extract page content')
+      }
+      
+      // Create a promise that rejects after ANALYSIS_TIMEOUT_MS (15 seconds)
+      // This ensures we don't wait forever if the backend hangs or network is slow
+      // Promise<never> means this promise will only ever fail, never succeed
       const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Analysis timed out')), ANALYSIS_TIMEOUT_MS)
+        setTimeout(() => reject(new AnalysisError('TIMEOUT', 'Analysis timed out')), ANALYSIS_TIMEOUT_MS)
       )
       
-      // Race API call against timeout
+      // Make the API call
       const analysisPromise = analyzeLink({
         url,
         content: extracted.content,
@@ -678,31 +608,59 @@ export function useAiAnalysis() {
         author: extracted.author,
       })
       
-      const response = await Promise.race([analysisPromise, timeoutPromise])
-      
-      // Update state with suggestions
-      state.value.suggestedNote = response.data.suggested_note
-      state.value.suggestedTags = response.data.suggested_tags
-      
-      // Clear previous selections (new analysis = fresh start)
-      state.value.selectedTagNames.clear()
-    } catch (error) {
-      // Handle API/network errors
-      if (error instanceof Error) {
-        // Extract user-friendly message from error
-        if (error.message.includes('timed out')) {
-          state.value.error = 'Analysis timed out. Try again?'
-        } else if (error.message.includes('localhost') || error.message.includes('private')) {
-          state.value.error = 'Cannot analyze localhost or private URLs'
-        } else {
-          state.value.error = 'Analysis failed. Please try again.'
-        }
-      } else {
-        state.value.error = 'Analysis failed. Please try again.'
+      // Promise.race([promise1, promise2]) = whichever settles first wins
+      // If API responds in 3 seconds: returns API response
+      // If API takes 20 seconds: timeout rejects first with AnalysisError('TIMEOUT', ...)
+      return Promise.race([analysisPromise, timeoutPromise])
+    },
+    null,
+    { immediate: false, throwError: true }
+  )
+  
+  /**
+   * Combine API response with user selections into AnalysisState
+   * useAsyncState handles isAnalyzing and error, we just map the API data
+   */
+  const state = computed<AnalysisState>(() => ({
+    isAnalyzing: isAnalyzing.value,
+    error: analysisError.value ? formatAnalysisError(analysisError.value) : null,
+    suggestedNote: apiResponse.value?.data?.suggested_note || null,
+    suggestedTags: apiResponse.value?.data?.suggested_tags || [],
+    selectedTagNames,
+  }))
+
+  /**
+   * Convert AnalysisError to user-friendly message based on error code
+   */
+  function formatAnalysisError(error: Error): string {
+    if (error instanceof AnalysisError) {
+      switch (error.code) {
+        case 'TIMEOUT':
+          return 'Analysis timed out. Try again?'
+        case 'PRIVACY':
+          return 'Cannot analyze localhost or private URLs'
+        case 'EXTRACTION':
+          return 'Failed to extract page content'
+        case 'API_ERROR':
+          return 'Analysis failed. Please try again.'
       }
-    } finally {
-      state.value.isAnalyzing = false
     }
+    return 'Analysis failed. Please try again.'
+  }
+
+  /**
+   * Trigger AI analysis for the given URL
+   * 
+   * Clears previous tag selections and runs analysis with timeout protection.
+   * 
+   * @param url - Page URL to analyze
+   * 
+   * @example
+   *   await analyze('https://example.com')
+   */
+  async function analyze(url: string): Promise<void> {
+    selectedTagNames.clear()
+    await performAnalysis(url)
   }
   
   /**
@@ -711,8 +669,11 @@ export function useAiAnalysis() {
    * If tag is selected: deselect it (remove from Set)
    * If tag is not selected: select it (add to Set)
    * 
-   * Set provides O(1) lookups for toggle check and selection state.
-   * Parent component (LinkForm) watches selectedTagNames to update main TagInput.
+   * Uses Set (not Array) for performance: Set.has() is O(1) - constant time lookup,
+   * always instant regardless of how many tags are selected. With an Array, checking
+   * if an item exists (includes()) would be O(n) - slower as the collection grows.
+   * 
+   * Since toggleTag() gets called frequently during UI interactions, we need fast lookups.
    * 
    * @param tagName - Name of tag to toggle
    * 
@@ -721,14 +682,14 @@ export function useAiAnalysis() {
    *   toggleTag('JavaScript') // Deselects 'JavaScript'
    */
   function toggleTag(tagName: string): void {
-    if (state.value.selectedTagNames.has(tagName)) {
-      state.value.selectedTagNames.delete(tagName)
+    if (state.selectedTagNames.has(tagName)) {
+      state.selectedTagNames.delete(tagName)
     } else {
-      state.value.selectedTagNames.add(tagName)
+      state.selectedTagNames.add(tagName)
     }
     
     // Trigger Vue reactivity (Set mutations don't auto-trigger)
-    state.value.selectedTagNames = new Set(state.value.selectedTagNames)
+    state.selectedTagNames = new Set(state.selectedTagNames)
   }
   
   /**
@@ -744,7 +705,7 @@ export function useAiAnalysis() {
    *   // => ['JavaScript', 'TypeScript', 'Web Development']
    */
   function getSelectedTags(): string[] {
-    return Array.from(state.value.selectedTagNames)
+    return Array.from(state.selectedTagNames)
   }
   
   /**
@@ -767,13 +728,7 @@ export function useAiAnalysis() {
    *   })
    */
   function reset(): void {
-    state.value = {
-      isAnalyzing: false,
-      error: null,
-      suggestedNote: null,
-      suggestedTags: [],
-      selectedTagNames: new Set(),
-    }
+    selectedTagNames.clear()
   }
   
   return {
@@ -788,12 +743,12 @@ export function useAiAnalysis() {
 
 ### Tasks
 
-- [ ] Create `extension/lib/composables/useAiAnalysis.ts` with full implementation above
+- [ ] Create `extension/entrypoints/popup/composables/useAiAnalysis.ts` with full implementation above
 - [ ] Import all required types from '../types/ai-analysis'
 - [ ] Import analyzeLink from '../apiClient'
 - [ ] Import extractPageContent from '../contentExtractor'
-- [ ] Import isSafeToAnalyze from '../privacy'
-- [ ] Use Vue's ref for reactive state (import from 'vue')
+- [ ] Import isSafeToAnalyze from '../urlValidation'
+- [ ] Use Vue's reactive for state object (import from 'vue')
 - [ ] Ensure Set mutations trigger Vue reactivity (create new Set on mutation)
 - [ ] **Add** `ANALYSIS_TIMEOUT_MS = 15_000` constant (15 seconds for backend AI call + network)
 - [ ] **Add** timeout handling with `Promise.race([analysisPromise, timeoutPromise])` in analyze function
@@ -1156,7 +1111,7 @@ Modify existing LinkForm to integrate AI analysis components. Pattern references
 
 **Import Additions:**
 ```typescript
-import { useAiAnalysis } from '../../../lib/composables/useAiAnalysis'
+import { useAiAnalysis } from './useAiAnalysis'
 import AiAnalyzeButton from './AiAnalyzeButton.vue'
 import AiSuggestions from './AiSuggestions.vue'
 ```
