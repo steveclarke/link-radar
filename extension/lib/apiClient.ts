@@ -9,6 +9,8 @@
  * across all extension contexts.
  */
 import type {
+  AnalysisRequest,
+  AnalysisResponse,
   ExportApiResponse,
   ExportResult,
   ImportApiResponse,
@@ -217,4 +219,32 @@ export async function importLinks(
 
   const result = await response.json() as ImportApiResponse
   return result.data
+}
+
+/**
+ * Analyze page content and get AI suggestions for tags and notes
+ *
+ * Calls POST /api/v1/links/analyze with extracted page content.
+ * Returns structured suggestions (note + tags with existence indicators).
+ *
+ * @param request - Extracted content from current page
+ * @returns Analysis response with suggested_note and suggested_tags
+ * @throws Error if API request fails (network error, timeout, validation error)
+ *
+ * @example
+ *   const response = await analyzeLink({
+ *     url: "https://example.com/article",
+ *     content: "Article text...",
+ *     title: "Article Title",
+ *     description: "Description",
+ *     author: "Author"
+ *   })
+ *   console.log(response.data.suggested_note)
+ *   console.log(response.data.suggested_tags)
+ */
+export async function analyzeLink(request: AnalysisRequest): Promise<AnalysisResponse> {
+  return authenticatedFetch("/links/analyze", {
+    method: "POST",
+    body: JSON.stringify(request),
+  })
 }
