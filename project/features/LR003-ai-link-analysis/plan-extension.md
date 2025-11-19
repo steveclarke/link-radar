@@ -1237,12 +1237,18 @@ export function useAiFormIntegration(
 
 ### Tasks
 
-- [ ] Create `extension/entrypoints/popup/composables/useAiFormIntegration.ts` with implementation above
-- [ ] Import useAiAnalysis from './useAiAnalysis'
-- [ ] Implement tag syncing watch (merges manual + AI tags)
-- [ ] Implement handleAnalyze, handleToggleTag, handleAddNote, reset functions
-- [ ] Add JSDoc comments (included above)
-- [ ] Verify TypeScript compilation passes
+- [x] Create `extension/entrypoints/popup/composables/useAiFormIntegration.ts` with implementation above
+- [x] Import useAiAnalysis from './useAiAnalysis'
+- [x] Implement tag syncing watch (one-way AI → Form, preserves pre-existing tags)
+- [x] Implement handleAnalyze, handleToggleTag, handleAddNote, reset functions
+- [x] Add JSDoc comments
+- [x] Verify TypeScript compilation passes
+
+**Implementation Notes:**
+- Tag syncing is **one-way only** (AI → Form) to avoid complex reactivity issues
+- Tags that exist before clicking "Analyze" are permanently protected from removal
+- Clicking AI tag chips adds/removes them from the Tags field
+- Removing tags via "X" in Tags field does NOT deselect AI chips (simplified UX)
 
 ### File: `extension/entrypoints/popup/components/LinkForm.vue`
 
@@ -1278,23 +1284,25 @@ watch(() => props.currentTabInfo, async (newTabInfo) => {
 })
 ```
 
-**Template Updates (add between UrlInput and NotesInput):**
+**Template Updates (add BEFORE all form fields):**
 ```vue
-<!-- AI Analysis Section -->
+<!-- AI Analysis Section (at top of form) -->
 <AiAnalyzeButton
   :is-analyzing="aiState.isAnalyzing"
   :has-analyzed="aiState.suggestedTags.length > 0"
+  :is-app-configured="isAppConfigured"
   @analyze="onAnalyzeClick"
 />
 
-<!-- Show suggestions after successful analysis -->
+<!-- Show suggestions after successful analysis (with visibility toggle) -->
 <AiSuggestions
-  v-if="aiState.suggestedTags.length > 0"
-  :suggested-note="aiState.suggestedNote || ''"
+  v-if="aiState.suggestedTags.length > 0 && showAiSuggestions"
+  :suggested-note="aiState.suggestedNote"
   :suggested-tags="aiState.suggestedTags"
   :selected-tag-names="aiState.selectedTagNames"
-  @add-note="handleAddNote"
   @toggle-tag="handleToggleTag"
+  @add-note="handleAddNote"
+  @close="hideAiSuggestions"
 />
 
 <!-- Show error if analysis failed -->
@@ -1412,13 +1420,53 @@ After completing all phases:
    - Real-time syncing works reliably
 
 **Success Criteria:**
-- [ ] Content extraction works on various page types
-- [ ] Privacy protection blocks localhost/private IPs
-- [ ] AI returns relevant tag and note suggestions
-- [ ] Existing tags display as green, new tags as blue
-- [ ] Tag selection syncs to main field in real-time
-- [ ] Note insertion populates NotesInput field
-- [ ] Error handling is graceful and informative
+- [x] Content extraction works on various page types
+- [x] Privacy protection blocks localhost/private IPs
+- [x] AI returns relevant tag and note suggestions
+- [x] Existing tags display as green, new tags as blue
+- [x] Tag selection adds to main field (one-way sync)
+- [x] Note insertion populates NotesInput field
+- [x] Error handling is graceful and informative
+- [x] Button styling is subtle and integrated
+- [x] Suggestions panel can be hidden/shown
+- [x] Pre-existing tags are preserved during analysis
+
+## Implementation Deviations from Original Plan
+
+The following changes were made during implementation to address real-world issues:
+
+### 1. IP Validation Library
+**Planned:** `ip-address` npm package  
+**Implemented:** `ipaddr.js` npm package  
+**Reason:** The `ipaddr.js` library provides a simpler `.range()` API that directly classifies IPs as 'private', 'loopback', etc., whereas `ip-address` required manual subnet range checking.
+
+### 2. Tag Syncing Strategy
+**Planned:** Bidirectional syncing (AI chips ↔ Tags field)  
+**Implemented:** One-way syncing (AI chips → Tags field only)  
+**Reason:** Bidirectional syncing caused complex reactivity issues when existing tags matched AI suggestions. Simplified to one-way to ensure existing tags are never accidentally removed.
+
+### 3. Button Placement
+**Planned:** Between URL and Notes fields  
+**Implemented:** At the top, before all form fields  
+**Reason:** Better UX - user sees the AI option immediately when opening the popup, before filling out any form fields.
+
+### 4. Suggestions Panel Behavior
+**Planned:** "Done" button that resets state  
+**Implemented:** Close button (X) that hides panel without resetting  
+**Reason:** Users wanted to hide the panel while keeping their selections intact. Close button provides this without losing state.
+
+### 5. Component Structure
+**Planned:** Four separate components (AiAnalyzeButton, AiSuggestions, SuggestedNote, SuggestedTags)  
+**Implemented:** All four components created as specified  
+**Status:** ✅ Complete - matches plan
+
+### Known Limitations
+
+1. **Tag Syncing:** Removing a tag via "X" in the Tags field does NOT deselect the corresponding AI chip. This is intentional to simplify state management.
+
+2. **Edge Cases:** Some edge cases exist when existing tags have the same names as AI suggestions, but pre-existing tags are protected from removal.
+
+3. **No Auto-Selection:** AI chips matching existing tags are NOT automatically selected. User must manually click AI chips to add suggested tags.
 - [ ] Tab changes reset AI state correctly
 - [ ] Complete flow works: analyze → select → save
 

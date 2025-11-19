@@ -33,6 +33,9 @@ interface Emits {
 
   /** Emitted when user clicks "[+ Add to Notes]" button */
   (e: "addNote", note: string): void
+
+  /** Emitted when user clicks close button to hide suggestions */
+  (e: "close"): void
 }
 
 const props = defineProps<Props>()
@@ -64,12 +67,24 @@ function handleToggleTag(tagName: string) {
   <div class="bg-purple-50 border border-purple-200 rounded-md p-4 space-y-4">
     <!-- Header -->
     <div class="flex items-center justify-between">
-      <h3 class="text-sm font-semibold text-slate-700">
-        🤖 AI Suggestions
-      </h3>
-      <span class="text-xs text-slate-500">
-        ⚠️ Content sent to OpenAI
-      </span>
+      <div class="flex items-center gap-2">
+        <h3 class="text-sm font-semibold text-slate-700">
+          🤖 AI Suggestions
+        </h3>
+        <span class="text-xs text-slate-500">
+          ⚠️ Content sent to OpenAI
+        </span>
+      </div>
+      <button
+        type="button"
+        class="text-slate-400 hover:text-slate-600 transition-colors"
+        title="Hide suggestions"
+        @click="$emit('close')"
+      >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
     </div>
 
     <!-- Suggested Note -->

@@ -39,6 +39,9 @@ const tagNames = ref<string[]>([])
 // AI analysis integration
 const { state: aiState, handleAnalyze, handleToggleTag, handleAddNote, reset: resetAiState } = useAiFormIntegration(tagNames, notes)
 
+// Track visibility of AI suggestions panel (separate from state)
+const showAiSuggestions = ref(false)
+
 // Form state
 const isCheckingLink = ref(false)
 
@@ -49,8 +52,9 @@ watch(() => props.currentTabInfo, async (newTabInfo) => {
 
   isCheckingLink.value = true
   try {
-    // Reset AI analysis state for new tab
+    // Reset AI analysis state and hide suggestions for new tab
     resetAiState()
+    showAiSuggestions.value = false
 
     // Set URL from current tab
     url.value = newTabInfo.url
@@ -166,6 +170,14 @@ async function onAnalyzeClick() {
   if (!props.currentTabInfo)
     return
   await handleAnalyze(props.currentTabInfo.url)
+  showAiSuggestions.value = true
+}
+
+/**
+ * Hide AI suggestions panel without resetting state
+ */
+function hideAiSuggestions() {
+  showAiSuggestions.value = false
 }
 </script>
 
@@ -180,9 +192,7 @@ async function onAnalyzeClick() {
 
     <!-- Form content shows after checking -->
     <template v-else>
-      <UrlInput v-model="url" />
-
-      <!-- AI Analysis Section (between URL and form fields) -->
+      <!-- AI Analysis Section (before all form fields) -->
       <AiAnalyzeButton
         :is-analyzing="aiState.isAnalyzing"
         :has-analyzed="aiState.suggestedTags.length > 0"
@@ -192,14 +202,16 @@ async function onAnalyzeClick() {
 
       <!-- AI Suggestions (shown after successful analysis) -->
       <AiSuggestions
-        v-if="aiState.suggestedTags.length > 0"
+        v-if="aiState.suggestedTags.length > 0 && showAiSuggestions"
         :suggested-note="aiState.suggestedNote"
         :suggested-tags="aiState.suggestedTags"
         :selected-tag-names="aiState.selectedTagNames"
         @toggle-tag="handleToggleTag"
         @add-note="handleAddNote"
+        @close="hideAiSuggestions"
       />
 
+      <UrlInput v-model="url" />
       <NotesInput v-model="notes" />
       <TagInput v-model="tagNames" />
 

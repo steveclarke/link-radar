@@ -39,31 +39,36 @@ export function useAiFormIntegration(
   // Get AI analysis composable (pure AI logic)
   const { state: aiState, analyze, toggleTag, reset: resetAiState } = useAiAnalysis()
 
+  // Track tags that existed BEFORE AI analysis (never remove these)
+  let tagsBeforeAnalysis: string[] = []
+
   /**
-   * Watch AI tag selections and sync to form's tagNames field
+   * Watch AI tag selections and add them to form's tagNames field
    *
-   * Logic:
-   * 1. Get currently selected AI tags (from aiState.value.selectedTagNames)
-   * 2. Get manually-entered tags (tags in form that aren't from AI suggestions)
-   * 3. Merge them: manual tags + AI tags (user is always in control)
-   * 4. Update form's tagNames
-   *
-   * This ensures:
-   * - AI suggestions automatically appear in main field when selected
-   * - Manual tags are preserved alongside AI tags
-   * - No duplicates (Set handles uniqueness)
-   * - Real-time updates as user clicks tag chips
+   * Simple one-way sync: AI → Form
+   * - When user clicks AI tag, add it to form
+   * - When user unclicks AI tag, remove it from form
+   * - NEVER removes tags that existed before analysis
    */
   watch(
     () => Array.from(aiState.value.selectedTagNames),
     (selectedAiTags: string[]) => {
-      // Tags in the form that aren't from current AI suggestions (manually typed)
-      const manualTags = tagNamesRef.value.filter(
-        tag => !aiState.value.suggestedTags.some(st => st.name === tag),
-      )
+      const currentTags = tagNamesRef.value
 
-      // Merge: keep manual tags + add selected AI tags
-      tagNamesRef.value = [...manualTags, ...selectedAiTags]
+      // Keep all tags that:
+      // 1. Existed before analysis (protected)
+      // 2. Were manually added after analysis (not in AI suggestions)
+      const protectedTags = currentTags.filter((tag) => {
+        if (tagsBeforeAnalysis.includes(tag)) {
+          return true
+        }
+        const isAiSuggestion = aiState.value.suggestedTags.some(st => st.name === tag)
+        return !isAiSuggestion
+      })
+
+      // Merge: protected tags + selected AI tags (remove duplicates)
+      const mergedTags = [...new Set([...protectedTags, ...selectedAiTags])]
+      tagNamesRef.value = mergedTags
     },
     { deep: true },
   )
@@ -74,6 +79,8 @@ export function useAiFormIntegration(
    * @param url - Page URL to analyze
    */
   async function handleAnalyze(url: string): Promise<void> {
+    // Snapshot tags before analysis (these are protected from removal)
+    tagsBeforeAnalysis = [...tagNamesRef.value]
     await analyze(url)
   }
 
@@ -102,6 +109,7 @@ export function useAiFormIntegration(
    * Reset AI state (call when tab changes)
    */
   function reset(): void {
+    tagsBeforeAnalysis = []
     resetAiState()
   }
 
