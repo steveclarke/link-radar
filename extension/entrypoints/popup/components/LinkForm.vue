@@ -2,14 +2,18 @@
 /**
  * LinkForm component that manages link form state, operations, and UI.
  * Watches for tab changes, fetches link data, and handles CRUD operations.
+ * Integrates AI analysis for suggested content and tags.
  *
  * @component
  */
 import type { LinkParams, TabInfo } from "../../../lib/types"
 import { ref, watch } from "vue"
 import { useNotification } from "../../../lib/composables/useNotification"
+import { useAiFormIntegration } from "../composables/useAiFormIntegration"
 import { useAutoClose } from "../composables/useAutoClose"
 import { useLink } from "../composables/useLink"
+import AiAnalyzeButton from "./AiAnalyzeButton.vue"
+import AiSuggestions from "./AiSuggestions.vue"
 import LinkActions from "./LinkActions.vue"
 import NotesInput from "./NotesInput.vue"
 import TagInput from "./TagInput.vue"
@@ -27,10 +31,15 @@ const { showSuccess, showError } = useNotification()
 const { isLinked, linkId, isFetching, isUpdating, isDeleting, createLink, updateLink, deleteLink, resetLinkState, fetchLink } = useLink()
 const { triggerAutoClose } = useAutoClose()
 
-// Form state
+// Form state refs for AI integration
 const url = ref("")
 const notes = ref("")
 const tagNames = ref<string[]>([])
+
+// AI analysis integration
+const { state: aiState, handleAnalyze, handleToggleTag, handleAddNote, reset: resetAiState } = useAiFormIntegration(tagNames, notes)
+
+// Form state
 const isCheckingLink = ref(false)
 
 // Watch for tab changes and fetch/populate link data
@@ -40,6 +49,9 @@ watch(() => props.currentTabInfo, async (newTabInfo) => {
 
   isCheckingLink.value = true
   try {
+    // Reset AI analysis state for new tab
+    resetAiState()
+
     // Set URL from current tab
     url.value = newTabInfo.url
 
@@ -145,6 +157,16 @@ async function handleDeleteLink() {
     showError(`Failed to delete link: ${result.error || "Unknown error"}`)
   }
 }
+
+/**
+ * Handles analysis click from AiAnalyzeButton.
+ * Triggers AI analysis for current URL.
+ */
+async function onAnalyzeClick() {
+  if (!props.currentTabInfo)
+    return
+  await handleAnalyze(props.currentTabInfo.url)
+}
 </script>
 
 <template>
@@ -158,9 +180,34 @@ async function handleDeleteLink() {
 
     <!-- Form content shows after checking -->
     <template v-else>
+      <UrlInput v-model="url" />
+
+      <!-- AI Analysis Section (between URL and form fields) -->
+      <AiAnalyzeButton
+        :is-analyzing="aiState.isAnalyzing"
+        :has-analyzed="aiState.suggestedTags.length > 0"
+        :is-app-configured="isAppConfigured"
+        @analyze="onAnalyzeClick"
+      />
+
+      <!-- AI Suggestions (shown after successful analysis) -->
+      <AiSuggestions
+        v-if="aiState.suggestedTags.length > 0"
+        :suggested-note="aiState.suggestedNote"
+        :suggested-tags="aiState.suggestedTags"
+        :selected-tag-names="aiState.selectedTagNames"
+        @toggle-tag="handleToggleTag"
+        @add-note="handleAddNote"
+      />
+
       <NotesInput v-model="notes" />
       <TagInput v-model="tagNames" />
-      <UrlInput v-model="url" />
+
+      <!-- AI Error display -->
+      <div v-if="aiState.error" class="text-sm text-red-600">
+        {{ aiState.error }}
+      </div>
+
       <LinkActions
         :is-linked="isLinked"
         :is-checking-link="isFetching"
