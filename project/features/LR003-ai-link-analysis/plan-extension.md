@@ -813,7 +813,7 @@ const emit = defineEmits<{
   analyze: []
 }>()
 
-function handleClick() {
+function handleAnalyzeClick() {
   emit('analyze')
 }
 </script>
@@ -827,7 +827,7 @@ function handleClick() {
       'bg-blue-500 text-white cursor-wait': isAnalyzing
     }"
     :disabled="isAnalyzing"
-    @click="handleClick"
+    @click="handleAnalyzeClick"
   >
     <!-- Spinner icon when analyzing -->
     <span v-if="isAnalyzing" class="inline-flex items-center gap-2">
@@ -1101,52 +1101,170 @@ function handleToggle(tagName: string) {
 
 ## Phase 6: Integration
 
-**Purpose:** Integrate AI components into LinkForm and wire up data flow.
+**Purpose:** Integrate AI components into LinkForm via a lightweight integration composable. Keeps LinkForm focused on form concerns while maintaining clean separation of AI logic.
 
-**Justification:** Connects all pieces - button triggers analysis, suggestions displayed, selections sync to main fields. (spec.md#5.4)
+**Justification:** Creates three clean layers: pure AI logic (`useAiAnalysis`), form integration logic (`useAiFormIntegration`), and form UI (`LinkForm`). Prevents LinkForm from becoming too large with orchestration responsibilities. (spec.md#5.4)
+
+### Architecture
+
+Three-layer approach:
+- **`useAiAnalysis`** - Pure AI: extract content, call API, manage state (reusable anywhere)
+- **`useAiFormIntegration`** - Lightweight integration: wraps useAiAnalysis, adds form-specific syncing logic
+- **`LinkForm`** - Form UI: just calls the integration composable's methods
+
+### File: `extension/entrypoints/popup/composables/useAiFormIntegration.ts`
+
+This file is **novel** - thin integration layer between AI logic and form. Full implementation detail provided:
+
+```typescript
+/**
+ * AI Form Integration Composable
+ * 
+ * Wraps useAiAnalysis and adds form-specific integration:
+ * - Tag syncing: AI-selected tags automatically merge with manual tags in TagInput
+ * - Note insertion: Selected note can be inserted into NotesInput
+ * - State management: Resets AI state on tab changes
+ * 
+ * Keeps LinkForm clean by encapsulating all AI-form orchestration logic here.
+ * useAiAnalysis remains pure (AI logic only, reusable in other components).
+ * 
+ * Pattern: Follows lightweight integration composable pattern for feature integration
+ */
+
+import { watch, computed } from 'vue'
+import type { Ref } from 'vue'
+import { useAiAnalysis } from './useAiAnalysis'
+import type { AnalysisState } from '../../../lib/types/ai-analysis'
+
+/**
+ * AI Form Integration Composable
+ * 
+ * Manages integration between AI analysis and form state.
+ * Automatically syncs selected tags to main form field and handles note insertion.
+ * 
+ * @param tagNamesRef - Reference to form's tagNames array
+ * @param notesRef - Reference to form's notes string
+ * @returns AI state and handlers for LinkForm to use
+ * 
+ * @example
+ *   const { state, handleAnalyze, handleToggleTag, handleAddNote, reset } = useAiFormIntegration(
+ *     tagNames,
+ *     notes
+ *   )
+ */
+export function useAiFormIntegration(
+  tagNamesRef: Ref<string[]>,
+  notesRef: Ref<string>
+) {
+  // Get AI analysis composable (pure AI logic)
+  const { state: aiState, analyze, toggleTag, reset: resetAiState } = useAiAnalysis()
+  
+  /**
+   * Watch AI tag selections and sync to form's tagNames field
+   * 
+   * Logic:
+   * 1. Get currently selected AI tags (from aiState.selectedTagNames)
+   * 2. Get manually-entered tags (tags in form that aren't from AI suggestions)
+   * 3. Merge them: manual tags + AI tags (user is always in control)
+   * 4. Update form's tagNames
+   * 
+   * This ensures:
+   * - AI suggestions automatically appear in main field when selected
+   * - Manual tags are preserved alongside AI tags
+   * - No duplicates (Set handles uniqueness)
+   * - Real-time updates as user clicks tag chips
+   */
+  watch(
+    () => Array.from(aiState.selectedTagNames),
+    (selectedAiTags) => {
+      // Tags in the form that aren't from current AI suggestions (manually typed)
+      const manualTags = tagNamesRef.value.filter(tag =>
+        !aiState.suggestedTags.some(st => st.name === tag)
+      )
+      
+      // Merge: keep manual tags + add selected AI tags
+      tagNamesRef.value = [...manualTags, ...selectedAiTags]
+    },
+    { deep: true }
+  )
+  
+  /**
+   * Trigger AI analysis for current page
+   * 
+   * @param url - Page URL to analyze
+   */
+  async function handleAnalyze(url: string): Promise<void> {
+    await analyze(url)
+  }
+  
+  /**
+   * Toggle AI tag selection and update form field
+   * 
+   * @param tagName - Tag name to toggle
+   */
+  function handleToggleTag(tagName: string): void {
+    toggleTag(tagName)
+    // Watch above handles syncing to form automatically
+  }
+  
+  /**
+   * Insert AI-suggested note into form's notes field
+   * 
+   * Replaces entire notes field with AI suggestion (user can edit after).
+   * 
+   * @param note - Note text to insert
+   */
+  function handleAddNote(note: string): void {
+    notesRef.value = note
+  }
+  
+  /**
+   * Reset AI state (call when tab changes)
+   */
+  function reset(): void {
+    resetAiState()
+  }
+  
+  return {
+    state: aiState,
+    handleAnalyze,
+    handleToggleTag,
+    handleAddNote,
+    reset,
+  }
+}
+```
+
+### Tasks
+
+- [ ] Create `extension/entrypoints/popup/composables/useAiFormIntegration.ts` with implementation above
+- [ ] Import useAiAnalysis from './useAiAnalysis'
+- [ ] Implement tag syncing watch (merges manual + AI tags)
+- [ ] Implement handleAnalyze, handleToggleTag, handleAddNote, reset functions
+- [ ] Add JSDoc comments (included above)
+- [ ] Verify TypeScript compilation passes
 
 ### File: `extension/entrypoints/popup/components/LinkForm.vue`
 
-Modify existing LinkForm to integrate AI analysis components. Pattern references provided (not full detail):
+Modify existing LinkForm to use the integration composable:
 
 **Import Additions:**
 ```typescript
-import { useAiAnalysis } from './useAiAnalysis'
+import { useAiFormIntegration } from '../composables/useAiFormIntegration'
 import AiAnalyzeButton from './AiAnalyzeButton.vue'
 import AiSuggestions from './AiSuggestions.vue'
 ```
 
 **Composable Setup (add to existing composables):**
 ```typescript
-const { state: aiState, analyze, toggleTag, getSelectedTags, reset: resetAiState } = useAiAnalysis()
+const { state: aiState, handleAnalyze, handleToggleTag, handleAddNote, reset: resetAiState } = useAiFormIntegration(tagNames, notes)
 ```
 
 **Analysis Handler (new function):**
 ```typescript
-async function handleAnalyze() {
+async function onAnalyzeClick() {
   if (!props.currentTabInfo) return
-  await analyze(props.currentTabInfo.url)
-}
-```
-
-**Tag Syncing Logic (watch for AI selections):**
-```typescript
-// Watch AI tag selections and sync to main tagNames field
-watch(() => Array.from(aiState.value.selectedTagNames), (selectedAiTags) => {
-  // Merge AI-selected tags with manually-entered tags
-  // Remove AI tags that were deselected
-  // Keep manual tags that weren't from AI
-  const manualTags = tagNames.value.filter(tag => 
-    !aiState.value.suggestedTags.some(st => st.name === tag)
-  )
-  tagNames.value = [...manualTags, ...selectedAiTags]
-}, { deep: true })
-```
-
-**Note Insertion Handler (new function):**
-```typescript
-function handleAddNote(note: string) {
-  notes.value = note
+  await handleAnalyze(props.currentTabInfo.url)
 }
 ```
 
@@ -1166,7 +1284,7 @@ watch(() => props.currentTabInfo, async (newTabInfo) => {
 <AiAnalyzeButton
   :is-analyzing="aiState.isAnalyzing"
   :has-analyzed="aiState.suggestedTags.length > 0"
-  @analyze="handleAnalyze"
+  @analyze="onAnalyzeClick"
 />
 
 <!-- Show suggestions after successful analysis -->
@@ -1176,7 +1294,7 @@ watch(() => props.currentTabInfo, async (newTabInfo) => {
   :suggested-tags="aiState.suggestedTags"
   :selected-tag-names="aiState.selectedTagNames"
   @add-note="handleAddNote"
-  @toggle-tag="toggleTag"
+  @toggle-tag="handleToggleTag"
 />
 
 <!-- Show error if analysis failed -->
@@ -1187,16 +1305,15 @@ watch(() => props.currentTabInfo, async (newTabInfo) => {
 
 ### Tasks
 
-- [ ] Import useAiAnalysis composable and AI components in LinkForm.vue
-- [ ] Add aiState from useAiAnalysis to composables section
-- [ ] Add handleAnalyze function to trigger analysis
-- [ ] Add watch for aiState.selectedTagNames to sync to main tagNames field in real-time
-- [ ] Add handleAddNote function to populate notes field
+- [ ] Create `useAiFormIntegration` composable (see above)
+- [ ] Import useAiFormIntegration and AI components in LinkForm.vue
+- [ ] Call useAiFormIntegration(tagNames, notes) in composables section
+- [ ] Add onAnalyzeClick handler that calls handleAnalyze(url)
 - [ ] Add resetAiState() call in tab change watcher
 - [ ] Insert AiAnalyzeButton component between UrlInput and NotesInput
 - [ ] Insert AiSuggestions component (conditional, only when suggestions exist)
 - [ ] Insert error display (conditional, only when error exists)
-- [ ] Test complete flow: click button → see suggestions → select tags → tags appear in main field
+- [ ] Test complete flow: click button → see suggestions → select tags → tags sync to main field
 - [ ] Test note insertion: click "[+ Add to Notes]" → note populates NotesInput
 - [ ] Test tab changes: navigate to new tab → AI state resets → no stale suggestions
 
@@ -1208,9 +1325,15 @@ watch(() => props.currentTabInfo, async (newTabInfo) => {
 
 **Integration Points:**
 - **Button placement**: After UrlInput, before NotesInput (visible position)
-- **Real-time syncing**: watch() for selectedTagNames → update tagNames
+- **Real-time syncing**: watch() in useAiFormIntegration handles tag syncing automatically
 - **State reset**: Call resetAiState() when tab changes
 - **Error display**: Simple error message below button
+
+**Architecture Benefits:**
+- LinkForm stays focused on form UI and submission
+- AI logic (useAiAnalysis) stays pure and reusable
+- Integration logic (useAiFormIntegration) is lightweight and encapsulated
+- Clear separation of concerns across three layers
 
 ---
 
