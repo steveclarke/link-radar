@@ -33,6 +33,17 @@ This plan implements the browser extension UI for AI-powered link analysis. User
 6. [Phase 6: Integration](#phase-6-integration)
 7. [Phase 7: Manual Testing](#phase-7-manual-testing)
 
+## Key Updates from Backend Implementation
+
+Based on the completed backend implementation (plan-backend.md), the following clarifications were integrated:
+
+- **API Endpoint**: Backend route is `/api/v1/links/analyze` (Phase 2)
+- **Authentication**: `authenticatedFetch` must include `Authorization: Bearer {token}` header
+- **Content Limit**: MAX_CONTENT_LENGTH matches backend validation (50,000 chars)
+- **Timeout**: Backend AI calls take 3-5 seconds → extension uses 15-second timeout with `Promise.race()`
+- **Error Handling**: Backend validates all input (content size, URL format, privacy) → extension shows generic errors
+- **Defense-in-Depth**: Both client-side and server-side privacy checks in place
+
 ---
 
 ## Phase 1: Prerequisites & Dependencies
@@ -88,7 +99,7 @@ This file is **novel** - defines new types for AI analysis feature. Full impleme
  * 
  * Matches backend POST /api/v1/links/analyze request contract (spec.md#3.2)
  */
-export interface AnalyzeRequest {
+export interface AnalysisRequest {
   /** Page URL (HTTP/HTTPS only) */
   url: string
   
@@ -126,7 +137,7 @@ export interface SuggestedTag {
  * Matches backend response contract (spec.md#3.3)
  * Wrapped in `data` object per existing API conventions
  */
-export interface AnalyzeResponse {
+export interface AnalysisResponse {
   data: {
     /** AI-generated note (1-2 sentences explaining value) */
     suggested_note: string
@@ -134,29 +145,6 @@ export interface AnalyzeResponse {
     /** AI-generated tag suggestions (typically 3-7 tags) */
     suggested_tags: SuggestedTag[]
   }
-}
-
-/**
- * Extracted page content from Readability
- * 
- * Intermediate structure used between content extraction and API call
- * Contains all metadata needed for analysis
- */
-export interface ExtractedContent {
-  /** Main article text from Readability.parse() */
-  content: string
-  
-  /** Page title (og:title > <title> > h1) */
-  title: string
-  
-  /** Meta description (og:description > meta description) */
-  description: string
-  
-  /** Author info from meta tags (optional) */
-  author?: string
-  
-  /** Full page URL for context */
-  url: string
 }
 
 /**
@@ -227,18 +215,10 @@ Add analyzeLink function (follows existing authenticatedFetch pattern):
  *   console.log(response.data.suggested_note)
  *   console.log(response.data.suggested_tags)
  */
-export async function analyzeLink(request: AnalyzeRequest): Promise<AnalyzeResponse> {
-  const payload = {
-    url: request.url,
-    content: request.content,
-    title: request.title,
-    description: request.description,
-    author: request.author,
-  }
-
+export async function analyzeLink(request: AnalysisRequest): Promise<AnalysisResponse> {
   return authenticatedFetch("/links/analyze", {
     method: "POST",
-    body: JSON.stringify(payload),
+    body: JSON.stringify(request),
   })
 }
 ```
@@ -248,8 +228,10 @@ export async function analyzeLink(request: AnalyzeRequest): Promise<AnalyzeRespo
 - [ ] Create `extension/lib/types/ai-analysis.ts` with all type definitions above
 - [ ] Add JSDoc comments for all interfaces and properties (included above)
 - [ ] Add `export * from "./ai-analysis"` to `extension/lib/types/index.ts`
-- [ ] Import AnalyzeRequest and AnalyzeResponse types in `apiClient.ts`
+- [ ] Import AnalysisRequest and AnalysisResponse types in `apiClient.ts`
 - [ ] Add `analyzeLink()` function to `apiClient.ts` after existing functions
+- [ ] **Verify** endpoint path is `/api/v1/links/analyze` (matches backend route exactly)
+- [ ] **Verify** that `authenticatedFetch` includes `Authorization: Bearer {token}` header (backend requires this)
 - [ ] Verify TypeScript compilation: `cd extension && pnpm run build`
 - [ ] Verify types are exported and accessible from `lib/types/index.ts`
 
@@ -257,6 +239,7 @@ export async function analyzeLink(request: AnalyzeRequest): Promise<AnalyzeRespo
 - All types include JSDoc comments for IDE autocomplete
 - AnalysisState uses Set<string> for O(1) tag selection lookups
 - Type contracts match backend API exactly (spec.md#3.2, spec.md#3.3)
+- Backend endpoint: `POST /api/v1/links/analyze` (not `/links/analyze`)
 
 ---
 
@@ -266,9 +249,9 @@ export async function analyzeLink(request: AnalyzeRequest): Promise<AnalyzeRespo
 
 **Justification:** Defense-in-depth privacy (extension + backend validation) and leverages browser DOM access for content extraction. (spec.md#5.3, spec.md#7.1)
 
-### File: `extension/lib/privacy.ts`
+### File: `extension/lib/urlValidation.ts`
 
-This file is **novel** - first use of ip-address library for privacy protection. Full implementation detail provided:
+This file is **novel** - first use of ip-address library for URL validation (SSRF protection). Full implementation detail provided:
 
 ```typescript
 /**
@@ -288,42 +271,28 @@ This file is **novel** - first use of ip-address library for privacy protection.
 import { Address4, Address6 } from 'ip-address'
 
 /**
- * Check if URL is safe to analyze (not localhost or private IP)
+ * Check if URL is safe to analyze (allows public IPs and domains only)
  * 
- * Validation checks:
- * 1. Hostname is not localhost (string match)
- * 2. Hostname is not 127.0.0.1 or ::1 (loopback addresses)
- * 3. IPv4 address is not in private ranges (uses Address4.isValid() and isPublic())
- * 4. IPv6 address is not in private ranges (uses Address6.isValid() and isPublic())
+ * Blocks localhost and private IP addresses (127.0.0.1, 192.168.x.x, 10.x.x.x, etc.)
+ * to prevent SSRF attacks. Domain names are allowed - backend validates via DNS.
  * 
  * @param url - Full URL to validate
  * @returns true if safe to analyze, false if blocked (localhost/private)
  * 
- * @example Safe URLs
+ * @example
  *   isSafeToAnalyze("https://example.com") // => true
- *   isSafeToAnalyze("https://8.8.8.8/page") // => true (public IP)
- * 
- * @example Blocked URLs
- *   isSafeToAnalyze("http://localhost/admin") // => false
- *   isSafeToAnalyze("http://127.0.0.1/") // => false
- *   isSafeToAnalyze("http://192.168.1.1/") // => false (private IP)
- *   isSafeToAnalyze("http://10.0.0.1/") // => false (private IP)
+ *   isSafeToAnalyze("http://192.168.1.1/") // => false
  */
 export function isSafeToAnalyze(url: string): boolean {
   try {
     const urlObj = new URL(url)
     const hostname = urlObj.hostname
     
-    // Check for localhost string match
-    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') {
-      return false
-    }
-    
     // Try parsing as IPv4
     try {
       const ipv4 = new Address4(hostname)
       if (ipv4.isValid()) {
-        // isPublic() returns true for public IPs, false for private ranges
+        // isPublic() returns true for public IPs, false for private ranges and loopback
         return ipv4.isPublic()
       }
     } catch {
@@ -334,7 +303,7 @@ export function isSafeToAnalyze(url: string): boolean {
     try {
       const ipv6 = new Address6(hostname)
       if (ipv6.isValid()) {
-        // isPublic() returns true for public IPs, false for private ranges
+        // isPublic() returns true for public IPs, false for private ranges and loopback
         return ipv6.isPublic()
       }
     } catch {
@@ -387,8 +356,8 @@ import { Readability } from '@mozilla/readability'
  * - Meta description (optional)
  * - Author info (optional)
  */
-export interface ExtractionResult {
-  /** Main article text from Readability (truncated to 50K chars) */
+export interface ExtractedContent {
+  /** Main article text from Readability.parse() (truncated to 50K chars) */
   content: string
   
   /** Page title (og:title > <title> > h1 > "Untitled") */
@@ -399,6 +368,9 @@ export interface ExtractionResult {
   
   /** Author from meta tags (optional) */
   author?: string
+  
+  /** Full page URL for context */
+  url: string
 }
 
 /**
@@ -411,39 +383,37 @@ const MAX_CONTENT_LENGTH = 50_000
 /**
  * Extract page content using Readability
  * 
+ * Extracts both article content and metadata for AI analysis. Content is kept
+ * as structured HTML (not plain text) to preserve semantic information for analysis.
+ * Works on any page type - articles, apps, docs, etc.
+ * 
  * Process:
  * 1. Clone document (Readability modifies DOM)
- * 2. Parse with Readability to extract article text
- * 3. Extract metadata from DOM (title, description, author)
+ * 2. Parse with Readability to extract content and metadata
+ * 3. Use Readability's metadata, fall back to DOM queries if needed
  * 4. Truncate content to MAX_CONTENT_LENGTH
  * 5. Return structured result
  * 
  * @returns Extraction result with content and metadata
  * 
- * @example Basic usage
+ * @example
  *   const extracted = extractPageContent()
  *   console.log(extracted.title)
  *   console.log(extracted.content.length)
- * 
- * @example Handling extraction failures
- *   const extracted = extractPageContent()
- *   if (extracted.content === '') {
- *     console.log('No readable content found')
- *   }
  */
-export function extractPageContent(): ExtractionResult {
+export function extractPageContent(): ExtractedContent {
   // Clone document for Readability (it modifies the DOM)
   const documentClone = document.cloneNode(true) as Document
   
-  // Extract main article content
+  // Extract content and metadata using Readability
   const reader = new Readability(documentClone)
   const article = reader.parse()
   
-  // Extract metadata from original document
-  const metadata = extractMetadata()
-  
-  // Get article text (or empty string if extraction failed)
-  let content = article?.textContent || ''
+  // Use Readability's extracted data as primary source, fall back to DOM queries
+  let content = article?.content || ''
+  const title = article?.title || extractTitle()
+  const description = article?.excerpt || extractDescription()
+  const author = article?.byline || extractAuthor()
   
   // Truncate content to backend limit (spec.md#3.2)
   if (content.length > MAX_CONTENT_LENGTH) {
@@ -452,9 +422,9 @@ export function extractPageContent(): ExtractionResult {
   
   return {
     content,
-    title: metadata.title,
-    description: metadata.description,
-    author: metadata.author,
+    title,
+    description,
+    author,
   }
 }
 
@@ -496,11 +466,11 @@ function extractMetadata() {
 
 ### Tasks
 
-- [ ] Create `extension/lib/privacy.ts` with `isSafeToAnalyze()` function
+- [ ] Create `extension/lib/urlValidation.ts` with `isSafeToAnalyze()` function
 - [ ] Create `extension/lib/contentExtractor.ts` with `extractPageContent()` function
 - [ ] Import Address4 and Address6 from 'ip-address' package
 - [ ] Import Readability from '@mozilla/readability' package
-- [ ] Verify MAX_CONTENT_LENGTH constant matches spec (50,000 per spec.md#3.2, line 780)
+- [ ] **Verify** MAX_CONTENT_LENGTH constant is `50_000` (matches backend validation - backend/lib/link_radar/ai/link_analyzer.rb line ~85)
 - [ ] Add JSDoc comments for all functions (included above)
 - [ ] Test privacy checks manually with test URLs (localhost, 192.168.1.1, public domains)
 - [ ] Test content extraction on various pages (articles, blogs, documentation)
@@ -509,9 +479,10 @@ function extractMetadata() {
 
 **Implementation Notes:**
 - **Privacy**: Client-side check provides immediate feedback, backend still validates (defense-in-depth)
-- **Content Truncation**: Extension truncates at 50K (per spec.md line 780), backend validates as safety check (per spec.md line 781)
+- **Content Truncation**: Extension truncates at 50K before sending, backend validates as safety check
 - **DOM Cloning**: Required because Readability modifies the document
 - **Fallback Chains**: Ensure we always have title even if metadata is poor
+- **Timeout consideration**: Backend AI calls take 3-5 seconds to complete (extension's timeout should be generous)
 
 ---
 
@@ -521,7 +492,7 @@ function extractMetadata() {
 
 **Justification:** Centralizes analysis lifecycle, error handling, and tag selection state. Follows existing composable pattern from useLink, useNotification. (spec.md#5.5)
 
-### File: `extension/lib/composables/useAiAnalysis.ts`
+### File: `extension/entrypoints/popup/composables/useAiAnalysis.ts`
 
 This file is **novel** - manages complex async state with cancellation and real-time tag syncing. Full implementation detail provided:
 
@@ -542,11 +513,25 @@ This file is **novel** - manages complex async state with cancellation and real-
  * Pattern: Follows useLink and useNotification composable patterns in codebase
  */
 
-import { ref } from 'vue'
-import type { AnalysisState, SuggestedTag } from '../types/ai-analysis'
-import { analyzeLink } from '../apiClient'
-import { extractPageContent } from '../contentExtractor'
-import { isSafeToAnalyze } from '../privacy'
+import { reactive, ref, computed } from 'vue'
+import { useAsyncState } from '@vueuse/core'
+import type { AnalysisState, SuggestedTag } from '../../../lib/types/ai-analysis'
+import { analyzeLink } from '../../../lib/apiClient'
+import { extractPageContent } from '../../../lib/contentExtractor'
+import { isSafeToAnalyze } from '../../../lib/urlValidation'
+
+/**
+ * Custom error class for analysis failures with structured error codes
+ */
+class AnalysisError extends Error {
+  constructor(
+    public code: 'TIMEOUT' | 'PRIVACY' | 'EXTRACTION' | 'API_ERROR',
+    message: string
+  ) {
+    super(message)
+    this.name = 'AnalysisError'
+  }
+}
 
 /**
  * Composable for AI analysis state and operations
@@ -574,74 +559,48 @@ import { isSafeToAnalyze } from '../privacy'
  */
 export function useAiAnalysis() {
   /**
-   * Reactive analysis state
-   * 
-   * Tracks complete analysis lifecycle:
-   * - isAnalyzing: true during API call
-   * - error: Error message if analysis failed
-   * - suggestedNote: AI-generated note text
-   * - suggestedTags: Array of tag suggestions with exists flags
-   * - selectedTagNames: Set of tag names user has toggled on
+   * Timeout for AI analysis (backend takes 3-5 seconds, allow 15s total for network delays)
    */
-  const state = ref<AnalysisState>({
-    isAnalyzing: false,
-    error: null,
-    suggestedNote: null,
-    suggestedTags: [],
-    selectedTagNames: new Set(),
-  })
+  const ANALYSIS_TIMEOUT_MS = 15_000
   
   /**
-   * Trigger analysis for current page
-   * 
-   * Process:
-   * 1. Validate URL is safe (not localhost/private IP)
-   * 2. Extract content using Readability
-   * 3. Call backend API with extracted content
-   * 4. Update state with suggestions or error
-   * 5. Clear previous selections (new analysis = fresh start)
-   * 
-   * Error handling:
-   * - Privacy violations: Friendly message about localhost/private URLs
-   * - API errors: Generic "failed" message (user can retry)
-   * - Network errors: Generic error message
-   * - All errors stored in state.error for display
-   * 
-   * @param url - Page URL to analyze
-   * 
-   * @example
-   *   try {
-   *     await analyze('https://example.com')
-   *     if (state.value.suggestedTags.length > 0) {
-   *       console.log('Got suggestions!')
-   *     }
-   *   } catch (error) {
-   *     console.error('Analysis failed:', state.value.error)
-   *   }
+   * User's tag selections (separate from API response)
    */
-  async function analyze(url: string): Promise<void> {
-    // Privacy check (client-side, immediate feedback)
-    if (!isSafeToAnalyze(url)) {
-      state.value.error = 'Cannot analyze localhost or private URLs'
-      return
-    }
-    
-    // Extract page content
-    let extracted
-    try {
-      extracted = extractPageContent()
-    } catch (error) {
-      state.value.error = 'Failed to extract page content'
-      return
-    }
-    
-    // Set loading state
-    state.value.isAnalyzing = true
-    state.value.error = null
-    
-    try {
-      // Call backend API
-      const response = await analyzeLink({
+  const selectedTagNames = reactive(new Set<string>())
+  
+  /**
+   * Async state management using VueUse
+   * Handles loading/error states automatically for the analysis operation
+   */
+  const {
+    state: apiResponse,
+    isLoading: isAnalyzing,
+    error: analysisError,
+    execute: performAnalysis,
+  } = useAsyncState(
+    async (url: string) => {
+      // Privacy check (client-side, immediate feedback)
+      if (!isSafeToAnalyze(url)) {
+        throw new AnalysisError('PRIVACY', 'Cannot analyze localhost or private URLs')
+      }
+      
+      // Extract page content
+      let extracted
+      try {
+        extracted = extractPageContent()
+      } catch (error) {
+        throw new AnalysisError('EXTRACTION', 'Failed to extract page content')
+      }
+      
+      // Create a promise that rejects after ANALYSIS_TIMEOUT_MS (15 seconds)
+      // This ensures we don't wait forever if the backend hangs or network is slow
+      // Promise<never> means this promise will only ever fail, never succeed
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new AnalysisError('TIMEOUT', 'Analysis timed out')), ANALYSIS_TIMEOUT_MS)
+      )
+      
+      // Make the API call
+      const analysisPromise = analyzeLink({
         url,
         content: extracted.content,
         title: extracted.title,
@@ -649,29 +608,59 @@ export function useAiAnalysis() {
         author: extracted.author,
       })
       
-      // Update state with suggestions
-      state.value.suggestedNote = response.data.suggested_note
-      state.value.suggestedTags = response.data.suggested_tags
-      
-      // Clear previous selections (new analysis = fresh start)
-      state.value.selectedTagNames.clear()
-    } catch (error) {
-      // Handle API/network errors
-      if (error instanceof Error) {
-        // Extract user-friendly message from error
-        if (error.message.includes('timeout') || error.message.includes('timed out')) {
-          state.value.error = 'Analysis timed out. Try again?'
-        } else if (error.message.includes('localhost') || error.message.includes('private')) {
-          state.value.error = 'Cannot analyze localhost or private URLs'
-        } else {
-          state.value.error = 'Analysis failed. Please try again.'
-        }
-      } else {
-        state.value.error = 'Analysis failed. Please try again.'
+      // Promise.race([promise1, promise2]) = whichever settles first wins
+      // If API responds in 3 seconds: returns API response
+      // If API takes 20 seconds: timeout rejects first with AnalysisError('TIMEOUT', ...)
+      return Promise.race([analysisPromise, timeoutPromise])
+    },
+    null,
+    { immediate: false, throwError: true }
+  )
+  
+  /**
+   * Combine API response with user selections into AnalysisState
+   * useAsyncState handles isAnalyzing and error, we just map the API data
+   */
+  const state = computed<AnalysisState>(() => ({
+    isAnalyzing: isAnalyzing.value,
+    error: analysisError.value ? formatAnalysisError(analysisError.value) : null,
+    suggestedNote: apiResponse.value?.data?.suggested_note || null,
+    suggestedTags: apiResponse.value?.data?.suggested_tags || [],
+    selectedTagNames,
+  }))
+
+  /**
+   * Convert AnalysisError to user-friendly message based on error code
+   */
+  function formatAnalysisError(error: Error): string {
+    if (error instanceof AnalysisError) {
+      switch (error.code) {
+        case 'TIMEOUT':
+          return 'Analysis timed out. Try again?'
+        case 'PRIVACY':
+          return 'Cannot analyze localhost or private URLs'
+        case 'EXTRACTION':
+          return 'Failed to extract page content'
+        case 'API_ERROR':
+          return 'Analysis failed. Please try again.'
       }
-    } finally {
-      state.value.isAnalyzing = false
     }
+    return 'Analysis failed. Please try again.'
+  }
+
+  /**
+   * Trigger AI analysis for the given URL
+   * 
+   * Clears previous tag selections and runs analysis with timeout protection.
+   * 
+   * @param url - Page URL to analyze
+   * 
+   * @example
+   *   await analyze('https://example.com')
+   */
+  async function analyze(url: string): Promise<void> {
+    selectedTagNames.clear()
+    await performAnalysis(url)
   }
   
   /**
@@ -680,8 +669,11 @@ export function useAiAnalysis() {
    * If tag is selected: deselect it (remove from Set)
    * If tag is not selected: select it (add to Set)
    * 
-   * Set provides O(1) lookups for toggle check and selection state.
-   * Parent component (LinkForm) watches selectedTagNames to update main TagInput.
+   * Uses Set (not Array) for performance: Set.has() is O(1) - constant time lookup,
+   * always instant regardless of how many tags are selected. With an Array, checking
+   * if an item exists (includes()) would be O(n) - slower as the collection grows.
+   * 
+   * Since toggleTag() gets called frequently during UI interactions, we need fast lookups.
    * 
    * @param tagName - Name of tag to toggle
    * 
@@ -690,14 +682,14 @@ export function useAiAnalysis() {
    *   toggleTag('JavaScript') // Deselects 'JavaScript'
    */
   function toggleTag(tagName: string): void {
-    if (state.value.selectedTagNames.has(tagName)) {
-      state.value.selectedTagNames.delete(tagName)
+    if (state.selectedTagNames.has(tagName)) {
+      state.selectedTagNames.delete(tagName)
     } else {
-      state.value.selectedTagNames.add(tagName)
+      state.selectedTagNames.add(tagName)
     }
     
     // Trigger Vue reactivity (Set mutations don't auto-trigger)
-    state.value.selectedTagNames = new Set(state.value.selectedTagNames)
+    state.selectedTagNames = new Set(state.selectedTagNames)
   }
   
   /**
@@ -713,7 +705,7 @@ export function useAiAnalysis() {
    *   // => ['JavaScript', 'TypeScript', 'Web Development']
    */
   function getSelectedTags(): string[] {
-    return Array.from(state.value.selectedTagNames)
+    return Array.from(state.selectedTagNames)
   }
   
   /**
@@ -736,13 +728,7 @@ export function useAiAnalysis() {
    *   })
    */
   function reset(): void {
-    state.value = {
-      isAnalyzing: false,
-      error: null,
-      suggestedNote: null,
-      suggestedTags: [],
-      selectedTagNames: new Set(),
-    }
+    selectedTagNames.clear()
   }
   
   return {
@@ -757,22 +743,27 @@ export function useAiAnalysis() {
 
 ### Tasks
 
-- [ ] Create `extension/lib/composables/useAiAnalysis.ts` with full implementation above
+- [ ] Create `extension/entrypoints/popup/composables/useAiAnalysis.ts` with full implementation above
 - [ ] Import all required types from '../types/ai-analysis'
 - [ ] Import analyzeLink from '../apiClient'
 - [ ] Import extractPageContent from '../contentExtractor'
-- [ ] Import isSafeToAnalyze from '../privacy'
-- [ ] Use Vue's ref for reactive state (import from 'vue')
+- [ ] Import isSafeToAnalyze from '../urlValidation'
+- [ ] Use Vue's reactive for state object (import from 'vue')
 - [ ] Ensure Set mutations trigger Vue reactivity (create new Set on mutation)
+- [ ] **Add** `ANALYSIS_TIMEOUT_MS = 15_000` constant (15 seconds for backend AI call + network)
+- [ ] **Add** timeout handling with `Promise.race([analysisPromise, timeoutPromise])` in analyze function
 - [ ] Add JSDoc comments for all functions (included above)
 - [ ] Verify TypeScript compilation passes
 - [ ] Test composable logic manually (mock API calls to test state transitions)
+- [ ] Test timeout scenario (should show "Analysis timed out" error)
 
 **Implementation Notes:**
 - **Set for selections**: O(1) toggle checks, better than array for this use case
 - **Vue reactivity**: Set mutations need explicit new Set() to trigger updates
 - **Error handling**: Friendly messages for common errors, generic message for unexpected errors
 - **State reset**: Important for tab changes - don't show stale suggestions
+- **Timeout**: 15 seconds allows for 3-5 second backend processing + network delays
+- **Backend errors**: Backend validates all input (content size, URL format, etc.) - extension's error handler already shows generic messages
 
 ---
 
@@ -822,7 +813,7 @@ const emit = defineEmits<{
   analyze: []
 }>()
 
-function handleClick() {
+function handleAnalyzeClick() {
   emit('analyze')
 }
 </script>
@@ -836,7 +827,7 @@ function handleClick() {
       'bg-blue-500 text-white cursor-wait': isAnalyzing
     }"
     :disabled="isAnalyzing"
-    @click="handleClick"
+    @click="handleAnalyzeClick"
   >
     <!-- Spinner icon when analyzing -->
     <span v-if="isAnalyzing" class="inline-flex items-center gap-2">
@@ -1110,52 +1101,176 @@ function handleToggle(tagName: string) {
 
 ## Phase 6: Integration
 
-**Purpose:** Integrate AI components into LinkForm and wire up data flow.
+**Purpose:** Integrate AI components into LinkForm via a lightweight integration composable. Keeps LinkForm focused on form concerns while maintaining clean separation of AI logic.
 
-**Justification:** Connects all pieces - button triggers analysis, suggestions displayed, selections sync to main fields. (spec.md#5.4)
+**Justification:** Creates three clean layers: pure AI logic (`useAiAnalysis`), form integration logic (`useAiFormIntegration`), and form UI (`LinkForm`). Prevents LinkForm from becoming too large with orchestration responsibilities. (spec.md#5.4)
+
+### Architecture
+
+Three-layer approach:
+- **`useAiAnalysis`** - Pure AI: extract content, call API, manage state (reusable anywhere)
+- **`useAiFormIntegration`** - Lightweight integration: wraps useAiAnalysis, adds form-specific syncing logic
+- **`LinkForm`** - Form UI: just calls the integration composable's methods
+
+### File: `extension/entrypoints/popup/composables/useAiFormIntegration.ts`
+
+This file is **novel** - thin integration layer between AI logic and form. Full implementation detail provided:
+
+```typescript
+/**
+ * AI Form Integration Composable
+ * 
+ * Wraps useAiAnalysis and adds form-specific integration:
+ * - Tag syncing: AI-selected tags automatically merge with manual tags in TagInput
+ * - Note insertion: Selected note can be inserted into NotesInput
+ * - State management: Resets AI state on tab changes
+ * 
+ * Keeps LinkForm clean by encapsulating all AI-form orchestration logic here.
+ * useAiAnalysis remains pure (AI logic only, reusable in other components).
+ * 
+ * Pattern: Follows lightweight integration composable pattern for feature integration
+ */
+
+import { watch, computed } from 'vue'
+import type { Ref } from 'vue'
+import { useAiAnalysis } from './useAiAnalysis'
+import type { AnalysisState } from '../../../lib/types/ai-analysis'
+
+/**
+ * AI Form Integration Composable
+ * 
+ * Manages integration between AI analysis and form state.
+ * Automatically syncs selected tags to main form field and handles note insertion.
+ * 
+ * @param tagNamesRef - Reference to form's tagNames array
+ * @param notesRef - Reference to form's notes string
+ * @returns AI state and handlers for LinkForm to use
+ * 
+ * @example
+ *   const { state, handleAnalyze, handleToggleTag, handleAddNote, reset } = useAiFormIntegration(
+ *     tagNames,
+ *     notes
+ *   )
+ */
+export function useAiFormIntegration(
+  tagNamesRef: Ref<string[]>,
+  notesRef: Ref<string>
+) {
+  // Get AI analysis composable (pure AI logic)
+  const { state: aiState, analyze, toggleTag, reset: resetAiState } = useAiAnalysis()
+  
+  /**
+   * Watch AI tag selections and sync to form's tagNames field
+   * 
+   * Logic:
+   * 1. Get currently selected AI tags (from aiState.selectedTagNames)
+   * 2. Get manually-entered tags (tags in form that aren't from AI suggestions)
+   * 3. Merge them: manual tags + AI tags (user is always in control)
+   * 4. Update form's tagNames
+   * 
+   * This ensures:
+   * - AI suggestions automatically appear in main field when selected
+   * - Manual tags are preserved alongside AI tags
+   * - No duplicates (Set handles uniqueness)
+   * - Real-time updates as user clicks tag chips
+   */
+  watch(
+    () => Array.from(aiState.selectedTagNames),
+    (selectedAiTags) => {
+      // Tags in the form that aren't from current AI suggestions (manually typed)
+      const manualTags = tagNamesRef.value.filter(tag =>
+        !aiState.suggestedTags.some(st => st.name === tag)
+      )
+      
+      // Merge: keep manual tags + add selected AI tags
+      tagNamesRef.value = [...manualTags, ...selectedAiTags]
+    },
+    { deep: true }
+  )
+  
+  /**
+   * Trigger AI analysis for current page
+   * 
+   * @param url - Page URL to analyze
+   */
+  async function handleAnalyze(url: string): Promise<void> {
+    await analyze(url)
+  }
+  
+  /**
+   * Toggle AI tag selection and update form field
+   * 
+   * @param tagName - Tag name to toggle
+   */
+  function handleToggleTag(tagName: string): void {
+    toggleTag(tagName)
+    // Watch above handles syncing to form automatically
+  }
+  
+  /**
+   * Insert AI-suggested note into form's notes field
+   * 
+   * Replaces entire notes field with AI suggestion (user can edit after).
+   * 
+   * @param note - Note text to insert
+   */
+  function handleAddNote(note: string): void {
+    notesRef.value = note
+  }
+  
+  /**
+   * Reset AI state (call when tab changes)
+   */
+  function reset(): void {
+    resetAiState()
+  }
+  
+  return {
+    state: aiState,
+    handleAnalyze,
+    handleToggleTag,
+    handleAddNote,
+    reset,
+  }
+}
+```
+
+### Tasks
+
+- [x] Create `extension/entrypoints/popup/composables/useAiFormIntegration.ts` with implementation above
+- [x] Import useAiAnalysis from './useAiAnalysis'
+- [x] Implement tag syncing watch (one-way AI → Form, preserves pre-existing tags)
+- [x] Implement handleAnalyze, handleToggleTag, handleAddNote, reset functions
+- [x] Add JSDoc comments
+- [x] Verify TypeScript compilation passes
+
+**Implementation Notes:**
+- Tag syncing is **one-way only** (AI → Form) to avoid complex reactivity issues
+- Tags that exist before clicking "Analyze" are permanently protected from removal
+- Clicking AI tag chips adds/removes them from the Tags field
+- Removing tags via "X" in Tags field does NOT deselect AI chips (simplified UX)
 
 ### File: `extension/entrypoints/popup/components/LinkForm.vue`
 
-Modify existing LinkForm to integrate AI analysis components. Pattern references provided (not full detail):
+Modify existing LinkForm to use the integration composable:
 
 **Import Additions:**
 ```typescript
-import { useAiAnalysis } from '../../../lib/composables/useAiAnalysis'
+import { useAiFormIntegration } from '../composables/useAiFormIntegration'
 import AiAnalyzeButton from './AiAnalyzeButton.vue'
 import AiSuggestions from './AiSuggestions.vue'
 ```
 
 **Composable Setup (add to existing composables):**
 ```typescript
-const { state: aiState, analyze, toggleTag, getSelectedTags, reset: resetAiState } = useAiAnalysis()
+const { state: aiState, handleAnalyze, handleToggleTag, handleAddNote, reset: resetAiState } = useAiFormIntegration(tagNames, notes)
 ```
 
 **Analysis Handler (new function):**
 ```typescript
-async function handleAnalyze() {
+async function onAnalyzeClick() {
   if (!props.currentTabInfo) return
-  await analyze(props.currentTabInfo.url)
-}
-```
-
-**Tag Syncing Logic (watch for AI selections):**
-```typescript
-// Watch AI tag selections and sync to main tagNames field
-watch(() => Array.from(aiState.value.selectedTagNames), (selectedAiTags) => {
-  // Merge AI-selected tags with manually-entered tags
-  // Remove AI tags that were deselected
-  // Keep manual tags that weren't from AI
-  const manualTags = tagNames.value.filter(tag => 
-    !aiState.value.suggestedTags.some(st => st.name === tag)
-  )
-  tagNames.value = [...manualTags, ...selectedAiTags]
-}, { deep: true })
-```
-
-**Note Insertion Handler (new function):**
-```typescript
-function handleAddNote(note: string) {
-  notes.value = note
+  await handleAnalyze(props.currentTabInfo.url)
 }
 ```
 
@@ -1169,23 +1284,25 @@ watch(() => props.currentTabInfo, async (newTabInfo) => {
 })
 ```
 
-**Template Updates (add between UrlInput and NotesInput):**
+**Template Updates (add BEFORE all form fields):**
 ```vue
-<!-- AI Analysis Section -->
+<!-- AI Analysis Section (at top of form) -->
 <AiAnalyzeButton
   :is-analyzing="aiState.isAnalyzing"
   :has-analyzed="aiState.suggestedTags.length > 0"
-  @analyze="handleAnalyze"
+  :is-app-configured="isAppConfigured"
+  @analyze="onAnalyzeClick"
 />
 
-<!-- Show suggestions after successful analysis -->
+<!-- Show suggestions after successful analysis (with visibility toggle) -->
 <AiSuggestions
-  v-if="aiState.suggestedTags.length > 0"
-  :suggested-note="aiState.suggestedNote || ''"
+  v-if="aiState.suggestedTags.length > 0 && showAiSuggestions"
+  :suggested-note="aiState.suggestedNote"
   :suggested-tags="aiState.suggestedTags"
   :selected-tag-names="aiState.selectedTagNames"
+  @toggle-tag="handleToggleTag"
   @add-note="handleAddNote"
-  @toggle-tag="toggleTag"
+  @close="hideAiSuggestions"
 />
 
 <!-- Show error if analysis failed -->
@@ -1196,16 +1313,15 @@ watch(() => props.currentTabInfo, async (newTabInfo) => {
 
 ### Tasks
 
-- [ ] Import useAiAnalysis composable and AI components in LinkForm.vue
-- [ ] Add aiState from useAiAnalysis to composables section
-- [ ] Add handleAnalyze function to trigger analysis
-- [ ] Add watch for aiState.selectedTagNames to sync to main tagNames field in real-time
-- [ ] Add handleAddNote function to populate notes field
+- [ ] Create `useAiFormIntegration` composable (see above)
+- [ ] Import useAiFormIntegration and AI components in LinkForm.vue
+- [ ] Call useAiFormIntegration(tagNames, notes) in composables section
+- [ ] Add onAnalyzeClick handler that calls handleAnalyze(url)
 - [ ] Add resetAiState() call in tab change watcher
 - [ ] Insert AiAnalyzeButton component between UrlInput and NotesInput
 - [ ] Insert AiSuggestions component (conditional, only when suggestions exist)
 - [ ] Insert error display (conditional, only when error exists)
-- [ ] Test complete flow: click button → see suggestions → select tags → tags appear in main field
+- [ ] Test complete flow: click button → see suggestions → select tags → tags sync to main field
 - [ ] Test note insertion: click "[+ Add to Notes]" → note populates NotesInput
 - [ ] Test tab changes: navigate to new tab → AI state resets → no stale suggestions
 
@@ -1217,9 +1333,15 @@ watch(() => props.currentTabInfo, async (newTabInfo) => {
 
 **Integration Points:**
 - **Button placement**: After UrlInput, before NotesInput (visible position)
-- **Real-time syncing**: watch() for selectedTagNames → update tagNames
+- **Real-time syncing**: watch() in useAiFormIntegration handles tag syncing automatically
 - **State reset**: Call resetAiState() when tab changes
 - **Error display**: Simple error message below button
+
+**Architecture Benefits:**
+- LinkForm stays focused on form UI and submission
+- AI logic (useAiAnalysis) stays pure and reusable
+- Integration logic (useAiFormIntegration) is lightweight and encapsulated
+- Clear separation of concerns across three layers
 
 ---
 
@@ -1298,13 +1420,53 @@ After completing all phases:
    - Real-time syncing works reliably
 
 **Success Criteria:**
-- [ ] Content extraction works on various page types
-- [ ] Privacy protection blocks localhost/private IPs
-- [ ] AI returns relevant tag and note suggestions
-- [ ] Existing tags display as green, new tags as blue
-- [ ] Tag selection syncs to main field in real-time
-- [ ] Note insertion populates NotesInput field
-- [ ] Error handling is graceful and informative
+- [x] Content extraction works on various page types
+- [x] Privacy protection blocks localhost/private IPs
+- [x] AI returns relevant tag and note suggestions
+- [x] Existing tags display as green, new tags as blue
+- [x] Tag selection adds to main field (one-way sync)
+- [x] Note insertion populates NotesInput field
+- [x] Error handling is graceful and informative
+- [x] Button styling is subtle and integrated
+- [x] Suggestions panel can be hidden/shown
+- [x] Pre-existing tags are preserved during analysis
+
+## Implementation Deviations from Original Plan
+
+The following changes were made during implementation to address real-world issues:
+
+### 1. IP Validation Library
+**Planned:** `ip-address` npm package  
+**Implemented:** `ipaddr.js` npm package  
+**Reason:** The `ipaddr.js` library provides a simpler `.range()` API that directly classifies IPs as 'private', 'loopback', etc., whereas `ip-address` required manual subnet range checking.
+
+### 2. Tag Syncing Strategy
+**Planned:** Bidirectional syncing (AI chips ↔ Tags field)  
+**Implemented:** One-way syncing (AI chips → Tags field only)  
+**Reason:** Bidirectional syncing caused complex reactivity issues when existing tags matched AI suggestions. Simplified to one-way to ensure existing tags are never accidentally removed.
+
+### 3. Button Placement
+**Planned:** Between URL and Notes fields  
+**Implemented:** At the top, before all form fields  
+**Reason:** Better UX - user sees the AI option immediately when opening the popup, before filling out any form fields.
+
+### 4. Suggestions Panel Behavior
+**Planned:** "Done" button that resets state  
+**Implemented:** Close button (X) that hides panel without resetting  
+**Reason:** Users wanted to hide the panel while keeping their selections intact. Close button provides this without losing state.
+
+### 5. Component Structure
+**Planned:** Four separate components (AiAnalyzeButton, AiSuggestions, SuggestedNote, SuggestedTags)  
+**Implemented:** All four components created as specified  
+**Status:** ✅ Complete - matches plan
+
+### Known Limitations
+
+1. **Tag Syncing:** Removing a tag via "X" in the Tags field does NOT deselect the corresponding AI chip. This is intentional to simplify state management.
+
+2. **Edge Cases:** Some edge cases exist when existing tags have the same names as AI suggestions, but pre-existing tags are protected from removal.
+
+3. **No Auto-Selection:** AI chips matching existing tags are NOT automatically selected. User must manually click AI chips to add suggested tags.
 - [ ] Tab changes reset AI state correctly
 - [ ] Complete flow works: analyze → select → save
 

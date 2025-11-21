@@ -232,6 +232,16 @@ module Dev
         else
           RunnerSupport.system! "bin/rails db:prepare"
         end
+
+        load_llm_models
+      end
+
+      def load_llm_models
+        puts "\n== Loading LLM models =="
+        RunnerSupport.system "bin/rails ruby_llm:load_models"
+      rescue => e
+        warn "\n⚠️  Failed to load LLM models: #{e.message}"
+        warn "You can run manually later: bin/rails ruby_llm:load_models"
       end
 
       def cleanup_logs

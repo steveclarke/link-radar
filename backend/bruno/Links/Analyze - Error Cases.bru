@@ -1,0 +1,70 @@
+meta {
+  name: Analyze - Error Cases
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/api/v1/links/analyze
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "url": "http://localhost:3000",
+    "title": "This should fail",
+    "content": "Testing error handling for localhost URLs"
+  }
+}
+
+docs {
+  Test error case: localhost URL
+  
+  This should return 400 Bad Request with error:
+  "URL resolves to private IP address (SSRF protection)"
+  
+  To test other error cases, modify the request:
+  
+  1. MISSING REQUIRED FIELD (title):
+  {
+    "url": "https://example.com",
+    "content": "Missing title field"
+  }
+  Expected: 400 Bad Request - "Title is required"
+  
+  2. MISSING REQUIRED FIELD (content):
+  {
+    "url": "https://example.com",
+    "title": "Example"
+  }
+  Expected: 400 Bad Request - (content defaults to empty string, will process)
+  
+  3. PRIVATE IP:
+  {
+    "url": "http://192.168.1.1/admin",
+    "title": "Test",
+    "content": "Testing private IP"
+  }
+  Expected: 400 Bad Request - "URL resolves to private IP address (SSRF protection)"
+  
+  4. CONTENT TOO LONG (>50,000 chars):
+  Add a very long content string exceeding 50,000 characters
+  Expected: 400 Bad Request - "Content exceeds maximum length of 50000 characters"
+  
+  5. INVALID URL FORMAT:
+  {
+    "url": "not a valid url",
+    "title": "Test",
+    "content": "Testing invalid URL format"
+  }
+  Expected: 400 Bad Request - "Invalid URL format"
+  
+  6. UNSUPPORTED SCHEME (file://):
+  {
+    "url": "file:///etc/passwd",
+    "title": "Test",
+    "content": "Testing file scheme"
+  }
+  Expected: 400 Bad Request - "URL scheme must be http or https"
+}

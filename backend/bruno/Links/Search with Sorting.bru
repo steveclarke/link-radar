@@ -17,16 +17,15 @@ params:query {
 
 docs {
   Combine search with sorting to find and order results.
-
+  
   Query parameters:
   - search: Full-text search term
   - sort: Sort specification (column:direction)
-
+  
   Example combinations:
   - search=rails&sort=created_at:desc → Recent Rails links
   - search=tutorial&sort=title:asc → Tutorial links alphabetically
   - search=api&sort=c_tag_count:desc → API links with most tags
-
+  
   This demonstrates that has_scope and sorting work together seamlessly.
 }
-
