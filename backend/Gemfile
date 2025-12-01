@@ -115,7 +115,7 @@ gem "good_job", "~> 4.12"
 gem "statesman"
 
 # Pagination library
-gem "pagy", "~> 43.0"
+gem "pagy", "~> 43.1"
 
 # Map incoming controller parameters to named scopes in your resources
 gem "has_scope", "~> 0.8"
