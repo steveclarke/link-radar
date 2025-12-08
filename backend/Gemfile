@@ -109,7 +109,7 @@ gem "ruby_llm", "~> 1.8"
 gem "ruby_llm-schema"
 
 # Multithreaded, Postgres-based ActiveJob backend for background jobs
-gem "good_job", "~> 4.12"
+gem "good_job", "~> 4.13"
 
 # State machine library for modeling object state transitions
 gem "statesman"
