@@ -165,6 +165,25 @@ Key configuration:
 
 > **Note:** LLM models are automatically loaded during `bin/setup`. If models are missing from the database, run `bin/rails ruby_llm:load_models` manually.
 
+**Production Deployment:**
+
+After deploying or running migrations in production, verify that RubyLLM models are loaded in the database:
+
+```bash
+# In production Rails console
+Model.count  # Should return 600+ models
+```
+
+If the count is 0, load the models:
+
+```bash
+# In production Rails console or via rails runner
+RubyLLM.models.load_from_json!
+Model.save_to_database
+```
+
+This populates the `models` table with AI model metadata from the RubyLLM gem's bundled registry.
+
 **Rails Credentials:**
 - `RAILS_MASTER_KEY` - Can be set in shell environment as fallback if not using 1Password CLI
 
