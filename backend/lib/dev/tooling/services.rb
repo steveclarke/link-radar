@@ -71,7 +71,7 @@ module Dev
           opts.on("-h", "--help", "Show this help message") do
             puts opts
             show_additional_help
-            exit 0
+            exit! 0 # rubocop:disable Rails/Exit
           end
 
           opts.separator ""
@@ -88,10 +88,10 @@ module Dev
 
         if argv.any?
           known_commands = %w[up down logs restart ps stop start]
-          if known_commands.include?(argv.first)
-            options[:command] = argv.shift
+          options[:command] = if known_commands.include?(argv.first)
+            argv.shift
           else
-            options[:command] = argv.join(" ")
+            argv.join(" ")
           end
         end
 

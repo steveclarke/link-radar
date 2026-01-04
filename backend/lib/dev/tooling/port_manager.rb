@@ -40,7 +40,6 @@ module Dev
       def self.port_in_use?(port)
         require "socket"
 
-        server = nil
         server = TCPServer.new("0.0.0.0", port)
         false
       rescue Errno::EADDRINUSE
@@ -84,11 +83,9 @@ module Dev
       #   manager = PortManager.new(app_root, services: :rails_server)
       #   manager.check_for_port_conflicts # exits with error if port 3000 is in use
       def check_for_port_conflicts
-        conflicts = []
-        services.each do |env_var, default_port|
-          port = ENV[env_var] || default_port.to_s
-          service_name = format_service_name(env_var)
-          conflicts << "  • #{service_name}: port #{port}" if self.class.port_in_use?(port.to_i)
+        conflicts = services.filter_map do |env_var, default_port|
+          port = (ENV[env_var] || default_port).to_i
+          "  • #{format_service_name(env_var)}: port #{port}" if self.class.port_in_use?(port)
         end
 
         return if conflicts.empty?
@@ -111,15 +108,11 @@ module Dev
       #   available_port = manager.find_next_available_port(5432)
       #   #=> 5433 (if 5432 is in use)
       def find_next_available_port(starting_port, max_attempts: 100)
-        # Simple linear search starting from the base port
-        (starting_port...(starting_port + max_attempts)).each do |port|
-          return port unless self.class.port_in_use?(port)
-        end
-
-        # Fallback: start from next thousand boundary
         next_boundary = ((starting_port / 1000) + 1) * 1000
-        (next_boundary...(next_boundary + max_attempts)).each do |port|
-          return port unless self.class.port_in_use?(port)
+
+        [starting_port, next_boundary].each do |base|
+          available = (base...(base + max_attempts)).find { |port| !self.class.port_in_use?(port) }
+          return available if available
         end
 
         starting_port # Give up and return original
@@ -134,7 +127,7 @@ module Dev
       # @return [Hash<String, Hash>] Hash mapping env var names to port configuration
       #
       # @example
-      #   RunnerSupport.load_env_file(app_root)
+      #   Env.load(app_root)
       #   manager = PortManager.new(app_root, services: :backend_services)
       #   config = manager.load_current_config
       #   #=> {
@@ -147,17 +140,15 @@ module Dev
       #     ...
       #   }
       def load_current_config
-        config = {}
-        SERVICES.each do |env_var, meta|
-          current_port = ENV[env_var] || meta[:port].to_s
-          config[env_var] = {
+        SERVICES.to_h do |env_var, meta|
+          port_value = ENV[env_var]
+          [env_var, {
             name: meta[:name],
-            port: current_port.to_i,
+            port: (port_value || meta[:port]).to_i,
             default: meta[:port],
-            from_env: !ENV[env_var].nil?
-          }
+            from_env: !port_value.nil?
+          }]
         end
-        config
       end
 
       # Get list of environment variables with port conflicts
@@ -175,12 +166,7 @@ module Dev
       #   #=> ["POSTGRES_PORT", "REDIS_PORT"]
       def get_conflicts(config = nil)
         config ||= load_current_config
-
-        conflicts = []
-        config.each do |env_var, data|
-          conflicts << env_var if self.class.port_in_use?(data[:port])
-        end
-        conflicts
+        config.select { |_env_var, data| self.class.port_in_use?(data[:port]) }.keys
       end
 
       # Generate port suggestions for conflicting ports
@@ -200,13 +186,7 @@ module Dev
       #   #=> { "POSTGRES_PORT" => 5433 }
       def suggest_ports(conflicts, config = nil)
         config ||= load_current_config
-
-        suggestions = {}
-        conflicts.each do |env_var|
-          data = config[env_var]
-          suggestions[env_var] = find_next_available_port(data[:port])
-        end
-        suggestions
+        conflicts.to_h { |env_var| [env_var, find_next_available_port(config[env_var][:port])] }
       end
 
       private
