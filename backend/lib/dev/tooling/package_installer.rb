@@ -75,11 +75,11 @@ module Dev
       end
 
       def apt_installed?(pkg)
-        system("dpkg -s #{pkg}", %i[out err] => File::NULL)
+        system("dpkg", "-s", pkg, %i[out err] => File::NULL)
       end
 
       def brew_installed?(pkg)
-        system("brew list | grep -q #{pkg}")
+        system("brew", "list", pkg, out: File::NULL, err: File::NULL)
       end
 
       def show_manual_install_message

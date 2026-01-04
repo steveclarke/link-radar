@@ -41,7 +41,7 @@ module Dev
 
           Env.create(app_root)
 
-          if options[:command] == "up"
+          if options[:command] == ["up"]
             check_for_port_conflicts
           end
 
@@ -54,7 +54,7 @@ module Dev
       def parse_arguments(argv)
         options = {
           daemon_mode: [],
-          command: "up"
+          command: ["up"]
         }
 
         parser = OptionParser.new do |opts|
@@ -89,9 +89,9 @@ module Dev
         if argv.any?
           known_commands = %w[up down logs restart ps stop start]
           options[:command] = if known_commands.include?(argv.first)
-            argv.shift
+            [argv.shift]
           else
-            argv.join(" ")
+            argv.dup
           end
         end
 
@@ -109,10 +109,10 @@ module Dev
       end
 
       def execute_docker_command(options)
-        if options[:command] == "up"
+        if options[:command] == ["up"]
           Shell.run!("docker", "compose", "up", *options[:daemon_mode])
         else
-          exec "docker compose #{options[:command]}"
+          exec("docker", "compose", *options[:command])
         end
       end
 
