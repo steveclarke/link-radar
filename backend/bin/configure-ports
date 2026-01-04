@@ -14,8 +14,6 @@ require_relative "../lib/dev/tooling"
 # - Suggests available alternative ports
 # - Only updates .env after explicit user confirmation
 class ConfigurePortsRunner
-  include Dev::Tooling
-
   # ANSI color codes for terminal output
   COLORS = {
     red: "\e[31m",
@@ -34,7 +32,7 @@ class ConfigurePortsRunner
     # Create a PortManager instance
     # Note: The services parameter doesn't affect load_current_config which
     # returns all services. It only affects check_for_port_conflicts.
-    @port_manager = PortManager.new(app_root, services: :backend_services)
+    @port_manager = Dev::Tooling::PortManager.new(app_root, services: :backend_services)
   end
 
   def run
@@ -42,10 +40,10 @@ class ConfigurePortsRunner
       print_header
 
       # Ensure .env file exists
-      RunnerSupport.create_env_file(app_root)
+      Dev::Tooling::Env.create(app_root)
 
       # Load environment variables
-      RunnerSupport.load_env_file(app_root)
+      Dev::Tooling::Env.load(app_root)
 
       # Load current configuration from PortManager
       current_config = port_manager.load_current_config
@@ -130,7 +128,7 @@ class ConfigurePortsRunner
     confirm = $stdin.gets.chomp.downcase
 
     if confirm == "y" || confirm == "yes"
-      RunnerSupport.update_env_file(app_root, new_config)
+      Dev::Tooling::Env.update(app_root, new_config)
       puts "\n#{color(:green)}✓ Configuration updated!#{color(:reset)}"
       puts "\nYou can now start your services with the new ports."
     else

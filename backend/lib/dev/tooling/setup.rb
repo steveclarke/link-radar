@@ -2,12 +2,14 @@
 
 # rubocop:disable Rails/Output, Rails/Exit
 
-require_relative "runner_support"
+require_relative "env"
+require_relative "shell"
+require_relative "postgres"
 require_relative "one_password_client"
 
 module Dev
   module Tooling
-    # Idempotent setup runner for development environment
+    # Idempotent setup for development environment
     #
     # Orchestrates the complete development environment setup process including:
     # - Installing Ruby dependencies
@@ -21,13 +23,13 @@ module Dev
     # Safe to run multiple times (idempotent) - will only perform actions if needed.
     #
     # @example Basic usage
-    #   runner = SetupRunner.new("/path/to/app")
-    #   runner.run
+    #   setup = Setup.new("/path/to/app")
+    #   setup.run
     #
     # @example With database reset
-    #   runner = SetupRunner.new("/path/to/app")
-    #   runner.run(reset: true)
-    class SetupRunner
+    #   setup = Setup.new("/path/to/app")
+    #   setup.run(reset: true)
+    class Setup
       APP_NAME = "link-radar"
 
       ONEPASSWORD_DEFAULTS = {
@@ -52,12 +54,12 @@ module Dev
       # @return [String] Path to application root directory
       attr_reader :app_root
 
-      # Initialize a new SetupRunner
+      # Initialize a new Setup
       #
       # @param app_root [String] Path to application root directory
       #
       # @example
-      #   runner = SetupRunner.new("/Users/steve/app")
+      #   setup = Setup.new("/Users/steve/app")
       def initialize(app_root)
         @app_root = app_root
       end
@@ -89,8 +91,8 @@ module Dev
           # Check PostgreSQL is running (needed for migrations)
           # Skip check if explicitly disabled (e.g., during parallel startup)
           if check_postgres
-            unless RunnerSupport.postgres_running?
-              RunnerSupport.warn_postgres_not_running
+            unless Postgres.running?
+              Postgres.warn_not_running
               exit 1
             end
           end
@@ -114,13 +116,13 @@ module Dev
 
       def install_dependencies
         puts "\n== Installing dependencies =="
-        system("bundle check") || RunnerSupport.system!("bundle install")
+        system("bundle check") || Shell.run!("bundle install")
       end
 
       def create_env_file
         puts "\n== Copying sample files =="
-        RunnerSupport.create_env_file(app_root)
-        RunnerSupport.create_bruno_env_file(app_root)
+        Env.create(app_root)
+        Env.create_bruno(app_root)
       end
 
       def check_master_key
@@ -197,7 +199,7 @@ module Dev
         SYSTEM_PACKAGES.each do |name, config|
           unless apt_package_installed?(config[:apt])
             puts "\n== Installing #{config[:apt]} (#{config[:description]}) =="
-            RunnerSupport.system!("sudo apt install -y #{config[:apt]}")
+            Shell.run!("sudo apt install -y #{config[:apt]}")
           end
         end
       end
@@ -206,7 +208,7 @@ module Dev
         SYSTEM_PACKAGES.each do |name, config|
           unless system("brew list | grep -q #{config[:brew]}")
             puts "\n== Installing #{config[:brew]} (#{config[:description]}) =="
-            RunnerSupport.system!("brew install #{config[:brew]}")
+            Shell.run!("brew install #{config[:brew]}")
           end
         end
       end
@@ -228,9 +230,9 @@ module Dev
         puts "\n== Preparing database =="
 
         if reset
-          RunnerSupport.system! "bin/rails db:reset"
+          Shell.run! "bin/rails db:reset"
         else
-          RunnerSupport.system! "bin/rails db:prepare"
+          Shell.run! "bin/rails db:prepare"
         end
 
         load_llm_models
@@ -238,15 +240,15 @@ module Dev
 
       def load_llm_models
         puts "\n== Loading LLM models =="
-        RunnerSupport.system "bin/rails ruby_llm:load_models"
+        Shell.run "bin/rails ruby_llm:load_models"
       rescue => e
-        warn "\n⚠️  Failed to load LLM models: #{e.message}"
+        warn "\n\u26A0\uFE0F  Failed to load LLM models: #{e.message}"
         warn "You can run manually later: bin/rails ruby_llm:load_models"
       end
 
       def cleanup_logs
         puts "\n== Removing old logs and tempfiles =="
-        RunnerSupport.system! "bin/rails log:clear tmp:clear"
+        Shell.run! "bin/rails log:clear tmp:clear"
       end
 
       def has_apt?

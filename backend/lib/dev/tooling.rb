@@ -6,7 +6,17 @@
 # utilities are used by bin scripts (bin/dev, bin/setup, bin/services) that run
 # OUTSIDE the Rails environment. These scripts need to bootstrap the development
 # environment before Rails is loaded, so Zeitwerk autoloading is not available.
-require_relative "tooling/runner_support"
+
+# Utility modules
+require_relative "tooling/env"
+require_relative "tooling/shell"
+require_relative "tooling/postgres"
+
+# Service wrappers
 require_relative "tooling/one_password_client"
-require_relative "tooling/setup_runner"
 require_relative "tooling/port_manager"
+
+# Orchestrators
+require_relative "tooling/setup"
+require_relative "tooling/dev_server"
+require_relative "tooling/services"

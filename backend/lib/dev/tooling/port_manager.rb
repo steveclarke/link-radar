@@ -2,8 +2,6 @@
 
 # rubocop:disable Rails/Output, Rails/Exit
 
-require_relative "runner_support"
-
 module Dev
   module Tooling
     # Port management for development services

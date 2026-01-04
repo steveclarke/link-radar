@@ -22,14 +22,14 @@ Rails bin scripts (like `bin/setup`, `bin/dev`) need to run **before** Rails is 
 This architecture solves that by:
 1. Using `require_relative` for all loading (pre-Rails compatible)
 2. Organizing shared code into a `lib/dev/tooling/` module
-3. Keeping entry scripts lightweight (parse args, delegate to classes)
+3. Keeping entry scripts lightweight (just delegate to classes)
 
 ### Key Principles
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  bin/setup, bin/dev, bin/services                          │
-│  (Entry points: parse CLI args, delegate to classes)       │
+│  (Thin entry points: delegate to orchestrator classes)     │
 └────────────────────────┬────────────────────────────────────┘
                          │ require_relative
                          ▼
@@ -41,8 +41,12 @@ This architecture solves that by:
                          ▼
 ┌─────────────────────────────────────────────────────────────┐
 │  lib/dev/tooling/                                           │
-│  ├── runner_support.rb   (Shared utilities)                │
-│  ├── setup_runner.rb     (Full setup orchestration)        │
+│  ├── env.rb              (ENV file operations)             │
+│  ├── shell.rb            (Shell execution helpers)         │
+│  ├── postgres.rb         (Postgres service checks)         │
+│  ├── setup.rb            (Setup orchestration)             │
+│  ├── dev_server.rb       (Dev server orchestration)        │
+│  ├── services.rb         (Docker services orchestration)   │
 │  ├── port_manager.rb     (Port conflict detection)         │
 │  └── one_password_client.rb (Secrets management)           │
 └─────────────────────────────────────────────────────────────┘
@@ -68,47 +72,41 @@ This prevents Zeitwerk from trying to autoload files that use `require_relative`
 
 ```ruby
 Dev
-└── Tooling              # Namespace module (also loader)
-    ├── RunnerSupport    # Static utility module
-    ├── SetupRunner      # Class for full setup
-    ├── PortManager      # Class for port management
-    └── OnePasswordClient # Class for secrets
+└── Tooling                  # Namespace module (also loader)
+    ├── Env                  # Module: ENV file operations
+    ├── Shell                # Module: Shell command execution
+    ├── Postgres             # Module: Postgres service checks
+    ├── Setup                # Class: Full setup orchestration
+    ├── DevServer            # Class: Dev server orchestration
+    ├── Services             # Class: Docker services orchestration
+    ├── PortManager          # Class: Port management
+    └── OnePasswordClient    # Class: Secrets fetching
 ```
 
 ### Design Patterns
 
 #### 1. Entry Point Pattern
 
-Bin scripts are lightweight wrappers that:
-1. Parse CLI arguments with `OptionParser`
-2. Instantiate and call a runner class
+Bin scripts are thin wrappers that delegate to orchestrator classes:
 
 ```ruby
 #!/usr/bin/env ruby
-require "optparse"
 require_relative "../lib/dev/tooling"
 
 APP_ROOT = File.expand_path("..", __dir__)
-
-options = { reset: false }
-parser = OptionParser.new do |opts|
-  # Define options...
-end
-parser.parse!(ARGV)
-
-Dev::Tooling::SetupRunner.new(APP_ROOT).run(reset: options[:reset]) if __FILE__ == $0
+Dev::Tooling::DevServer.new(APP_ROOT).run(ARGV) if __FILE__ == $0
 ```
 
-#### 2. Runner Class Pattern
+#### 2. Orchestrator Class Pattern
 
 Classes that orchestrate multi-step processes:
 - Accept `app_root` in constructor
 - Use `FileUtils.chdir(app_root)` to ensure correct working directory
-- Delegate to `RunnerSupport` for common operations
+- Delegate to utility modules for common operations
 - Are idempotent (safe to run multiple times)
 
 ```ruby
-class SetupRunner
+class Setup
   attr_reader :app_root
 
   def initialize(app_root)
@@ -125,25 +123,46 @@ class SetupRunner
 end
 ```
 
-#### 3. Shared Utilities Pattern
+#### 3. Utility Module Pattern
 
-`RunnerSupport` is a module with class methods (no instance state):
+Stateless modules with class methods grouped by concern:
 
 ```ruby
-module RunnerSupport
-  def self.create_env_file(app_root)
-    # Implementation
+module Env
+  def self.create(app_root)
+    # Create .env from .env.sample
   end
 
-  def self.load_env_file(app_root)
-    # Implementation
+  def self.load(app_root)
+    # Load .env using dotenv
   end
 
-  def self.system!(*args)
+  def self.update(app_root, values)
+    # Update .env with key-value pairs
+  end
+end
+
+module Shell
+  def self.run!(*args)
     system(*args, exception: true)
   rescue
     puts "\n❌ Command failed: #{args.join(" ")}"
     raise
+  end
+
+  def self.run(*args)
+    system(*args)
+  end
+end
+
+module Postgres
+  def self.running?
+    system("docker compose ps -q postgres 2>/dev/null | grep -q .")
+  end
+
+  def self.warn_not_running
+    puts "\n❌ PostgreSQL service is not running."
+    puts "Please run 'bin/services' in another terminal first."
   end
 end
 ```
@@ -169,39 +188,70 @@ end
 
 | File | Purpose | Delegates To |
 |------|---------|--------------|
-| `bin/setup` | Prepare development environment | `SetupRunner` |
-| `bin/dev` | Start Rails dev server | `DevServerRunner` (inline) + `SetupRunner` |
-| `bin/services` | Manage Docker services | `ServicesRunner` (inline) |
+| `bin/setup` | Prepare development environment | `Setup` |
+| `bin/dev` | Start Rails dev server | `DevServer` |
+| `bin/services` | Manage Docker services | `Services` |
+| `bin/configure-ports` | Interactive port configuration | `PortManager` |
 
-### Library Modules
+### Utility Modules
 
 | File | Purpose | Key Methods |
 |------|---------|-------------|
-| `lib/dev/tooling.rb` | Loader module | N/A (just requires) |
-| `lib/dev/tooling/runner_support.rb` | Shared utilities | `create_env_file`, `load_env_file`, `system!`, `postgres_running?` |
-| `lib/dev/tooling/setup_runner.rb` | Full setup orchestration | `run(reset:, check_postgres:)` |
+| `lib/dev/tooling/env.rb` | ENV file management | `create`, `load`, `update`, `create_bruno` |
+| `lib/dev/tooling/shell.rb` | Shell execution | `run!`, `run` |
+| `lib/dev/tooling/postgres.rb` | Postgres checks | `running?`, `warn_not_running` |
+
+### Orchestrator Classes
+
+| File | Purpose | Key Methods |
+|------|---------|-------------|
+| `lib/dev/tooling/setup.rb` | Full setup orchestration | `run(reset:, check_postgres:)` |
+| `lib/dev/tooling/dev_server.rb` | Dev server startup | `run(argv)` |
+| `lib/dev/tooling/services.rb` | Docker services management | `run(argv)` |
+
+### Service Wrappers
+
+| File | Purpose | Key Methods |
+|------|---------|-------------|
 | `lib/dev/tooling/port_manager.rb` | Port conflict detection | `port_in_use?`, `check_for_port_conflicts`, `find_next_available_port` |
 | `lib/dev/tooling/one_password_client.rb` | 1Password secrets | `fetch(item:, field:, vault:)`, `available?` |
 
 ### Method Reference
 
-#### RunnerSupport
+#### Env
 
 ```ruby
 # Create .env from .env.sample if missing
-RunnerSupport.create_env_file(app_root)
+Env.create(app_root)
+
+# Create bruno/.env from bruno/.env.example
+Env.create_bruno(app_root)
 
 # Load .env using dotenv (bootstraps gem if needed)
-RunnerSupport.load_env_file(app_root)
+Env.load(app_root)
 
 # Update .env with key-value pairs
-RunnerSupport.update_env_file(app_root, { "PORT" => 3001, "DEBUG" => "true" })
+Env.update(app_root, { "PORT" => 3001, "DEBUG" => "true" })
+```
 
-# Execute command with error handling
-RunnerSupport.system!("bundle", "install")
+#### Shell
 
+```ruby
+# Execute command, raise on failure
+Shell.run!("bundle", "install")
+
+# Execute command, return true/false
+Shell.run("bin/rails", "db:seed")
+```
+
+#### Postgres
+
+```ruby
 # Check if postgres is running via docker compose
-RunnerSupport.postgres_running?  #=> true/false
+Postgres.running?  #=> true/false
+
+# Display warning message
+Postgres.warn_not_running
 ```
 
 #### PortManager
@@ -252,8 +302,9 @@ lib/
 └── dev/
     ├── tooling.rb
     └── tooling/
-        ├── runner_support.rb
-        └── setup_runner.rb
+        ├── env.rb
+        ├── shell.rb
+        └── setup.rb
 ```
 
 ### Step 3: Create Loader Module
@@ -266,20 +317,25 @@ lib/
 #
 # Uses require_relative (not Zeitwerk) because bin scripts run
 # OUTSIDE the Rails environment before Rails is loaded.
-require_relative "tooling/runner_support"
-require_relative "tooling/setup_runner"
+
+# Utility modules
+require_relative "tooling/env"
+require_relative "tooling/shell"
+
+# Orchestrators
+require_relative "tooling/setup"
 ```
 
-### Step 4: Create RunnerSupport
+### Step 4: Create Env Module
 
 ```ruby
-# lib/dev/tooling/runner_support.rb
+# lib/dev/tooling/env.rb
 # frozen_string_literal: true
 
 module Dev
   module Tooling
-    module RunnerSupport
-      def self.create_env_file(app_root)
+    module Env
+      def self.create(app_root)
         require "fileutils"
 
         env_file = File.join(app_root, ".env")
@@ -291,7 +347,7 @@ module Dev
         end
       end
 
-      def self.load_env_file(app_root)
+      def self.load(app_root)
         begin
           require "dotenv"
         rescue LoadError
@@ -305,29 +361,47 @@ module Dev
         env_file = File.join(app_root, ".env")
         Dotenv.load(env_file) if File.exist?(env_file)
       end
+    end
+  end
+end
+```
 
-      def self.system!(*args)
+### Step 5: Create Shell Module
+
+```ruby
+# lib/dev/tooling/shell.rb
+# frozen_string_literal: true
+
+module Dev
+  module Tooling
+    module Shell
+      def self.run!(*args)
         system(*args, exception: true)
       rescue
         puts "\n❌ Command failed: #{args.join(" ")}"
         raise
+      end
+
+      def self.run(*args)
+        system(*args)
       end
     end
   end
 end
 ```
 
-### Step 5: Create SetupRunner
+### Step 6: Create Setup Class
 
 ```ruby
-# lib/dev/tooling/setup_runner.rb
+# lib/dev/tooling/setup.rb
 # frozen_string_literal: true
 
-require_relative "runner_support"
+require_relative "env"
+require_relative "shell"
 
 module Dev
   module Tooling
-    class SetupRunner
+    class Setup
       APP_NAME = "your-app-name"  # <-- CUSTOMIZE THIS
 
       attr_reader :app_root
@@ -354,20 +428,20 @@ module Dev
 
       def install_dependencies
         puts "\n== Installing dependencies =="
-        system("bundle check") || RunnerSupport.system!("bundle install")
+        system("bundle check") || Shell.run!("bundle install")
       end
 
       def create_env_file
         puts "\n== Copying sample files =="
-        RunnerSupport.create_env_file(app_root)
+        Env.create(app_root)
       end
 
       def prepare_database(reset = false)
         puts "\n== Preparing database =="
         if reset
-          RunnerSupport.system! "bin/rails db:reset"
+          Shell.run! "bin/rails db:reset"
         else
-          RunnerSupport.system! "bin/rails db:prepare"
+          Shell.run! "bin/rails db:prepare"
         end
       end
     end
@@ -375,7 +449,7 @@ module Dev
 end
 ```
 
-### Step 6: Create bin/setup
+### Step 7: Create bin/setup
 
 ```ruby
 #!/usr/bin/env ruby
@@ -404,12 +478,12 @@ end
 
 parser.parse!(ARGV)
 
-Dev::Tooling::SetupRunner.new(APP_ROOT).run(reset: options[:reset]) if __FILE__ == $0
+Dev::Tooling::Setup.new(APP_ROOT).run(reset: options[:reset]) if __FILE__ == $0
 ```
 
 Make executable: `chmod +x bin/setup`
 
-### Step 7 (Optional): Add PortManager
+### Step 8 (Optional): Add PortManager
 
 Copy `lib/dev/tooling/port_manager.rb` if you need port conflict detection for Docker services. Customize the `SERVICES` hash:
 
@@ -421,9 +495,9 @@ SERVICES = {
 }.freeze
 ```
 
-### Step 8 (Optional): Add OnePasswordClient
+### Step 9 (Optional): Add OnePasswordClient
 
-Copy `lib/dev/tooling/one_password_client.rb` if you use 1Password for secrets management. In `SetupRunner`, customize:
+Copy `lib/dev/tooling/one_password_client.rb` if you use 1Password for secrets management. In `Setup`, customize:
 
 ```ruby
 ONEPASSWORD_DEFAULTS = {
@@ -441,14 +515,14 @@ ONEPASSWORD_DEFAULTS = {
 
 | Component | What to Change |
 |-----------|----------------|
-| `SetupRunner::APP_NAME` | Your application name |
-| `SetupRunner::ONEPASSWORD_DEFAULTS` | 1Password item/vault for master.key |
-| `SetupRunner::SYSTEM_PACKAGES` | OS packages your app needs (vips, ffmpeg, etc.) |
+| `Setup::APP_NAME` | Your application name |
+| `Setup::ONEPASSWORD_DEFAULTS` | 1Password item/vault for master.key |
+| `Setup::SYSTEM_PACKAGES` | OS packages your app needs (vips, ffmpeg, etc.) |
 | `PortManager::SERVICES` | Docker services and their default ports |
 
 ### Adding New Setup Steps
 
-Add a private method in `SetupRunner` and call it from `run`:
+Add a private method in `Setup` and call it from `run`:
 
 ```ruby
 def run(reset: false)
@@ -467,7 +541,7 @@ private
 
 def seed_test_data
   puts "\n== Seeding test data =="
-  RunnerSupport.system! "bin/rails db:seed:test"
+  Shell.run! "bin/rails db:seed:test"
 end
 ```
 
@@ -477,13 +551,10 @@ Follow the entry point pattern:
 
 ```ruby
 #!/usr/bin/env ruby
-require "optparse"
 require_relative "../lib/dev/tooling"
 
 APP_ROOT = File.expand_path("..", __dir__)
-
-# Parse arguments...
-# Call your runner class...
+Dev::Tooling::YourClass.new(APP_ROOT).run(ARGV) if __FILE__ == $0
 ```
 
 ---
@@ -531,17 +602,21 @@ bin/services logs   # View logs
 ```
 backend/
 ├── bin/
-│   ├── dev                  # Dev server entry point (136 lines)
-│   ├── setup                # Setup entry point (46 lines)
-│   ├── services             # Docker services entry point (159 lines)
-│   └── configure-ports      # Interactive port config (optional)
+│   ├── dev                  # Dev server entry point (5 lines)
+│   ├── setup                # Setup entry point (45 lines)
+│   ├── services             # Docker services entry point (5 lines)
+│   └── configure-ports      # Interactive port config (171 lines)
 ├── lib/
 │   └── dev/
-│       ├── tooling.rb       # Loader (13 lines)
+│       ├── tooling.rb       # Loader (22 lines)
 │       └── tooling/
-│           ├── runner_support.rb      # Shared utilities (193 lines)
-│           ├── setup_runner.rb        # Full setup (276 lines)
-│           ├── port_manager.rb        # Port management (261 lines)
+│           ├── env.rb               # ENV operations (117 lines)
+│           ├── shell.rb             # Shell execution (42 lines)
+│           ├── postgres.rb          # Postgres checks (40 lines)
+│           ├── setup.rb             # Setup orchestration (276 lines)
+│           ├── dev_server.rb        # Dev server orchestration (133 lines)
+│           ├── services.rb          # Docker services (147 lines)
+│           ├── port_manager.rb      # Port management (261 lines)
 │           └── one_password_client.rb # 1Password (94 lines)
 └── config/
     └── application.rb       # Must ignore lib/dev in autoload_lib
