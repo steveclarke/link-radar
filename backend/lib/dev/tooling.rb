@@ -15,6 +15,7 @@ require_relative "tooling/postgres"
 # Service wrappers
 require_relative "tooling/one_password_client"
 require_relative "tooling/port_manager"
+require_relative "tooling/package_installer"
 
 # Orchestrators
 require_relative "tooling/setup"

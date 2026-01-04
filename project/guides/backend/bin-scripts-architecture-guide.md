@@ -44,6 +44,7 @@ This architecture solves that by:
 │  ├── env.rb              (ENV file operations)             │
 │  ├── shell.rb            (Shell execution helpers)         │
 │  ├── postgres.rb         (Postgres service checks)         │
+│  ├── package_installer.rb (System package installation)    │
 │  ├── setup.rb            (Setup orchestration)             │
 │  ├── dev_server.rb       (Dev server orchestration)        │
 │  ├── services.rb         (Docker services orchestration)   │
@@ -76,6 +77,7 @@ Dev
     ├── Env                  # Module: ENV file operations
     ├── Shell                # Module: Shell command execution
     ├── Postgres             # Module: Postgres service checks
+    ├── PackageInstaller     # Class: System package installation
     ├── Setup                # Class: Full setup orchestration
     ├── DevServer            # Class: Dev server orchestration
     ├── Services             # Class: Docker services orchestration
@@ -213,6 +215,7 @@ end
 
 | File | Purpose | Key Methods |
 |------|---------|-------------|
+| `lib/dev/tooling/package_installer.rb` | System package installation | `install_all` |
 | `lib/dev/tooling/port_manager.rb` | Port conflict detection | `port_in_use?`, `check_for_port_conflicts`, `find_next_available_port` |
 | `lib/dev/tooling/one_password_client.rb` | 1Password secrets | `fetch(item:, field:, vault:)`, `available?` |
 
@@ -252,6 +255,13 @@ Postgres.running?  #=> true/false
 
 # Display warning message
 Postgres.warn_not_running
+```
+
+#### PackageInstaller
+
+```ruby
+# Install all required system packages (detects platform automatically)
+PackageInstaller.new.install_all
 ```
 
 #### PortManager
@@ -517,7 +527,7 @@ ONEPASSWORD_DEFAULTS = {
 |-----------|----------------|
 | `Setup::APP_NAME` | Your application name |
 | `Setup::ONEPASSWORD_DEFAULTS` | 1Password item/vault for master.key |
-| `Setup::SYSTEM_PACKAGES` | OS packages your app needs (vips, ffmpeg, etc.) |
+| `PackageInstaller::PACKAGES` | OS packages your app needs (vips, ffmpeg, etc.) |
 | `PortManager::SERVICES` | Docker services and their default ports |
 
 ### Adding New Setup Steps
@@ -608,15 +618,16 @@ backend/
 │   └── configure-ports      # Interactive port config (171 lines)
 ├── lib/
 │   └── dev/
-│       ├── tooling.rb       # Loader (22 lines)
+│       ├── tooling.rb       # Loader (24 lines)
 │       └── tooling/
 │           ├── env.rb               # ENV operations (117 lines)
 │           ├── shell.rb             # Shell execution (42 lines)
 │           ├── postgres.rb          # Postgres checks (40 lines)
-│           ├── setup.rb             # Setup orchestration (276 lines)
+│           ├── package_installer.rb # System packages (98 lines)
+│           ├── setup.rb             # Setup orchestration (180 lines)
 │           ├── dev_server.rb        # Dev server orchestration (133 lines)
 │           ├── services.rb          # Docker services (147 lines)
-│           ├── port_manager.rb      # Port management (261 lines)
+│           ├── port_manager.rb      # Port management (258 lines)
 │           └── one_password_client.rb # 1Password (94 lines)
 └── config/
     └── application.rb       # Must ignore lib/dev in autoload_lib
