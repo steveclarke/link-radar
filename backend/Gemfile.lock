@@ -401,7 +401,7 @@ GEM
     ruby-vips (2.3.0)
       ffi (~> 1.12)
       logger
-    ruby_llm (1.9.1)
+    ruby_llm (1.11.0)
       base64
       event_stream_parser (~> 1)
       faraday (>= 1.10.0)
@@ -503,7 +503,7 @@ DEPENDENCIES
   rails (~> 8.1.0)
   rspec-rails
   ruby-readability
-  ruby_llm (~> 1.8)
+  ruby_llm (~> 1.11)
   ruby_llm-schema
   saltbox-sort_by_columns!
   shoulda-matchers
