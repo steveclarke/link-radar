@@ -28,7 +28,7 @@ jobs:
 
       - name: Validate commit messages
         id: conventional_commits
-        uses: webiny/action-conventional-commits@v1.3.0
+        uses: webiny/action-conventional-commits@v1.3.1
         with:
           allowed-commit-types: "feat,fix,docs,style,refactor,test,chore"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
