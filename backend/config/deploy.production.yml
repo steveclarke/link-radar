@@ -1,2 +1,5 @@
 proxy:
   host: api.linkradar.app
+
+volumes:
+  - "lr_production_snapshots:/rails/snapshot"
