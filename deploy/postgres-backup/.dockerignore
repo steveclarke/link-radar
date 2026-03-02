@@ -1,6 +1,0 @@
-# Exclude documentation and build scripts from Docker build context
-README.md
-build.sh
-*.md
-.git
-

@@ -1,9 +1,0 @@
-#!/usr/bin/env bash
-set -e
-
-echo "🛑 Stopping Link Radar services..."
-docker compose down
-
-echo ""
-echo "✓ Services stopped!"
-

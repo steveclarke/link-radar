@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-set -e
-
-echo "🎮 Opening Rails console..."
-echo ""
-docker compose run --rm runner bin/rails console
-
