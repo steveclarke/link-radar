@@ -34,6 +34,12 @@ Rails 8.1 API backend for LinkRadar - a personal knowledge radar for capturing a
       - [Data Format](#data-format)
       - [Docker Volume Mapping](#docker-volume-mapping)
       - [Automated Cleanup](#automated-cleanup)
+  - [Deployment](#deployment)
+    - [Prerequisites](#prerequisites-1)
+    - [Deploy](#deploy)
+    - [Common Commands](#common-commands)
+    - [Configuration](#configuration-1)
+    - [Database Backup \& Restore](#database-backup--restore)
   - [Project Status](#project-status)
   - [Documentation](#documentation)
     - [Backend Guides](#backend-guides)
@@ -463,6 +469,82 @@ Manual cleanup:
 
 ```bash
 bin/rails runner 'CleanupSnapshotsJob.perform_now'
+```
+
+## Deployment
+
+Production is deployed via [Kamal](https://kamal-deploy.org) to `prime.clevertakes.com`. Kamal handles image builds, container orchestration, and TLS (Let's Encrypt) via kamal-proxy.
+
+- **URL:** https://api.linkradar.app
+- **Config:** `config/deploy.yml` + `config/deploy.production.yml`
+- **Secrets:** `.kamal/secrets-common` + `.kamal/secrets.production` (1Password via `kamal secrets fetch`)
+
+### Prerequisites
+
+- [Kamal](https://kamal-deploy.org) (`gem "kamal"` is in the Gemfile)
+- 1Password CLI installed and authenticated (`op signin`)
+- SSH access to `prime.clevertakes.com` as `deploy` user
+- `config/master.key` present locally
+
+### Deploy
+
+```bash
+kamal deploy -d production
+```
+
+First-time setup on a new server:
+
+```bash
+kamal setup -d production
+```
+
+### Common Commands
+
+```bash
+kamal deploy -d production          # Deploy latest commit
+kamal console -d production         # Rails console
+kamal logs -d production            # Stream app logs
+kamal logs -d production --roles job  # Stream job worker logs
+kamal shell -d production           # SSH into container
+kamal dbc -d production             # Database console
+kamal details -d production         # Container status
+kamal rollback <version> -d production  # Rollback to a previous version
+```
+
+### Configuration
+
+| Service | Container | Data |
+|---------|-----------|------|
+| Web | `lr-web-production-*` | Thruster + Puma on port 80 |
+| Job | `lr-job-production-*` | GoodJob background worker |
+| Postgres | `lr-postgres` | Bind mount: `~/lr-postgres/data/` |
+| Redis | `lr-redis` | Bind mount: `~/lr-redis/data/` |
+| Snapshots | — | Docker volume: `lr_production_snapshots` |
+
+Secrets are sourced from 1Password item "LinkRadar Production" at deploy time. See `.kamal/secrets-common` for the field mappings.
+
+### Database Backup & Restore
+
+**Backup:**
+
+```bash
+ssh prime.clevertakes.com "docker exec lr-postgres pg_dump \
+  -U linkradar -d linkradar_production --format=custom \
+  --no-owner --no-privileges -f /tmp/lr.dump"
+scp prime.clevertakes.com:/tmp/lr.dump ~/Desktop/lr.dump
+```
+
+**Restore:**
+
+```bash
+kamal app stop -d production
+scp ~/Desktop/lr.dump prime.clevertakes.com:/tmp/lr.dump
+ssh prime.clevertakes.com "docker cp /tmp/lr.dump lr-postgres:/tmp/lr.dump"
+ssh prime.clevertakes.com "docker exec lr-postgres dropdb -U linkradar linkradar_production"
+ssh prime.clevertakes.com "docker exec lr-postgres createdb -U linkradar linkradar_production"
+ssh prime.clevertakes.com "docker exec lr-postgres pg_restore \
+  -U linkradar -d linkradar_production --no-owner --no-privileges /tmp/lr.dump"
+kamal deploy -d production
 ```
 
 ## Project Status
