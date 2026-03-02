@@ -1,0 +1,64 @@
+service: lr
+image: steveclarke/lr-backend
+
+servers:
+  web:
+    hosts:
+      - prime.clevertakes.com
+  job:
+    hosts:
+      - prime.clevertakes.com
+    cmd: bundle exec good_job start
+
+proxy:
+  ssl: true
+  app_port: 80
+
+registry:
+  server: localhost:5555
+
+env:
+  clear:
+    RAILS_LOG_TO_STDOUT: true
+    RAILS_SERVE_STATIC_FILES: true
+  secret:
+    - RAILS_MASTER_KEY
+    - POSTGRES_PASSWORD
+    - REDIS_URL
+    - CORE_API_KEY
+    - LLM_OPENAI_API_KEY
+    - GOOD_JOB_DASHBOARD_USERNAME
+    - GOOD_JOB_DASHBOARD_PASSWORD
+
+aliases:
+  console: app exec --interactive --reuse "bin/rails console"
+  shell: app exec --interactive --reuse "bash"
+  logs: app logs -f
+  dbc: app exec --interactive --reuse "bin/rails dbconsole --include-password"
+
+builder:
+  arch: amd64
+
+ssh:
+  user: deploy
+
+accessories:
+  postgres:
+    image: postgres:18
+    host: prime.clevertakes.com
+    port: "127.0.0.1:5432:5432"
+    env:
+      clear:
+        POSTGRES_USER: linkradar
+        POSTGRES_DB: linkradar_production
+      secret:
+        - POSTGRES_PASSWORD
+    directories:
+      - data:/var/lib/postgresql
+  redis:
+    image: redis:7
+    host: prime.clevertakes.com
+    port: "127.0.0.1:6379:6379"
+    cmd: redis-server --appendonly yes
+    directories:
+      - data:/data

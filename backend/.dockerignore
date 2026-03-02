@@ -39,3 +39,7 @@
 # Ignore Docker-related files
 /.dockerignore
 /Dockerfile*
+
+# Kamal deployment files
+/config/deploy*.yml
+/.kamal

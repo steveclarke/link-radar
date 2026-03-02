@@ -80,6 +80,8 @@ test:
 #
 production:
   <<: *default
+  host: <%= ENV.fetch("DB_HOST", "lr-postgres") %>
+  port: <%= ENV.fetch("DB_PORT", 5432) %>
   database: linkradar_production
   username: linkradar
-  password: <%= ENV["LINKRADAR_DATABASE_PASSWORD"] %>
+  password: <%= ENV["POSTGRES_PASSWORD"] %>
