@@ -1,4 +1,0 @@
-# Infrastructure Module Vision
-
-TBD
-

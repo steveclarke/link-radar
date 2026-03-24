@@ -1,4 +1,0 @@
-# Backend Module Vision
-
-TBD
-

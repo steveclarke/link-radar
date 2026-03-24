@@ -1,4 +1,0 @@
-# Frontend Module Vision
-
-TBD
-
