@@ -422,7 +422,7 @@ GEM
     ruby-vips (2.3.0)
       ffi (~> 1.12)
       logger
-    ruby_llm (1.9.1)
+    ruby_llm (1.8.2)
       base64
       event_stream_parser (~> 1)
       faraday (>= 1.10.0)
@@ -430,9 +430,8 @@ GEM
       faraday-net_http (>= 1)
       faraday-retry (>= 1)
       marcel (~> 1.0)
-      ruby_llm-schema (~> 0.2.1)
       zeitwerk (~> 2)
-    ruby_llm-schema (0.2.5)
+    ruby_llm-schema (0.3.0)
     securerandom (0.4.1)
     shoulda-matchers (7.0.1)
       activesupport (>= 7.1)
