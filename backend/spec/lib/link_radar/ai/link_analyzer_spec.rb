@@ -47,8 +47,7 @@ RSpec.describe LinkRadar::Ai::LinkAnalyzer do
   end
 
   let(:response_instance) do
-    # RubyLLM.ask returns a response object with .content that contains parsed JSON
-    double(content: llm_response)
+    RubyLLM::Message.new(role: :assistant, content: llm_response.to_json)
   end
 
   describe "#call" do

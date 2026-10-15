@@ -4,12 +4,19 @@
 #
 #  id                    :uuid             not null, primary key
 #  cache_creation_tokens :integer
+#  cache_ttl             :string
+#  cache_until_here      :boolean          default(FALSE), not null
 #  cached_tokens         :integer
+#  citations             :jsonb
 #  content               :text
 #  content_raw           :json
+#  finish_reason         :string
 #  input_tokens          :integer
 #  output_tokens         :integer
+#  raw_content           :jsonb
+#  raw_reasoning         :jsonb
 #  role                  :string           not null
+#  server_tool_calls     :jsonb
 #  created_at            :datetime         not null
 #  updated_at            :datetime         not null
 #  chat_id               :uuid             not null
@@ -26,8 +33,8 @@
 # Foreign Keys
 #
 #  fk_rails_...  (chat_id => chats.id)
-#  fk_rails_...  (model_id => models.id)
-#  fk_rails_...  (tool_call_id => tool_calls.id)
+#  fk_rails_...  (model_id => ruby_llm_models.id)
+#  fk_rails_...  (tool_call_id => ruby_llm_tool_calls.id)
 #
 class Message < ApplicationRecord
   acts_as_message
