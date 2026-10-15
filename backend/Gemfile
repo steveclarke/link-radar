@@ -109,10 +109,10 @@ end
 gem "anyway_config"
 
 # Ruby client for interacting with LLM APIs (OpenAI, Anthropic, etc.)
-gem "ruby_llm", "~> 1.8"
+gem "ruby_llm", "~> 2.1.0"
 
 # Structured output schema support for RubyLLM
-gem "ruby_llm-schema"
+gem "schematist"
 
 # Multithreaded, Postgres-based ActiveJob backend for background jobs
 gem "good_job", "~> 4.12"
@@ -127,7 +127,7 @@ gem "pagy", "~> 43.0"
 gem "has_scope", "~> 0.8"
 
 # Sorting with URL parameters
-gem "saltbox-sort_by_columns", github: "myunio/saltbox-sort_by_columns"
+gem "sort_by_columns", github: "myunio/sort_by_columns"
 
 # Full-text search with PostgreSQL
 gem "pg_search"

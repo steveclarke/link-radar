@@ -141,8 +141,8 @@ module LinkRadar
 
         response = chat.with_schema(LinkRadar::Ai::LinkAnalysisSchema).ask(prompt)
 
-        # Response content is automatically parsed from JSON by RubyLLM::Schema
-        response.content
+        # RubyLLM keeps the JSON text in content and exposes the decoded hash in parsed.
+        response.parsed
       rescue => e
         Rails.logger.error("LLM API call failed: #{e.class} - #{e.message}")
         raise StandardError, "AI analysis service unavailable"

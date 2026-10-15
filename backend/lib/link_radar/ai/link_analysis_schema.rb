@@ -5,7 +5,7 @@ module LinkRadar
     # Schema definition for AI link analysis structured output
     #
     # This defines the expected JSON structure from the LLM's response.
-    # Using RubyLLM::Schema provides:
+    # Using Schematist::Schema provides:
     # - Clean Ruby DSL for schema definition
     # - Automatic handling of provider-specific requirements
     # - Type safety and validation
@@ -13,9 +13,9 @@ module LinkRadar
     #
     # @example
     #   response = chat.with_schema(LinkAnalysisSchema).ask(prompt)
-    #   response.content # => {"note" => "...", "tags" => ["tag1", "tag2"]}
+    #   response.parsed # => {"note" => "...", "tags" => ["tag1", "tag2"]}
     #
-    class LinkAnalysisSchema < RubyLLM::Schema
+    class LinkAnalysisSchema < Schematist::Schema
       string :note, description: "1-2 sentence note explaining why content is worth saving"
       array :tags, of: :string, description: "Relevant tags for the content (typically 3-7)"
     end

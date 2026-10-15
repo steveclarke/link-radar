@@ -25,11 +25,5 @@ class CreateModels < ActiveRecord::Migration[8.1]
       t.index :modalities, using: :gin
 
     end
-
-    # Load models from JSON
-    say_with_time "Loading models from models.json" do
-      RubyLLM.models.load_from_json!
-      Model.save_to_database
-    end
   end
 end
